@@ -1,15 +1,16 @@
 {
   "name": "kolay",
   "displayName": "Kolay",
-  "description": "Kolay (Türkçe programlama dili) için renklendirme ve hazır kod parçaları",
-  "version": "0.2.0",
+  "description": "Kolay (Türkçe programlama dili): renklendirme, tamamlama, hata gösterme ve çalıştırma",
+  "version": "0.3.0",
   "publisher": "kolay",
   "engines": {
     "vscode": "^1.60.0"
   },
   "categories": [
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Linters"
   ],
   "contributes": {
     "languages": [
@@ -37,11 +38,52 @@
         "language": "kolay",
         "path": "./snippets/kolay.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "kolay.calistir",
+        "title": "Kolay: Çalıştır",
+        "icon": "$(play)"
+      },
+      {
+        "command": "kolay.derle",
+        "title": "Kolay: Derle"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "kolay.calistir",
+          "when": "editorLangId == kolay",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "kolay.calistir",
+        "key": "f5",
+        "when": "editorLangId == kolay"
+      }
+    ],
+    "configuration": {
+      "title": "Kolay",
+      "properties": {
+        "kolay.yol": {
+          "type": "string",
+          "default": "",
+          "description": "kolay programının yolu (boşsa PATH'teki 'kolay')"
+        }
+      }
+    }
   },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://example.invalid/kolay"
-  }
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:kolay"
+  ]
 }
