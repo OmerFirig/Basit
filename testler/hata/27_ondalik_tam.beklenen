@@ -1,3 +1,3 @@
-HATA (27_ondalik_tam.kolay, satır 2): Ondalık değer Tam tipine otomatik çevrilemez. Bilerek çevirmek için: x olarak Tam
+HATA (27_ondalik_tam.kolay, satır 2): Ondalık değer Tam tipine otomatik çevrilemez. Bilerek çevirmek için: d olarak Tam
   2 | ata t: Tam = d
     |              ^

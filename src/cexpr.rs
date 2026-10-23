@@ -220,24 +220,36 @@ impl Checker {
         Ok(TExpr { kind: TK::Convert(Box::new(e)), ty: to.clone(), loc })
     }
 
+    /// Kullanıcının yazdığı ifade (kısa ve tek satırsa), örnek önerilerinde kullanılır.
+    fn written(&self, span: Span) -> String {
+        let text = self.texts.get(span.file as usize).and_then(|t| t.get(span.start as usize..span.end as usize));
+        match text {
+            Some(t) if !t.is_empty() && t.len() <= 40 && !t.contains('\n') => {
+                if t.contains(' ') { format!("({t})") } else { t.to_string() }
+            }
+            _ => "x".to_string(),
+        }
+    }
+
     pub(crate) fn mismatch(&self, e: &TExpr, to: &Type, span: Span) -> Diag {
         let from = &e.ty;
+        let x = self.written(span);
         let (f, t) = (self.type_name(from), self.type_name(to));
         let msg = match (from, to) {
             (Type::Hic, _) if matches!(e.kind, TK::Call(..) | TK::Method { .. } | TK::Direct { .. } | TK::Builtin(..)) => {
                 "Bu fonksiyon bir değer döndürmüyor, sonucu kullanılamaz.".to_string()
             }
             (Type::Int { .. }, Type::Int { .. }) => {
-                format!("{f} değeri {t} tipine otomatik çevrilemez (veri kaybı olabilir). Bilerek çevirmek için: x olarak {t}")
+                format!("{f} değeri {t} tipine otomatik çevrilemez (veri kaybı olabilir). Bilerek çevirmek için: {x} olarak {t}")
             }
             (Type::Float(_), Type::Int { .. }) => {
-                format!("Ondalık değer {t} tipine otomatik çevrilemez. Bilerek çevirmek için: x olarak {t}")
+                format!("Ondalık değer {t} tipine otomatik çevrilemez. Bilerek çevirmek için: {x} olarak {t}")
             }
             (Type::Float(_), Type::Float(_)) => {
-                format!("{f} değeri {t} tipine otomatik çevrilemez (hassasiyet kaybı olabilir). Bilerek çevirmek için: x olarak {t}")
+                format!("{f} değeri {t} tipine otomatik çevrilemez (hassasiyet kaybı olabilir). Bilerek çevirmek için: {x} olarak {t}")
             }
             (Type::Int { .. }, Type::Float(_)) => {
-                format!("{f} değeri {t} tipine otomatik çevrilemez ({t} küçük bir tip, değer sığmayabilir). Bilerek çevirmek için: x olarak {t}")
+                format!("{f} değeri {t} tipine otomatik çevrilemez ({t} küçük bir tip, değer sığmayabilir). Bilerek çevirmek için: {x} olarak {t}")
             }
             (Type::Union(ms), _) if ms.contains(&Type::Hic) && self.assignable(&make_union(ms.iter().filter(|m| **m != Type::Hic).cloned().collect()), to) => {
                 format!("Bu değer Hiç olabilir ({f}). Kullanmadan önce eşleştir ile kontrol edin.")

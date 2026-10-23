@@ -108,6 +108,8 @@ pub struct Checker {
     /// Türlerin içeriği çözülürken yazılan sözlük anahtarları; seçenekler henüz çözülmemiş
     /// olabileceği için kontrolleri tüm türler çözüldükten sonra yapılır.
     pub(crate) pending_keys: std::cell::RefCell<Option<Vec<(Type, Span)>>>,
+    /// Kaynak dosyaların metni (hata mesajlarında kullanıcının yazdığı ifadeyi göstermek için)
+    pub(crate) texts: Vec<String>,
 }
 
 pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<Diag>)> {
@@ -131,6 +133,7 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
         field_names: Vec::new(),
         method_ids: HashMap::new(),
         pending_keys: std::cell::RefCell::new(Some(Vec::new())),
+        texts: src.files.iter().map(|f| f.text.clone()).collect(),
     };
     let mut all_stmts = Vec::new();
     for m in parsed {

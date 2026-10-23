@@ -1,3 +1,3 @@
-HATA (46_tam_ondalik32_olarak.kolay, satır 2): Tam(64) değeri Ondalık(32) tipine otomatik çevrilemez (Ondalık(32) küçük bir tip, değer sığmayabilir). Bilerek çevirmek için: x olarak Ondalık(32)
+HATA (46_tam_ondalik32_olarak.kolay, satır 2): Tam(64) değeri Ondalık(32) tipine otomatik çevrilemez (Ondalık(32) küçük bir tip, değer sığmayabilir). Bilerek çevirmek için: n olarak Ondalık(32)
   2 | ata x: Ondalık(32) = n
     |                      ^
