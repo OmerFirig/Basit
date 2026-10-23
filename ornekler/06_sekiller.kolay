@@ -1,0 +1,42 @@
+// Seçenekler (enum) ve eşleştir
+
+seçenek Şekil {
+    Daire(yarıçap: Ondalık)
+    Dikdörtgen(en: Ondalık, boy: Ondalık)
+    Kare(kenar: Ondalık)
+
+    fonksiyon alan() -> Ondalık {
+        döndür eşleştir bu {
+            Daire(r) -> 3.14159 * r * r
+            Dikdörtgen(e, b) -> e * b
+            Kare(k) -> k * k
+        }
+    }
+}
+
+ata şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(en: 2.0, boy: 3.0), Şekil.Kare(4.0)]
+şekiller içindeki her ş için yap {
+    yazdır(ş, "alan:", ş.alan())
+}
+
+// Sayılar, aralıklar ve 'veya'
+fonksiyon kategori(yaş: Tam(64)) -> Yazı {
+    döndür eşleştir yaş {
+        0..=12 -> "çocuk"
+        13..=17 -> "genç"
+        65 veya 66 veya 67 -> "yeni emekli"
+        değilse -> "yetişkin"
+    }
+}
+yazdır(kategori(8), kategori(15), kategori(66), kategori(40))
+
+// 'veya' tipleri ve Hiç
+fonksiyon bul(isimler: Liste<Yazı>, aranan: Yazı) -> Tam veya Hiç {
+    döndür isimler.bul(aranan)
+}
+
+ata sonuç = bul(["Ali", "Ayşe"], "Ayşe")
+eşleştir sonuç {
+    Tam(i) -> yazdır(f"{i}. sırada bulundu")
+    Hiç -> yazdır("bulunamadı")
+}

@@ -1,0 +1,11 @@
+[package]
+name = "kolay"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+half = "2.7.1"
+indexmap = "2.14.2"
+num-bigint = "0.5.1"
+num-integer = "0.1.47"
+num-traits = "0.2.19"

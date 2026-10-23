@@ -1,0 +1,3 @@
+ata a: Tam = 1
+100 kere yap { a = a * 2 }
+yazdır(a olarak Tam(64))

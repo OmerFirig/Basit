@@ -1,0 +1,3 @@
+HATA (23_yazi_arti_sayi.kolay, satır 1): Yazı ile Tam(64) toplanamaz. f-yazı kullanın: f"{a}{b}"
+  1 | yazdır("a" + 5)
+    |        ^^^^^^^

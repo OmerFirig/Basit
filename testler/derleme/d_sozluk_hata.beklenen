@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (d_sozluk_hata.kolay, satır 2): "b" anahtarı sözlükte yok.
+  2 | yazdır(d["b"])

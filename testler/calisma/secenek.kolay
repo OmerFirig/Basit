@@ -1,0 +1,67 @@
+seçenek Renk { Kırmızı, Sarı, Yeşil }
+seçenek Şekil {
+    Daire(yarıçap: Ondalık)
+    Dikdörtgen(en: Ondalık, boy: Ondalık)
+    fonksiyon alan() -> Ondalık {
+        döndür eşleştir bu {
+            Daire(r) -> 3.14 * r * r
+            Dikdörtgen(e, b) -> e * b
+        }
+    }
+}
+ata r = Renk.Sarı
+eşleştir r {
+    Kırmızı -> yazdır("dur")
+    Sarı -> yazdır("hazırlan")
+    Yeşil -> yazdır("geç")
+}
+ata ad = eşleştir r {
+    Kırmızı -> "kırmızı"
+    değilse -> Hiç
+}
+yazdır(ad)
+eşleştir ad {
+    Yazı(y) -> yazdır("renk:", y)
+    Hiç -> yazdır("renk bilinmiyor")
+}
+ata şekiller = [Şekil.Daire(yarıçap: 2.0), Şekil.Dikdörtgen(3.0, 4.0)]
+şekiller içindeki her ş için yap {
+    yazdır(ş, ş.alan())
+    eşleştir ş {
+        Daire(r) eğer r > 10 -> yazdır("büyük daire")
+        Daire(r) -> yazdır("küçük daire")
+        değilse -> yazdır("başka şekil")
+    }
+}
+fonksiyon kategori(yaş: Tam) -> Yazı {
+    döndür eşleştir yaş {
+        0..=12 -> "çocuk"
+        13..=17 -> "genç"
+        18 veya 65 -> "özel yaş"
+        değilse -> "yetişkin"
+    }
+}
+yazdır(kategori(5), kategori(15), kategori(18), kategori(40))
+ata tablo: Liste<Tam veya Yazı> = [5, "Ali"]
+tablo içindeki her e için yap {
+    eşleştir e {
+        Tam(n) -> yazdır(n * 2)
+        Yazı(y) -> yazdır(y.büyük_harf())
+    }
+}
+ata t2: Liste<Tam veya Yazı>[4][]
+t2[0].ekle(5)
+t2[0].ekle("Ali")
+yazdır(t2)
+ata kare: Liste<Tam>[3][3]
+kare[1][2] = 7
+yazdır(kare)
+ata notlar: Sözlük<Yazı, Tam> = {"Ali": 90}
+notlar["Ayşe"] = 85
+notlar["Ali"] += 5
+yazdır(notlar, notlar.uzunluk(), notlar.içerir("Ali"), notlar.anahtarlar())
+ata l = [5, 3, 8, 1]
+l.sırala()
+yazdır(l, l[-1], l[1..3], l[2..], l.bul(8), l.bul(99))
+l.araya_ekle(0, 100)
+yazdır(l.çıkar(), l)

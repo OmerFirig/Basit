@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_ozyineleme.kolay, satır 1): Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.
+  1 | fonksiyon f(n: Tam(64)) -> Tam(64) { döndür f(n + 1) }

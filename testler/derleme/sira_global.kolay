@@ -1,0 +1,25 @@
+// Değerlendirme sırası: dosya değişkeni, aynı ifadede onu değiştiren çağrıdan önce okunur.
+ata x = 1
+fonksiyon f() -> Tam(64) {
+    x = 10
+    döndür 1
+}
+yazdır(x + f(), x)
+ata l = [1, 2, 3]
+fonksiyon g() -> Tam(64) {
+    l = [7, 8, 9]
+    döndür 0
+}
+yazdır(l[0] + g(), l)
+ata s = "a"
+fonksiyon h() -> Yazı {
+    s = "b"
+    döndür "c"
+}
+yazdır(f"{s}{h()}{s}")
+x = 5
+fonksiyon k() -> Tam(64) {
+    x += 1
+    döndür x
+}
+yazdır(x < k(), x)

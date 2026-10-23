@@ -1,0 +1,8 @@
+ata n = 1000
+ata a: Ondalık(32) = n olarak Ondalık(32)
+ata b: Ondalık(16) = 70 olarak Ondalık(16)
+ata c: Ondalık = n
+yazdır(a, b, c, a * 2.0, n olarak Ondalık(16))
+ata büyük: Tam = 1
+200 kere yap { büyük = büyük * 2 }
+yazdır(büyük olarak Ondalık(32))

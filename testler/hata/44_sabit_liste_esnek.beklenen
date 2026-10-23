@@ -1,0 +1,3 @@
+HATA (44_sabit_liste_esnek.kolay, satır 6): Sabit boyutlu listeye (Liste<Tam(64)>[2]) eleman eklenemez ya da çıkarılamaz.
+  6 | c.ekle(4)
+    | ^^^^^^^^^

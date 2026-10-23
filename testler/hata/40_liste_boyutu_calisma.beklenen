@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (40_liste_boyutu_calisma.kolay, satır 2): Liste<Tam(64)>[5] tam 5 eleman almalı, ama 2 elemanlı bir liste verildi.
+  2 | ata b: Liste<Tam(64)>[5] = a

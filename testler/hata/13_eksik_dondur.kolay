@@ -1,0 +1,3 @@
+fonksiyon işaret(x: Tam) -> Yazı {
+  eğer x > 0 { döndür "pozitif" }
+}

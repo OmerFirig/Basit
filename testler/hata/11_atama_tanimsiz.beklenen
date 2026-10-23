@@ -1,0 +1,3 @@
+HATA (11_atama_tanimsiz.kolay, satır 1): 'toplm' tanımlı değil. Yeni değişken için: ata toplm = ...
+  1 | toplm = 5
+    | ^^^^^

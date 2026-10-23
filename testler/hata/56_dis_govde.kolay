@@ -1,0 +1,4 @@
+#Güvensiz
+dış kütüphane("m") {
+    fonksiyon cos(x: Ondalık) -> Ondalık { döndür x }
+}

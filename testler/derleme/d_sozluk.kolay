@@ -1,0 +1,19 @@
+ata d: Sözlük<Yazı, Tam(64)> = {"elma": 3, "armut": 5}
+d["kiraz"] = 7
+d["elma"] += 10
+yazdır(d, d.uzunluk(), d.içerir("armut"), d.içerir("yok"))
+d.sil("armut")
+yazdır(d, d.anahtarlar(), d.değerler())
+d içindeki her (k, v) için yap { yazdır(k, v) }
+d içindeki her k için yap { yazdır(k) }
+ata e: Sözlük<Tam(64), Yazı>
+1000 kere yap { }
+(ata i = 0; i < 200; i += 1) sürece yap { e[i] = f"s{i}" }
+(ata i = 0; i < 200; i += 2) sürece yap { e.sil(i) }
+yazdır(e.uzunluk(), e[1], e[199])
+e.temizle()
+yazdır(e)
+ata m: Sözlük<Mantık, Liste<Yazı>> = {doğru: ["a"]}
+m[yanlış] = []
+m[doğru].ekle("b")
+yazdır(m)

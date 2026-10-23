@@ -1,0 +1,2 @@
+klavye("us")
+eğer dogru { yazdir("x") }

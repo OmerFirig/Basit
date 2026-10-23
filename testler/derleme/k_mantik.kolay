@@ -1,0 +1,2 @@
+ata a = 5
+yazdır(a > 3 ve a < 10, a == 5 veya değil doğru, !(a != 5))

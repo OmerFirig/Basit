@@ -1,0 +1,2 @@
+fonksiyon sonsuz(n: Tam(64)) -> Tam(64) { döndür sonsuz(n + 1) }
+yazdır(sonsuz(0))

@@ -1,0 +1,12 @@
+tür A(d: Tam(64)) {
+    fonksiyon say(n: Tam(64)) -> Tam(64) {
+        eğer n == 0 { döndür d }
+        döndür say(n - 1) + 1
+    }
+}
+yazdır(A(5).say(1000))
+fonksiyon hanoi(n: Tam(64), a: Yazı, b: Yazı, c: Yazı) -> Tam(64) {
+    eğer n == 0 { döndür 0 }
+    döndür hanoi(n - 1, a, c, b) + 1 + hanoi(n - 1, c, b, a)
+}
+yazdır(hanoi(16, "a", "b", "c"))

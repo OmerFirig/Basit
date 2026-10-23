@@ -1,0 +1,3 @@
+HATA (28_belirsiz_metot.kolay, satır 4): 'f' belirsiz: A.f mı, B.f mı? Türün içine ortak bir 'yeniden f()' yazın.
+  4 | C().f()
+    |     ^

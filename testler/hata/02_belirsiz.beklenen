@@ -1,0 +1,3 @@
+HATA (02_belirsiz.kolay, satır 2): 'x' henüz belirsiz. Kullanmadan önce bir değer atayın.
+  2 | yazdır(x)
+    |        ^

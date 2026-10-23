@@ -1,0 +1,46 @@
+fonksiyon fib(n: Tam(64)) -> Tam(64) {
+    eğer n < 2 { döndür n }
+    döndür fib(n - 1) + fib(n - 2)
+}
+fonksiyon kategori(yaş: Tam(64)) -> Yazı {
+    döndür eşleştir yaş {
+        0..=12 -> "çocuk"
+        13..=17 -> "genç"
+        18 veya 65 -> "özel yaş"
+        değilse -> "yetişkin"
+    }
+}
+fonksiyon selamla(ad: Yazı) {
+    eğer ad == "" { döndür }
+    yazdır(f"Merhaba {ad}!")
+}
+yazdır(fib(20), kategori(5), kategori(15), kategori(65), kategori(30))
+selamla("Ayşe")
+selamla("")
+3 kere yap { yazdır("tekrar") }
+0..3 içindeki her i için yap { yazdır("i", i) }
+1..=3 içindeki her i için yap { yazdır("j", i) }
+(0..10).adım(4) içindeki her i için yap { yazdır("adım", i) }
+ata n = 1
+n < 100 sürece yap { n = n * 3 }
+yazdır(n)
+ata sayac = 0
+doğru sürece yap {
+    sayac += 1
+    eğer sayac == 6 { dur }
+    eğer sayac % 2 == 0 { devam }
+    yazdır("tek", sayac)
+}
+(ata i = 0; i < 3; i += 1) sürece yap { yazdır("c", i) }
+ata x = 7
+eşleştir x % 3 {
+    0 -> yazdır("bölünür")
+    1 veya 2 -> yazdır("kalan var")
+}
+ata m = eğer_test(5)
+fonksiyon eğer_test(k: Tam(64)) -> Mantık { döndür k > 3 ve k < 10 }
+yazdır(m, değil m, doğru veya yanlış)
+ata sabit pi = 3.14159
+ata sabit mesaj: Yazı
+eğer pi > 3 { mesaj = "büyük" } değilse { mesaj = "küçük" }
+yazdır(mesaj)

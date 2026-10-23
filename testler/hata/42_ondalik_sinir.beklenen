@@ -1,0 +1,3 @@
+HATA (42_ondalik_sinir.kolay, satır 1): 100.000, Ondalık(16) sınırlarını aşıyor (en büyük değer 65.504).
+  1 | ata x: Ondalık(16) = 100000
+    |                      ^^^^^^

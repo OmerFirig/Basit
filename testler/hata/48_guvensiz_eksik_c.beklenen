@@ -1,0 +1,3 @@
+HATA (48_guvensiz_eksik_c.kolay, satır 1): Dış kütüphane kullanımı güvensizdir: C fonksiyonlarının imzaları kontrol edilemez, yanlış imza programı çökertebilir. Tanımın önüne #Güvensiz yazın.
+  1 | "m" kütüphanesindeki fonksiyon cos(x: Ondalık) -> Ondalık
+    | ^^^

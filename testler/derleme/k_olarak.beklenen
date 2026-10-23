@@ -1,0 +1,4 @@
+300
+3 -3
+ÇALIŞMA HATASI (k_olarak.kolay, satır 5): TanımsızSayı tam sayıya çevrilemez.
+  5 | yazdır((1.0 / z) olarak Tam(32))

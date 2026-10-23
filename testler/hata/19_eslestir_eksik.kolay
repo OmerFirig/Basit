@@ -1,0 +1,3 @@
+seçenek Renk { Kırmızı, Sarı }
+ata r = Renk.Kırmızı
+ata ad = eşleştir r { Kırmızı -> "k" }

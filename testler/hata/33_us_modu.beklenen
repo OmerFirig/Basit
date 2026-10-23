@@ -1,0 +1,3 @@
+HATA (33_us_modu.kolay, satır 2): 'eğer' us klavye modunda kullanılamaz, 'eger' yazın.
+  2 | eğer dogru { yazdir("x") }
+    | ^^^^

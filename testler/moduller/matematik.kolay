@@ -1,0 +1,6 @@
+yazdır("matematik yüklendi")
+ata sabit pi = 3.14159
+fonksiyon topla(a: Tam, b: Tam) -> Tam { döndür a + b }
+tür Nokta(x: Tam, y: Tam) {
+    fonksiyon göster() { yazdır(f"({x}, {y})") }
+}

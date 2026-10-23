@@ -1,0 +1,15 @@
+klavye("us")
+// Türkçe karakter olmadan yazım. Kullanıcının kendi adlarında Türkçe karakter serbest.
+// Diğer moda çevirmek için:  kolay çevir 07_us_klavye.kolay --klavye tr
+
+fonksiyon selamla(isim: Yazi) {
+    eger isim == "" {
+        dondur
+    }
+    yazdir(f"Merhaba {isim}!")
+}
+
+ata öğrenciler = ["Gül", "Şükrü", "Ilgın"]
+öğrenciler icindeki her o icin yap {
+    selamla(o)
+}

@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_adim_h.kolay, satır 2): Adım pozitif olmalı, ama 0 verildi.
+  2 | (0..10).adım(a) içindeki her i için yap { }

@@ -1,0 +1,4 @@
+tür A() { fonksiyon f() {} }
+tür B() { fonksiyon f() {} }
+tür C[A, B]()
+C().f()

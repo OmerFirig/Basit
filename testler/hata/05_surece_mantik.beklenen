@@ -1,0 +1,3 @@
+HATA (05_surece_mantik.kolay, satır 1): 'sürece' bir Mantık (doğru/yanlış) değeri bekler, ama Tam(64) verildi. Bir işi N kez tekrarlamak için '5 kere yap' yazın.
+  1 | 5 sürece yap { }
+    | ^

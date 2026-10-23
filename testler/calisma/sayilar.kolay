@@ -1,0 +1,28 @@
+// Tam sayılar, ondalıklar, taşma ve dönüştürme
+ata a: Tam(8) = 100
+ata b: Tam(8, +) = 200
+ata c: Tam(8, -) = -200
+ata d: Tam(+) = 5
+ata y = 42
+ata z: Tam = 1
+100 kere yap { z = z * 2 }
+yazdır(a, b, c, d, y)
+yazdır(z)
+ata o = 3.14
+ata o32: Ondalık(32) = 3.14
+ata o16: Ondalık(16) = 3.14
+yazdır(o, o32, o16)
+yazdır(0.1 + 0.2)
+yazdır(7 / 2, 7 % 2, 7.0 / 2)
+ata k = a + 10
+yazdır(k)
+ata genis: Tam(32) = a
+yazdır(genis + 1000)
+ata dar = 300 olarak Tam(16)
+yazdır(dar)
+yazdır(3.99 olarak Tam, (-3.99) olarak Tam)
+yazdır(5 olarak Ondalık)
+ata karisik = 2 * 1.5
+yazdır(karisik)
+yazdır(-a)
+yazdır(1_000_000)

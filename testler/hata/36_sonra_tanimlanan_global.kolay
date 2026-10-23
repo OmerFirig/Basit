@@ -1,0 +1,3 @@
+fonksiyon göster() { yazdır(isim) }
+ata isim = "Ali"
+göster()

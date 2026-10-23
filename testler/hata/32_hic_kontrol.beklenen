@@ -1,0 +1,3 @@
+HATA (32_hic_kontrol.kolay, satır 2): Bu değer Hiç olabilir (Yazı veya Hiç). Kullanmadan önce eşleştir ile kontrol edin.
+  2 | yazdır(ad.uzunluk())
+    |           ^^^^^^^

@@ -1,0 +1,67 @@
+// Kontrol akışı: iç içe döngüler, dur/devam, eşleştir içinde dur, döngüden döndür
+fonksiyon ara(l: Liste<Tam(64)>, hedef: Tam(64)) -> Tam(64) {
+    ata i = 0
+    l içindeki her x için yap {
+        eğer x == hedef { döndür i }
+        i += 1
+    }
+    döndür -1
+}
+yazdır(ara([5, 7, 9], 9), ara([5, 7, 9], 4))
+ata toplam = 0
+(ata i = 0; i < 10; i += 1) sürece yap {
+    eğer i % 2 == 0 { devam }
+    (ata j = 0; j < 10; j += 1) sürece yap {
+        eğer j > i { dur }
+        eşleştir j {
+            3 -> devam
+            7 -> dur
+            değilse -> { toplam += j }
+        }
+    }
+}
+yazdır(toplam)
+ata n = 0
+5 kere yap {
+    n += 1
+    eğer n == 2 { devam }
+    0..10 içindeki her k için yap {
+        eğer k == 3 { dur }
+        n += k
+    }
+}
+yazdır(n)
+ata sayac = 0
+ata k = 0
+k < 100 sürece yap {
+    k += 1
+    eğer k % 3 == 0 { devam }
+    eğer k > 50 { dur }
+    sayac += 1
+}
+yazdır(sayac, k)
+fonksiyon bul(m: Sözlük<Yazı, Tam(64)>) -> Yazı {
+    m içindeki her (a, b) için yap {
+        eşleştir b {
+            2 -> { döndür a }
+            değilse -> devam
+        }
+    }
+    döndür "yok"
+}
+yazdır(bul({"x": 1, "y": 2, "z": 3}), bul({"q": 9}))
+"merhaba" içindeki her h için yap {
+    eğer h == "h" { dur }
+    eğer h == "e" { devam }
+    yazdır(h)
+}
+(0..20).adım(4) içindeki her a için yap {
+    eğer a == 8 { devam }
+    yazdır(a)
+}
+ata dış = 0
+doğru sürece yap {
+    dış += 1
+    eğer dış == 3 { dur }
+}
+yazdır(dış)

@@ -1,0 +1,29 @@
+ata t: Liste<Tam(64) veya Yazı veya Hiç> = [1, "iki", Hiç, 4]
+t içindeki her e için yap {
+    eşleştir e {
+        Tam(n) -> yazdır(n * 10)
+        Yazı(y) -> yazdır(y.büyük_harf())
+        Hiç -> yazdır("boş")
+    }
+}
+yazdır(t)
+ata x: Tam(8) veya Ondalık(32) = 5
+yazdır(x)
+x = 2.5
+yazdır(x)
+ata y: Tam(64) veya Ondalık(32) veya Yazı = 7
+yazdır(y)
+ata z: Tam(8) veya Yazı = 3
+ata w: Tam(64) veya Yazı veya Mantık = z
+yazdır(w)
+ata sayi = w olarak Tam(64)
+yazdır(sayi + 1)
+ata l = [5, 6, 7]
+ata i = l.bul(6)
+yazdır(i)
+eşleştir l.bul(9) {
+    Tam(n) -> yazdır("buldu", n)
+    Hiç -> yazdır("yok")
+}
+ata r = eşleştir i { Tam(n) -> n, Hiç -> -1 }
+yazdır(r)

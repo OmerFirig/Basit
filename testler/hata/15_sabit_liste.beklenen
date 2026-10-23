@@ -1,0 +1,3 @@
+HATA (15_sabit_liste.kolay, satır 2): 'renkler' sabit; 'ekle()' içeriği değiştirir.
+  2 | renkler.ekle("mavi")
+    | ^^^^^^^^^^^^^^^^^^^^

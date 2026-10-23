@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (35_tama_hatasi.kolay, satır 1): "abc" bir tam sayıya çevrilemez.
+  1 | ata x = "abc".tama()

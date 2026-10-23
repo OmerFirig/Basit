@@ -1,0 +1,7 @@
+ata a: Ondalık(32) = 0.1
+ata b: Ondalık(16) = 0.1
+yazdır(a + 0.2, b, 0.1 + 0.2, 1.0 / 3.0, 100.0, 1000000.0 * 1000000.0)
+ata z = 0.0
+yazdır(1.0 / z, -1.0 / z, z / z)
+yazdır((2.7).tama(), (-2.7).tama())
+yazdır((z / z).tama())

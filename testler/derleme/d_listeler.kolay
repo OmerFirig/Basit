@@ -1,0 +1,33 @@
+ata l: Liste<Yazı> = ["c", "a", "b"]
+l.sırala()
+l.araya_ekle(0, "z")
+l.ekle("ş")
+yazdır(l, l.uzunluk(), l[-1], l[1..3], l[..2], l[2..])
+yazdır(l.çıkar(), l)
+l.sil(0)
+l.ters()
+yazdır(l, l.bul("b"), l.içerir("q"))
+ata m: Liste<Tam(64)>[3]
+m[1] = 5
+yazdır(m)
+ata g: Liste<Tam(8)>[2][3]
+g[1][2] = 7
+yazdır(g)
+ata tablo: Liste<Tam(64)>[2][]
+tablo[0].ekle(1)
+tablo[1].ekle(2)
+tablo[1].ekle(3)
+yazdır(tablo)
+ata o: Liste<Ondalık(32)> = [0.1, 0.2]
+yazdır(o, o[0] + o[1])
+ata bo = [doğru, yanlış]
+yazdır(bo, bo[0] ve bo[1])
+ata kel = "elma,armut,,kiraz".böl(",")
+yazdır(kel, "abc".böl(""))
+"ağaç" içindeki her h için yap { yazdır(h) }
+ata ara = 2..5
+ara içindeki her i için yap { yazdır(i) }
+yazdır(ara, (0..10).adım(3))
+ata la = [1, 2, 3]
+la içindeki her x için yap { la.ekle(x * 10) }
+yazdır(la)

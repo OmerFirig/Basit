@@ -1,0 +1,28 @@
+// Döngüler ve fonksiyonlar: 1'den 50'ye kadar asal sayılar
+// Bu program derlenebilir:  kolay derle 03_asal_sayilar.kolay
+
+fonksiyon asal_mı(n: Tam(64)) -> Mantık {
+    eğer n < 2 { döndür yanlış }
+    (ata i = 2; i * i <= n; i += 1) sürece yap {
+        eğer n % i == 0 { döndür yanlış }
+    }
+    döndür doğru
+}
+
+ata sayaç = 0
+1..=50 içindeki her sayı için yap {
+    eğer asal_mı(sayı) {
+        yazdır(sayı)
+        sayaç += 1
+    }
+}
+yazdır(f"Toplam {sayaç} asal sayı bulundu.")
+
+// Diğer döngüler
+3 kere yap { yazdır("tekrar") }
+
+ata n = 1
+n < 1000 sürece yap { n = n * 2 }
+yazdır(f"1000'den büyük ilk 2'nin kuvveti: {n}")
+
+(0..20).adım(5) içindeki her i için yap { yazdır("adım:", i) }

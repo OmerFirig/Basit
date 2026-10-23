@@ -1,0 +1,5 @@
+#Güvensiz
+dış kütüphane("boyle_bir_kutuphane_yok") {
+    fonksiyon f(x: Tam(32)) -> Tam(32)
+}
+yazdır("çalışmamalı")

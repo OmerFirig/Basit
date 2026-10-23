@@ -1,0 +1,3 @@
+HATA (25_yeniden_gerekli.kolay, satır 2): 'tanıt' ebeveyn Kişi içinde zaten var. Değiştirmek için 'yeniden tanıt()' yazın.
+  2 | tür Ö[Kişi]() { fonksiyon tanıt() { } }
+    |                 ^^^^^^^^^

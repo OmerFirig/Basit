@@ -1,0 +1,334 @@
+// Tip denetiminden geçmiş ara gösterim (TIR). Yorumlayıcı ve LLVM derleyicisi bunu kullanır.
+// Burada her isim çözülmüş, her ifadenin tipi bellidir.
+
+use crate::ast::BinOp;
+use crate::types::{Type, TypeId};
+use num_bigint::BigInt;
+use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hasher};
+use std::rc::Rc;
+
+/// Küçük tam sayı anahtarları için hızlı hash (FxHash).
+#[derive(Default, Clone, Copy)]
+pub struct FxHasher(u64);
+
+impl Hasher for FxHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.write_u64(b as u64);
+        }
+    }
+    fn write_u64(&mut self, i: u64) {
+        self.0 = (self.0.rotate_left(5) ^ i).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+    }
+    fn write_u32(&mut self, i: u32) {
+        self.write_u64(i as u64);
+    }
+    fn write_usize(&mut self, i: usize) {
+        self.write_u64(i as u64);
+    }
+}
+
+pub type FxMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
+
+pub type FuncId = usize;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Slot {
+    Local(u32),
+    Global(u32),
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Loc {
+    pub file: u32,
+    pub line: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct TExpr {
+    pub kind: TK,
+    pub ty: Type,
+    pub loc: Loc,
+}
+
+#[derive(Clone, Debug)]
+pub enum TFPart {
+    Lit(Rc<str>),
+    Expr(TExpr),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Builtin {
+    Yazdir,
+    Oku,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BM {
+    // Liste
+    Ekle,
+    ArayaEkle,
+    Sil,
+    Cikar,
+    Uzunluk,
+    Icerir,
+    Bul,
+    Sirala,
+    Ters,
+    Temizle,
+    // Sözlük
+    DUzunluk,
+    DIcerir,
+    DSil,
+    Anahtarlar,
+    Degerler,
+    DTemizle,
+    // Yazı
+    SUzunluk,
+    BuyukHarf,
+    KucukHarf,
+    Karakter,
+    SIcerir,
+    Bol,
+    Kirp,
+    Tama,
+    Ondaliga,
+    // Ondalık
+    FTama,
+    // Her tip
+    Yaziya,
+    // Aralık
+    Adim,
+}
+
+#[derive(Clone, Debug)]
+pub enum Recv {
+    Place(TPlace),
+    Value(Box<TExpr>),
+}
+
+#[derive(Clone, Debug)]
+pub enum TPlace {
+    Var(Slot),
+    Bu,
+    /// Alan, alan numarasıyla (Program::field_names)
+    Field(Box<TPlace>, u32),
+    ListIndex(Box<TPlace>, Box<TExpr>),
+    DictKey(Box<TPlace>, Box<TExpr>),
+}
+
+#[derive(Clone, Debug)]
+pub enum TK {
+    /// Sayı sabiti; 64 bite sığıyorsa ikinci değer hazır olarak tutulur.
+    Int(BigInt, Option<i64>),
+    Float(f64),
+    Str(Rc<String>),
+    Bool(bool),
+    Hic,
+    Var(Slot),
+    Bu,
+    FStr(Vec<TFPart>),
+    List(Vec<TExpr>),
+    Dict(Vec<(TExpr, TExpr)>),
+    /// Tipin varsayılan değeri (sabit boyutlu listeler, boş liste/sözlük)
+    Default,
+    Range { start: Option<Box<TExpr>>, end: Option<Box<TExpr>>, inclusive: bool },
+    Neg(Box<TExpr>),
+    Not(Box<TExpr>),
+    /// İki taraf da ifadenin kendi tipine çevrilmiştir.
+    Arith(BinOp, Box<TExpr>, Box<TExpr>),
+    Concat(Box<TExpr>, Box<TExpr>),
+    /// İki taraf aynı tipe çevrilmiştir (sayılarda).
+    Cmp(BinOp, Box<TExpr>, Box<TExpr>),
+    And(Box<TExpr>, Box<TExpr>),
+    Or(Box<TExpr>, Box<TExpr>),
+    /// Otomatik genişletme / üst tipe çevirme (veri kaybı yok).
+    Convert(Box<TExpr>),
+    /// `olarak` ile açık dönüştürme (çalışma anında kontrol edilir).
+    Olarak(Box<TExpr>),
+    Call(FuncId, Vec<TExpr>),
+    /// Dinamik çağrı: gerçek fonksiyon nesnenin türüne göre seçilir.
+    Method { recv: Recv, view: TypeId, name: Rc<str>, mid: u32, args: Vec<TExpr> },
+    /// Ebeveyn metodunu doğrudan çağırma: `Kişi.tanıt()`
+    Direct { func: FuncId, recv: Recv, args: Vec<TExpr> },
+    Builtin(Builtin, Vec<TExpr>),
+    BMethod { recv: Recv, m: BM, args: Vec<TExpr> },
+    New(TypeId, Vec<TExpr>),
+    Variant(TypeId, u32, Vec<TExpr>),
+    Field(Box<TExpr>, u32),
+    Index(Box<TExpr>, Box<TExpr>),
+    Slice(Box<TExpr>, Box<TExpr>),
+    Match(Box<TMatch>),
+}
+
+#[derive(Clone, Debug)]
+pub enum TPat {
+    Int(BigInt),
+    Float(f64),
+    Str(Rc<str>),
+    Bool(bool),
+    Hic,
+    Wild,
+    Range(BigInt, BigInt, bool),
+    Variant { ty: TypeId, idx: u32, binds: Vec<Option<Slot>> },
+    TypeTest { ty: Type, bind: Option<Slot> },
+}
+
+#[derive(Clone, Debug)]
+pub enum TArmBody {
+    Expr(TExpr),
+    Block(Vec<TS>),
+}
+
+#[derive(Clone, Debug)]
+pub struct TArm {
+    pub pats: Option<Vec<TPat>>,
+    pub guard: Option<TExpr>,
+    pub body: TArmBody,
+}
+
+#[derive(Clone, Debug)]
+pub struct TMatch {
+    pub scrut: TExpr,
+    pub arms: Vec<TArm>,
+    pub loc: Loc,
+}
+
+#[derive(Clone, Debug)]
+pub enum TS {
+    Let(Slot, TExpr),
+    /// Değeri sonra atanacak değişken (sadece tipini bildirir)
+    Declare(Slot, Type),
+    Assign(TPlace, TExpr, Loc),
+    Compound(TPlace, BinOp, TExpr, Type, Loc),
+    Expr(TExpr),
+    If(Vec<(TExpr, Vec<TS>)>, Option<Vec<TS>>),
+    Kere(TExpr, Vec<TS>),
+    ForEach { iter: TExpr, binds: Vec<Slot>, body: Vec<TS> },
+    While(TExpr, Vec<TS>),
+    CFor(Box<TS>, TExpr, Box<TS>, Vec<TS>),
+    Break,
+    Continue,
+    Return(Option<TExpr>),
+    Match(TMatch),
+    RunModule(usize),
+}
+
+/// Dış (C) fonksiyon: hangi kütüphanede, C'deki adı
+#[derive(Clone, Debug)]
+pub struct DisInfo {
+    pub lib: String,
+    pub symbol: String,
+    /// kütüphane adının yazıldığı yer (hata mesajı için)
+    pub lib_loc: Loc,
+}
+
+#[derive(Clone, Debug)]
+pub struct TFunc {
+    pub dis: Option<DisInfo>,
+    pub params: Vec<Type>,
+    pub ret: Type,
+    pub body: Vec<TS>,
+    pub nslots: u32,
+    pub owner: Option<TypeId>,
+    pub loc: Loc,
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldInfo {
+    pub name: Rc<str>,
+    pub ty: Type,
+    pub sabit: bool,
+    pub origin: TypeId,
+}
+
+#[derive(Clone, Debug)]
+pub struct VariantInfo {
+    pub name: Rc<str>,
+    pub fields: Vec<(Rc<str>, Type)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Sig {
+    pub name: String,
+    pub params: Vec<(String, Type)>,
+    pub ret: Type,
+}
+
+#[derive(Clone, Debug)]
+pub enum MethodRes {
+    Impl(FuncId),
+    Ambiguous(Vec<TypeId>),
+}
+
+#[derive(Clone, Debug)]
+pub enum TypeDefKind {
+    Tur { fields: Vec<FieldInfo>, parents: Vec<TypeId>, ancestors: Vec<TypeId> },
+    Secenek { variants: Vec<VariantInfo> },
+    Arayuz { sigs: Vec<Sig> },
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeDef {
+    pub name: String,
+    pub kind: TypeDefKind,
+    pub interfaces: Vec<TypeId>,
+    /// Türün kendi gözünden metotları
+    pub methods: HashMap<String, MethodRes>,
+}
+
+pub struct Program {
+    pub funcs: Vec<TFunc>,
+    pub types: Vec<TypeDef>,
+    pub nglobals: u32,
+    pub modules: Vec<Vec<TS>>,
+    pub main_module: usize,
+    /// (gerçek tür, bakış türü, metot numarası) -> fonksiyon
+    pub dispatch: FxMap<(TypeId, TypeId, u32), FuncId>,
+    /// Alan adları; TK::Field ve TPlace::Field bu listedeki sırayı kullanır.
+    pub field_names: Vec<Rc<str>>,
+    /// field_pos[tür][alan numarası] = nesnedeki yeri (yoksa u32::MAX)
+    pub field_pos: Vec<Vec<u32>>,
+}
+
+impl Program {
+    pub fn is_subtype(&self, child: TypeId, parent: TypeId) -> bool {
+        if child == parent {
+            return true;
+        }
+        let t = &self.types[child];
+        if t.interfaces.contains(&parent) {
+            return true;
+        }
+        matches!(&t.kind, TypeDefKind::Tur { ancestors, .. } if ancestors.contains(&parent))
+    }
+}
+
+/// İfade, bir değişkeni değiştirebilecek kod (çağrı, okuma, eşleştir...) içermiyor mu?
+pub fn is_pure(e: &TExpr) -> bool {
+    match &e.kind {
+        TK::Int(..) | TK::Float(_) | TK::Str(_) | TK::Bool(_) | TK::Hic | TK::Var(_) | TK::Bu | TK::Default => true,
+        TK::Neg(x) | TK::Not(x) | TK::Convert(x) | TK::Olarak(x) | TK::Field(x, _) => is_pure(x),
+        TK::Arith(_, a, b) | TK::Concat(a, b) | TK::Cmp(_, a, b) | TK::And(a, b) | TK::Or(a, b) | TK::Index(a, b) | TK::Slice(a, b) => {
+            is_pure(a) && is_pure(b)
+        }
+        TK::FStr(ps) => ps.iter().all(|p| match p {
+            TFPart::Lit(_) => true,
+            TFPart::Expr(x) => is_pure(x),
+        }),
+        TK::List(v) | TK::New(_, v) | TK::Variant(_, _, v) => v.iter().all(is_pure),
+        TK::Dict(v) => v.iter().all(|(a, b)| is_pure(a) && is_pure(b)),
+        TK::Range { start, end, .. } => start.as_deref().is_none_or(is_pure) && end.as_deref().is_none_or(is_pure),
+        TK::BMethod { recv: Recv::Value(x), m, args } => {
+            !matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::Ters | BM::Temizle | BM::DSil | BM::DTemizle)
+                && is_pure(x)
+                && args.iter().all(is_pure)
+        }
+        _ => false,
+    }
+}
+

@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (d_liste_hata2.kolay, satır 2): Liste boş, eleman çıkarılamaz.
+  2 | l.çıkar()

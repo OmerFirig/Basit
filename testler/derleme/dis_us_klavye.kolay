@@ -1,0 +1,8 @@
+klavye("us")
+#Guvensiz
+mat adiyla dis kutuphane("m") {
+    fonksiyon karekok(x: Ondalik) -> Ondalik = "sqrt"
+}
+#Guvensiz
+"c" kutuphanesindeki fonksiyon uzunluk(s: Yazi) -> Tam(64) = "strlen"
+yazdir(mat.karekok(16.0), uzunluk("abc"))

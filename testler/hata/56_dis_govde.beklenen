@@ -1,0 +1,3 @@
+HATA (56_dis_govde.kolay, satır 3): Dış fonksiyonların gövdesi olmaz, sadece imzası yazılır.
+  3 |     fonksiyon cos(x: Ondalık) -> Ondalık { döndür x }
+    |                                          ^

@@ -1,0 +1,21 @@
+ata a: Tam = 10
+ata b: Tam(8) = 5
+ata c = a + b
+yazdır(c, a * b)
+ata x: Tam(+) = 3
+x = x - 2
+yazdır(x)
+ata l: Liste<Tam> = [1, 2, 3]
+l.ekle(a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a)
+yazdır(l, l.içerir(3))
+ata s: Sözlük<Tam, Yazı> = {1: "bir"}
+s[1000000000000000000000000] = "çok"
+yazdır(s[1000000000000000000000000], s)
+eşleştir a {
+    0..=5 -> yazdır("küçük")
+    10 -> yazdır("on")
+    değilse -> yazdır("başka")
+}
+ata y = a olarak Tam(8)
+yazdır(y)
+x = x - 2

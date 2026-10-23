@@ -1,0 +1,62 @@
+// Türler, kalıtım, arayüzler, listeler ve sözlükler
+
+arayüz Tanıtılabilir {
+    fonksiyon tanıt() -> Yazı
+}
+
+tür Kişi[Tanıtılabilir](ad: Yazı, yaş: Tam(8, +)) {
+    fonksiyon tanıt() -> Yazı {
+        döndür f"{ad} ({yaş})"
+    }
+    fonksiyon doğum_günü() {
+        yaş += 1
+    }
+}
+
+tür Öğrenci[Kişi](sabit numara: Tam(32, +), notlar: Liste<Tam(8, +)>) {
+    yeniden tanıt() -> Yazı {
+        döndür f"Öğrenci {Kişi.tanıt()}, numara {numara}, ortalama {ortalama()}"
+    }
+    fonksiyon ortalama() -> Ondalık {
+        eğer notlar.uzunluk() == 0 { döndür 0.0 }
+        ata toplam = 0
+        notlar içindeki her n için yap { toplam += n }
+        döndür toplam / notlar.uzunluk() olarak Ondalık
+    }
+    fonksiyon not_ekle(n: Tam(8, +)) {
+        notlar.ekle(n)
+    }
+}
+
+tür Öğretmen[Kişi](branş: Yazı) {
+    yeniden tanıt() -> Yazı {
+        döndür f"{branş} öğretmeni {ad}"
+    }
+}
+
+ata ali = Öğrenci(ad: "Ali", yaş: 20, numara: 1001, notlar: [80, 95])
+ali.not_ekle(70)
+ali.doğum_günü()
+
+ata okul: Liste<Kişi> = [ali, Öğretmen(ad: "Ayşe", yaş: 41, branş: "Matematik")]
+okul içindeki her kişi için yap {
+    yazdır(kişi.tanıt())
+}
+
+// Sözlük
+ata sınıflar: Sözlük<Yazı, Tam> = {"9-A": 31, "9-B": 28}
+sınıflar["10-A"] = 30
+sınıflar içindeki her (sınıf, mevcut) için yap {
+    yazdır(f"{sınıf}: {mevcut} öğrenci")
+}
+
+// Değer semantiği: kopyalar birbirinden bağımsızdır
+ata liste = [3, 1, 2]
+ata kopya = liste
+kopya.sırala()
+yazdır(liste, kopya)
+
+// Türkçe alfabetik sıralama
+ata isimler = ["Zeynep", "Çağla", "Can", "İrem", "Ilgaz", "Ömer", "Oya"]
+isimler.sırala()
+yazdır(isimler)

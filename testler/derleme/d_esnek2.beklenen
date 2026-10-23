@@ -1,0 +1,8 @@
+15 50
+1
+[1, 2, 3, 1000000000000000000000] doğru
+çok {1: "bir", 1000000000000000000000000: "çok"}
+on
+10
+ÇALIŞMA HATASI (d_esnek2.kolay, satır 21): Tam(+) negatif olamaz: 1 - 2 = -1.
+  21 | x = x - 2

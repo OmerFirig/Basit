@@ -1,0 +1,3 @@
+HATA (21_arayuz_eksik.kolay, satır 1): 'Taş', Konuşabilir arayüzünü uyguluyor ama 'konuş()' fonksiyonu yok.
+  1 | tür Taş[Konuşabilir]()
+    | ^^^

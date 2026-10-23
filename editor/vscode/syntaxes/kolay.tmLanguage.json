@@ -1,0 +1,172 @@
+{
+  "name": "Kolay",
+  "scopeName": "source.kolay",
+  "patterns": [
+    {
+      "include": "#expr"
+    }
+  ],
+  "repository": {
+    "expr": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "name": "keyword.control.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:eğer|eger|değilse|degilse|kere|yap|içindeki|icindeki|her|için|icin|sürece|surece|dur|devam|döndür|dondur|eşleştir|eslestir)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "storage.type.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:ata|sabit|fonksiyon|tür|tur|arayüz|arayuz|seçenek|secenek|yeniden)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "keyword.other.import.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:dahil\\s+et|adıyla|adiyla|dış\\s+kütüphane|dis\\s+kutuphane|kütüphanesindeki|kutuphanesindeki)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "keyword.operator.word.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:ve|veya|değil|degil|olarak)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "constant.language.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:doğru|dogru|yanlış|yanlis|Hiç|Hic|TanımsızSayı|TanimsizSayi)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "variable.language.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:bu)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "keyword.other.directive.kolay",
+          "match": "#(?:Güvensiz|Guvensiz)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "support.type.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:Tam|Ondalık|Ondalik|Yazı|Yazi|Mantık|Mantik|Liste|Sözlük|Sozluk)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "support.function.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:yazdır|yazdir|oku|klavye)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "match": "(?<=fonksiyon|yeniden)\\s+([\\p{L}_][\\p{L}\\p{N}_.]*)",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.kolay"
+            }
+          }
+        },
+        {
+          "match": "(?<=\\.)(ekle|araya_ekle|çıkar|cikar|sil|temizle|içerir|icerir|bul|konum|sırala|sirala|ters|uzunluk|parça|karakter|böl|bol|kırp|kirp|büyük_harf|buyuk_harf|küçük_harf|kucuk_harf|ondalığa|ondaliga|yazıya|yaziya|tama|anahtarlar|değerler|degerler)(?=\\s*\\()",
+          "captures": {
+            "1": {
+              "name": "support.function.method.kolay"
+            }
+          }
+        },
+        {
+          "name": "entity.name.type.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])\\p{Lu}[\\p{L}\\p{N}_]*(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "match": "([\\p{L}_][\\p{L}\\p{N}_]*)\\s*(?=\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.call.kolay"
+            }
+          }
+        },
+        {
+          "name": "constant.numeric.kolay",
+          "match": "(?<![\\p{L}\\p{N}_])(?:0[xX][0-9A-Fa-f][0-9A-Fa-f_]*|\\d[\\d_]*(?:\\.\\d[\\d_]*)?)(?![\\p{L}\\p{N}_])"
+        },
+        {
+          "name": "keyword.operator.kolay",
+          "match": "->|\\.\\.=|\\.\\.|==|!=|<=|>=|\\+=|-=|\\*=|/=|&&|\\|\\||[+\\-*/%<>=!]"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.kolay",
+          "match": "//.*$"
+        },
+        {
+          "include": "#block_comment"
+        }
+      ]
+    },
+    "block_comment": {
+      "name": "comment.block.kolay",
+      "begin": "/<",
+      "end": ">/",
+      "patterns": [
+        {
+          "include": "#block_comment"
+        }
+      ]
+    },
+    "escapes": {
+      "name": "constant.character.escape.kolay",
+      "match": "\\\\[ntr0\\\"\\\\{}]"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.f.kolay",
+          "begin": "f\\\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.kolay"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escapes"
+            },
+            {
+              "name": "constant.character.escape.kolay",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "name": "meta.interpolation.kolay",
+              "begin": "\\{",
+              "end": "\\}",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.begin.kolay"
+                }
+              },
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.end.kolay"
+                }
+              },
+              "contentName": "source.kolay",
+              "patterns": [
+                {
+                  "include": "#expr"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.kolay",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

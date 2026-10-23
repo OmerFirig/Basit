@@ -1,0 +1,3 @@
+HATA (13_eksik_dondur.kolay, satır 1): 'işaret' Yazı döndürmeli, ama fonksiyonun sonuna bir değer döndürmeden ulaşılabiliyor.
+  1 | fonksiyon işaret(x: Tam) -> Yazı {
+    | ^^^^^^^^^

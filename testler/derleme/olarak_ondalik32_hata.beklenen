@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (olarak_ondalik32_hata.kolay, satır 3): 100000000000000000000000000000000000000000.0 değeri Ondalık(32) tipine sığmıyor (en büyük değer yaklaşık 3,4 × 10^38).
+  3 | yazdır(k olarak Ondalık(32))

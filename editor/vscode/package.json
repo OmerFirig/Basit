@@ -1,0 +1,47 @@
+{
+  "name": "kolay",
+  "displayName": "Kolay",
+  "description": "Kolay (Türkçe programlama dili) için renklendirme ve hazır kod parçaları",
+  "version": "0.2.0",
+  "publisher": "kolay",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kolay",
+        "aliases": [
+          "Kolay",
+          "kolay"
+        ],
+        "extensions": [
+          ".kolay"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kolay",
+        "scopeName": "source.kolay",
+        "path": "./syntaxes/kolay.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "kolay",
+        "path": "./snippets/kolay.json"
+      }
+    ]
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://example.invalid/kolay"
+  }
+}

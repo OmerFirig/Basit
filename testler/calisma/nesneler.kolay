@@ -1,0 +1,36 @@
+// Global nesnenin metodu çalışırken aynı nesneyi okuyan kod güncel halini görür.
+tür Sayaç(n: Tam(64)) {
+    fonksiyon art() {
+        n += 1
+        göster()
+    }
+    fonksiyon iki_kez() {
+        art()
+        bu.art()
+    }
+}
+ata s = Sayaç(n: 0)
+fonksiyon göster() { yazdır(f"sayaç: {s.n}") }
+s.art()
+s.iki_kez()
+
+// Yerel nesneler ve değer semantiği
+fonksiyon dene() {
+    ata a = Sayaç(n: 10)
+    ata b = a
+    b.n = 99
+    yazdır(a.n, b.n)
+}
+dene()
+
+// Alan erişimi: çoklu kalıtımda alanların yeri farklı olsa da doğru alan okunur
+tür Kişi(ad: Yazı) { fonksiyon kim() -> Yazı { döndür ad } }
+tür Sporcu(branş: Yazı) { fonksiyon dal() -> Yazı { döndür branş } }
+tür Öğrenci[Kişi, Sporcu](no: Tam(32)) { }
+ata ö = Öğrenci(ad: "Ali", branş: "yüzme", no: 7)
+ata sp: Sporcu = ö
+yazdır(ö.kim(), ö.dal(), sp.dal(), ö.no)
+
+// Zincirleme metotlar hızlı denetlenir
+ata y = "  a  "
+yazdır(y.kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().kırp().büyük_harf())

@@ -1,0 +1,3 @@
+HATA (55_dis_blok_icinde.kolay, satır 3): Dış kütüphaneler sadece dosyanın en üst düzeyinde tanımlanabilir.
+  3 |     "m" kütüphanesindeki fonksiyon cos(x: Ondalık) -> Ondalık
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

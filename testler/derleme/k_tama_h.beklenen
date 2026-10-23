@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_tama_h.kolay, satır 1): "12a" bir tam sayıya çevrilemez.
+  1 | yazdır("12a".tama())

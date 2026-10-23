@@ -1,0 +1,3 @@
+mat adıyla dış kütüphane("m") {
+    fonksiyon cos(x: Ondalık) -> Ondalık
+}

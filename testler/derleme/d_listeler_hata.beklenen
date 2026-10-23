@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (d_listeler_hata.kolay, satır 2): Listenin 5. indeksine erişilmek istendi, ama liste 2 elemanlı (0 .. 1).
+  2 | yazdır(l[5])

@@ -1,0 +1,2 @@
+ata a = 0
+(0..10).adım(a) içindeki her i için yap { }

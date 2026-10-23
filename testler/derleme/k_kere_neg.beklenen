@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_kere_neg.kolay, satır 2): 'kere' için tekrar sayısı negatif olamaz (-5).
+  2 | n kere yap { }

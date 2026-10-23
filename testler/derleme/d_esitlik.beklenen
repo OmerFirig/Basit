@@ -1,0 +1,5 @@
+doğru yanlış doğru
+{R.K: 1, R.M(v: "x"): 7} 7 doğru doğru doğru
+1 yanlış
+doğru yanlış
+[N(x: 2, ad: "b"), N(x: 1, ad: "a")] {R.K: 1, R.M(v: "x"): 7} R.K [N(x: 2, ad: "b"), N(x: 1, ad: "a")] 3.5

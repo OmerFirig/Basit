@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (d_esnek_hata.kolay, satır 3): 1.267.650.600.228.229.401.496.703.205.376 değeri Tam(64) tipine sığmıyor (-9.223.372.036.854.775.808 .. 9.223.372.036.854.775.807).
+  3 | yazdır(a olarak Tam(64))

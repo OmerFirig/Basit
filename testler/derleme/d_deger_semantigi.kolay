@@ -1,0 +1,21 @@
+ata a = [1, 2, 3]
+ata b = a
+b.ekle(4)
+b[0] = 99
+yazdır(a, b)
+ata m = [[1, 2], [3]]
+ata n = m
+n[0].ekle(7)
+n[1][0] = 30
+yazdır(m, n)
+fonksiyon degistir(l: Liste<Tam(64)>) -> Liste<Tam(64)> {
+    l.ekle(100)
+    döndür l
+}
+ata c = degistir(a)
+yazdır(a, c)
+ata s: Sözlük<Yazı, Liste<Tam(64)>> = {"x": [1]}
+ata t = s
+t["x"].ekle(2)
+t["y"] = [5]
+yazdır(s, t)

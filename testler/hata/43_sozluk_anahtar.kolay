@@ -1,0 +1,5 @@
+seçenek Şekil {
+    Daire(r: Ondalık)
+    Kare
+}
+ata s: Sözlük<Şekil, Tam(64)> = {Şekil.Kare: 1}

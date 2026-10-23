@@ -1,0 +1,4 @@
+#Güvensiz
+dış kütüphane("c") {
+    fonksiyon f(l: Liste<Tam(64)>) -> Tam(64)
+}

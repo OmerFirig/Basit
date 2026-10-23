@@ -1,0 +1,28 @@
+// A: isimsiz
+#Güvensiz
+dış kütüphane("m") {
+    fonksiyon cos(x: Ondalık) -> Ondalık
+    fonksiyon karekök(x: Ondalık) -> Ondalık = "sqrt"
+}
+// B: isimli
+#Güvensiz
+mat adıyla dış kütüphane("m") {
+    fonksiyon üs(a: Ondalık, b: Ondalık) -> Ondalık = "pow"
+    fonksiyon tavan(x: Ondalık(32)) -> Ondalık(32) = "ceilf"
+}
+// C: tek fonksiyon
+#Güvensiz
+"c" kütüphanesindeki fonksiyon uzunluk(s: Yazı) -> Tam(64) = "strlen"
+#Güvensiz
+"c" kütüphanesindeki fonksiyon mutlak(x: Tam(32)) -> Tam(32) = "abs"
+#Güvensiz
+"c" kütüphanesindeki fonksiyon getenv(ad: Yazı) -> Yazı
+#Güvensiz
+"c" kütüphanesindeki fonksiyon büyüt(c: Tam(32)) -> Tam(32) = "toupper"
+
+yazdır(cos(0.0), karekök(2.0), mat.üs(2.0, 10.0), mat.tavan(2.25 olarak Ondalık(32)))
+yazdır(uzunluk("merhaba"), uzunluk("ağaç"), mutlak(-42), büyüt(97))
+yazdır(getenv("KOLAY_YOK_DEGISKEN"))
+ata t = 0.0
+(ata i = 0; i < 1000; i += 1) sürece yap { t += karekök(i olarak Ondalık) }
+yazdır(t)

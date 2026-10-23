@@ -1,0 +1,3 @@
+HATA (22_sabit_boyut_ekle.kolay, satır 2): Sabit boyutlu listeye (Liste<Tam>[3]) eleman eklenemez ya da çıkarılamaz.
+  2 | l.ekle(4)
+    | ^^^^^^^^^

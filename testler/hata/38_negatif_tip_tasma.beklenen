@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (38_negatif_tip_tasma.kolay, satır 2): Tam(8, -) taştı. -250 - 10 = -260, ama Tam(8, -) en az -255 tutabilir.
+  2 | x = x - 10

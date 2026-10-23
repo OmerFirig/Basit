@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (06_tasma_calisma.kolay, satır 2): Tam(8) taştı. 120 + 10 = 130, ama Tam(8) en fazla 127 tutabilir.
+  2 | b = b + 10

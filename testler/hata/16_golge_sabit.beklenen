@@ -1,0 +1,3 @@
+HATA (16_golge_sabit.kolay, satır 2): 'x' sabit; aynı isimle yeni bir değişken tanımlanamaz.
+  2 | x: Yazı = "a"
+    | ^

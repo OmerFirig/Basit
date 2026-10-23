@@ -1,0 +1,9 @@
+ata a = 0xFF
+ata b: Tam(8, +) = 0xff
+ata c = 0x7FFF_FFFF
+yazdır(a, b, c, -0x10, 0x0)
+ata z = 0.0
+ata y: Ondalık(32) = 0.0
+ata h: Ondalık(16) = 0.0
+yazdır(1.0 / z, -1.0 / z, z / z, 1.0 / y, 2.0 / h, 5.0 % z, 1.0 / 4.0)
+eşleştir a { 0xFF -> yazdır("hex desen") ; değilse -> yazdır("yok") }

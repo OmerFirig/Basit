@@ -1,0 +1,4 @@
+0
+3 -3 1 -1
+ÇALIŞMA HATASI (k_bolme.kolay, satır 4): Tam(64) taştı. -9.223.372.036.854.775.808 / -1 = 9.223.372.036.854.775.808, ama Tam(64) en fazla 9.223.372.036.854.775.807 tutabilir.
+  4 | yazdır(a / -1)

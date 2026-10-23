@@ -1,0 +1,55 @@
+tür Kişi(ad: Yazı, yaş: Tam(8, +)) {
+    fonksiyon tanıt() {
+        yazdır(f"Ben {ad}, {yaş} yaşındayım")
+    }
+    fonksiyon doğum_günü() {
+        yaş += 1
+    }
+    fonksiyon ad_değiştir(ad: Yazı) {
+        bu.ad = ad
+    }
+}
+tür Sporcu(branş: Yazı) {
+    fonksiyon tanıt() { yazdır(f"{branş} sporcusuyum") }
+}
+tür Öğrenci[Kişi, Sporcu](numara: Tam(32, +)) {
+    yeniden Kişi.tanıt() { yazdır(f"Ben öğrenci {ad}") }
+    yeniden Sporcu.tanıt() { yazdır(f"{branş} yapan öğrenciyim") }
+    yeniden tanıt() {
+        Kişi.tanıt()
+        Sporcu.tanıt()
+        yazdır(f"Numaram {numara}")
+    }
+}
+ata ali = Öğrenci(ad: "Ali", yaş: 21, branş: "Yüzme", numara: 123)
+ali.tanıt()
+ali.doğum_günü()
+yazdır(ali.yaş)
+ali.ad_değiştir("Veli")
+yazdır(ali)
+ata kişiler: Liste<Kişi> = [Kişi(ad: "Ayşe", yaş: 30), ali]
+kişiler içindeki her k için yap { k.tanıt() }
+fonksiyon selamla(k: Kişi) { k.tanıt() }
+selamla(ali)
+kişiler[0].doğum_günü()
+yazdır(kişiler[0].yaş)
+
+arayüz Konuşabilir {
+    fonksiyon konuş() -> Yazı
+}
+tür Kedi[Konuşabilir](ad: Yazı) {
+    fonksiyon konuş() -> Yazı { döndür "Miyav" }
+}
+tür Robot[Konuşabilir](model: Tam) {
+    fonksiyon konuş() -> Yazı { döndür f"Bip bop, ben {model}" }
+}
+fonksiyon konuştur(k: Konuşabilir) { yazdır(k.konuş()) }
+konuştur(Kedi(ad: "Tekir"))
+konuştur(Robot(model: 42))
+
+// değer semantiği: kopya bağımsız
+ata a = [1, 2, 3]
+ata b = a
+b.ekle(4)
+yazdır(a, b)
+ata sabit dondur = a

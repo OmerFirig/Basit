@@ -1,0 +1,3 @@
+HATA (14_deger_dondurmeyen.kolay, satır 2): Bu fonksiyon bir değer döndürmüyor, sonucu kullanılamaz.
+  2 | ata x = selamla("Ali")
+    |         ^^^^^^^^^^^^^^

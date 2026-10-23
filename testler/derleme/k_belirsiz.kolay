@@ -1,0 +1,3 @@
+ata g: Yazı
+fonksiyon f() -> Yazı { döndür g }
+yazdır(f())

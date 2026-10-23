@@ -1,0 +1,11 @@
+tür N(x: Tam(64), ad: Yazı) { }
+yazdır(N(1, "a") == N(1, "a"), N(1, "a") == N(2, "a"), [N(1, "a")] == [N(1, "a")])
+seçenek R { K, M(v: Yazı) }
+ata dd: Sözlük<R, Tam(64)> = {R.K: 1}
+dd[R.M(v: "x")] = 2
+dd[R.M(v: "x")] += 5
+yazdır(dd, dd[R.M("x")], R.M("x") == R.M("x"), R.K == R.K, R.K != R.M("y"))
+ata ns = [N(2, "b"), N(1, "a")]
+yazdır(ns.bul(N(1, "a")), ns.içerir(N(3, "c")))
+yazdır({"a": [1]} == {"a": [1]}, {"a": [1]} == {"a": [2]})
+yazdır(f"{ns} {dd} {R.K}", ns.yazıya(), 3.5.yazıya())

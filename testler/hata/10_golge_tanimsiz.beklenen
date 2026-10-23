@@ -1,0 +1,3 @@
+HATA (10_golge_tanimsiz.kolay, satır 2): 'saycç' tanımlı değil. Yeni değişken için 'ata saycç: Tam = ...' yazın.
+  2 | saycç: Tam = 5
+    | ^^^^^

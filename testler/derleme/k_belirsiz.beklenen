@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_belirsiz.kolay, satır 2): Değişken henüz belirsiz (bir fonksiyon, değişken tanımlanmadan önce çağrıldı).
+  2 | fonksiyon f() -> Yazı { döndür g }

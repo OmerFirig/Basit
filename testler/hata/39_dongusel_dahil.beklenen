@@ -1,0 +1,3 @@
+HATA (dongu2.kolay, satır 1): Döngüsel dahil etme: 39_dongusel_dahil.kolay → dongu2.kolay → 39_dongusel_dahil.kolay
+  1 | dahil et("./39_dongusel_dahil.kolay")
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

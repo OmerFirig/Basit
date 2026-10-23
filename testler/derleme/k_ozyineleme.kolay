@@ -1,0 +1,2 @@
+fonksiyon f(n: Tam(64)) -> Tam(64) { döndür f(n + 1) }
+yazdır(f(0))

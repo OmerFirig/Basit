@@ -1,0 +1,22 @@
+tür Düğüm(değer: Tam(64), çocuklar: Liste<Düğüm>) { }
+fonksiyon ağaç(d: Tam(64)) -> Düğüm {
+    ata ç: Liste<Düğüm>
+    eğer d > 0 {
+        ç.ekle(ağaç(d - 1))
+        ç.ekle(ağaç(d - 1))
+    }
+    döndür Düğüm(değer: d, çocuklar: ç)
+}
+fonksiyon say(n: Düğüm) -> Tam(64) {
+    ata t = 1
+    n.çocuklar içindeki her c için yap { t += say(c) }
+    döndür t
+}
+ata top = 0
+20 kere yap { top += say(ağaç(10)) }
+yazdır(top)
+ata metin = ""
+ata parcalar: Liste<Yazı>
+5000 kere yap { parcalar.ekle(f"x{parcalar.uzunluk()}") }
+parcalar içindeki her p için yap { metin += p }
+yazdır(metin.uzunluk())

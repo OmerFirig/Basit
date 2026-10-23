@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (37_derin_ozyineleme.kolay, satır 1): Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.
+  1 | fonksiyon sonsuz(n: Tam(64)) -> Tam(64) { döndür sonsuz(n + 1) }

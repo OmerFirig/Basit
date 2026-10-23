@@ -1,0 +1,3 @@
+-250 -250 -255
+ÇALIŞMA HATASI (k_tam8n.kolay, satır 3): Tam(8, -) taştı. -250 - 6 = -256, ama Tam(8, -) en az -255 tutabilir.
+  3 | yazdır(a - 6)

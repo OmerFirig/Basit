@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (09_liste_sinir.kolay, satır 2): Listenin 5. indeksine erişilmek istendi, ama liste 3 elemanlı (0 .. 2).
+  2 | yazdır(a[5])

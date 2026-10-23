@@ -1,0 +1,2 @@
+tür Taş[Konuşabilir]()
+arayüz Konuşabilir { fonksiyon konuş() -> Yazı }

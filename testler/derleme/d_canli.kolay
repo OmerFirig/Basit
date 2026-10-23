@@ -1,0 +1,23 @@
+tür Sayaç(n: Tam(64), ad: Yazı) {
+    fonksiyon art() {
+        n += 1
+        ad += "+"
+        göster()
+    }
+}
+ata liste = [Sayaç(n: 0, ad: "a"), Sayaç(n: 10, ad: "b")]
+fonksiyon göster() { yazdır(liste) }
+liste[1].art()
+liste[0].art()
+ata s = Sayaç(n: 5, ad: "x")
+fonksiyon değiştir() { s = Sayaç(n: 100, ad: "yeni") }
+tür Kap(sayaç: Sayaç) {
+    fonksiyon dene() {
+        sayaç.art()
+        yazdır(sayaç)
+    }
+}
+ata k = Kap(sayaç: Sayaç(n: 1, ad: "k"))
+k.dene()
+k.sayaç.art()
+yazdır(k)

@@ -1,0 +1,20 @@
+3 kere yap { yazdır("tekrar") }
+ata liste = [10, 20, 30]
+liste içindeki her x için yap { yazdır(x) }
+0..3 içindeki her i için yap { yazdır("i", i) }
+1..=3 içindeki her i için yap { yazdır("j", i) }
+(0..10).adım(4) içindeki her i için yap { yazdır("adım", i) }
+ata n = 1
+n < 100 sürece yap { n = n * 3 }
+yazdır(n)
+ata sayac = 0
+doğru sürece yap {
+    sayac += 1
+    eğer sayac == 5 { dur }
+    eğer sayac % 2 == 0 { devam }
+    yazdır("tek", sayac)
+}
+(ata i = 0; i < 3; i += 1) sürece yap { yazdır("c", i) }
+ata notlar = {"Ali": 90, "Ayşe": 85}
+notlar içindeki her (ad, not) için yap { yazdır(ad, not) }
+notlar içindeki her ad için yap { yazdır(ad) }

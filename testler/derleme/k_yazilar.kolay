@@ -1,0 +1,13 @@
+ata s = "  Merhaba Dünya  "
+yazdır(s.kırp(), s.uzunluk(), s.kırp().büyük_harf(), "İSTANBUL ılık".küçük_harf())
+yazdır("ığüşöç".büyük_harf(), "ÉCOLE".küçük_harf())
+yazdır(s.içerir("Dün"), s.içerir(""), "abc" < "abç", "ç" < "d", "I" < "ı")
+yazdır("  42 ".tama(), "+7".tama(), "-0".tama(), "3,5".ondalığa(), " 1e3 ".ondalığa())
+yazdır("9223372036854775807".tama())
+yazdır("şeker".karakter(0), "şeker".karakter(-1))
+yazdır(f"{1}{"a"}{2.5}{doğru}{{x}}")
+ata t = ""
+1000 kere yap { t += "ab" }
+yazdır(t.uzunluk())
+t += t
+yazdır(t.uzunluk())

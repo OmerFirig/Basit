@@ -1,0 +1,3 @@
+HATA (29_ayni_satir.kolay, satır 1): Beklenmeyen 'yazdır'. Komutları ayırmak için yeni satıra geçin ya da ';' kullanın.
+  1 | ata x = 5 yazdır(x)
+    |           ^^^^^^

@@ -1,0 +1,6 @@
+[Sayaç(n: 0, ad: "a"), Sayaç(n: 11, ad: "b+")]
+[Sayaç(n: 1, ad: "a+"), Sayaç(n: 11, ad: "b+")]
+[Sayaç(n: 1, ad: "a+"), Sayaç(n: 11, ad: "b+")]
+Sayaç(n: 2, ad: "k+")
+[Sayaç(n: 1, ad: "a+"), Sayaç(n: 11, ad: "b+")]
+Kap(sayaç: Sayaç(n: 3, ad: "k++"))

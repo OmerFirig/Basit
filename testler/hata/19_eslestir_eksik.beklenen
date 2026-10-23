@@ -1,0 +1,3 @@
+HATA (19_eslestir_eksik.kolay, satır 3): Değer döndüren eşleştir'de tüm seçenekler yazılmalı ya da 'değilse' dalı eklenmeli. Eksik: Sarı.
+  3 | ata ad = eşleştir r { Kırmızı -> "k" }
+    |          ^^^^^^^^

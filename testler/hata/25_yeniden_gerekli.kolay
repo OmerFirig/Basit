@@ -1,0 +1,2 @@
+tür Kişi(ad: Yazı) { fonksiyon tanıt() { } }
+tür Ö[Kişi]() { fonksiyon tanıt() { } }

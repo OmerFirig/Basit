@@ -1,0 +1,10 @@
+// Hız testi: fib(35)
+// Yorumlayıcı ile:  time kolay 04_hiz_testi.kolay
+// Derleyerek:       kolay derle 04_hiz_testi.kolay && time ./04_hiz_testi
+
+fonksiyon fib(n: Tam(64)) -> Tam(64) {
+    eğer n < 2 { döndür n }
+    döndür fib(n - 1) + fib(n - 2)
+}
+
+yazdır(f"fib(35) = {fib(35)}")

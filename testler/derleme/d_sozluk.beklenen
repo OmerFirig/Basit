@@ -1,0 +1,9 @@
+{"elma": 13, "armut": 5, "kiraz": 7} 3 doğru yanlış
+{"elma": 13, "kiraz": 7} ["elma", "kiraz"] [13, 7]
+elma 13
+kiraz 7
+elma
+kiraz
+100 s1 s199
+{}
+{doğru: ["a", "b"], yanlış: []}

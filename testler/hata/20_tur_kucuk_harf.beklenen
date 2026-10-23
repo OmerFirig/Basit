@@ -1,0 +1,3 @@
+HATA (20_tur_kucuk_harf.kolay, satır 1): Tür adı büyük harfle başlamalı: 'Öğrenci' gibi.
+  1 | tür öğrenci(ad: Yazı)
+    |     ^^^^^^^

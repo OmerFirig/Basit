@@ -1,0 +1,3 @@
+HATA (41_liste_boyutu_derleme.kolay, satır 2): Liste<Tam(64)>[2] değeri Liste<Tam(64)>[9] tipine atanamaz: biri 2, diğeri 9 elemanlı.
+  2 | ata d: Liste<Tam(64)>[9] = c
+    |                            ^

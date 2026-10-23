@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (07_isaretsiz_negatif.kolay, satır 2): Tam(8, +) negatif olamaz: 3 - 5 = -2.
+  2 | u = u - 5

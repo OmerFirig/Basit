@@ -1,0 +1,7 @@
+klavye("us")
+dahil et("./matematik.kolay")
+fonksiyon selamla(ad: Yazi) {
+    eger ad == "" { dondur }
+    yazdir(f"Merhaba {ad}")
+}
+ata sayi = 3

@@ -1,0 +1,2 @@
+ata a = [1, 2]
+ata b: Liste<Tam(64)>[5] = a

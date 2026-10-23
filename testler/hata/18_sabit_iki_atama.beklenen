@@ -1,0 +1,3 @@
+HATA (18_sabit_iki_atama.kolay, satır 3): 'mesaj' sabit ve zaten bir değer atandı; değeri değiştirilemez.
+  3 | mesaj = "b"
+    | ^^^^^^^^^^^

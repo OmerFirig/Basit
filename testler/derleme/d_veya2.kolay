@@ -1,0 +1,20 @@
+ata x: Tam(64) veya Yazı veya Hiç = "a"
+ata y: Yazı veya Hiç = x olarak Yazı
+yazdır(y)
+ata l: Liste<Tam(64) veya Ondalık(32) veya Yazı> = [1, 0.1, "x"]
+yazdır(l, l[1])
+ata eşit = l == l
+yazdır(eşit, l[0] == 1, l[2] == "x")
+ata d: Sözlük<Yazı, Tam(8) veya Liste<Yazı>> = {"a": 1}
+d["b"] = ["x", "y"]
+yazdır(d)
+ata z: Tam(8) veya Yazı = 3
+ata w: Tam veya Yazı = z
+yazdır(w, w olarak Tam)
+fonksiyon f(v: Tam(64) veya Yazı) -> Yazı {
+    döndür eşleştir v { Tam(n) -> f"sayı {n}", Yazı(s) -> f"yazı {s}" }
+}
+yazdır(f(4), f("dört"))
+ata hl: Liste<Yazı veya Hiç>[3]
+hl[1] = "orta"
+yazdır(hl)

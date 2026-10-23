@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_kar_h.kolay, satır 1): Yazının 5. karakteri yok; yazı 3 karakterli.
+  1 | yazdır("abc".karakter(5))

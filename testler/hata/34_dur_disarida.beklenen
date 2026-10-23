@@ -1,0 +1,3 @@
+HATA (34_dur_disarida.kolay, satır 1): 'dur' sadece bir döngü içinde kullanılabilir.
+  1 | dur
+    | ^^^

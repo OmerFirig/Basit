@@ -1,0 +1,3 @@
+HATA (49_guvensiz_eksik_isimli.kolay, satır 1): Dış kütüphane kullanımı güvensizdir: C fonksiyonlarının imzaları kontrol edilemez, yanlış imza programı çökertebilir. Tanımın önüne #Güvensiz yazın.
+  1 | mat adıyla dış kütüphane("m") {
+    | ^^^

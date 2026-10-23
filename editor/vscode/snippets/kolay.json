@@ -1,0 +1,285 @@
+{
+  "Değişken": {
+    "prefix": "ata",
+    "body": [
+      "ata ${1:ad} = ${2:değer}"
+    ],
+    "description": "Yeni değişken"
+  },
+  "Tipli değişken": {
+    "prefix": "atat",
+    "body": [
+      "ata ${1:ad}: ${2:Tam} = ${3:0}"
+    ],
+    "description": "Tipi yazılmış değişken"
+  },
+  "Sabit": {
+    "prefix": "sabit",
+    "body": [
+      "ata sabit ${1:ad} = ${2:değer}"
+    ],
+    "description": "Değiştirilemez değer"
+  },
+  "Fonksiyon": {
+    "prefix": "fonksiyon",
+    "body": [
+      "fonksiyon ${1:ad}(${2:x}: ${3:Tam}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Değer döndürmeyen fonksiyon"
+  },
+  "Değer döndüren fonksiyon": {
+    "prefix": "fonksiyond",
+    "body": [
+      "fonksiyon ${1:ad}(${2:x}: ${3:Tam}) -> ${4:Tam} {",
+      "\t$0",
+      "\tdöndür ${5:x}",
+      "}"
+    ],
+    "description": "Değer döndüren fonksiyon"
+  },
+  "Eğer": {
+    "prefix": "eğer",
+    "body": [
+      "eğer ${1:koşul} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Koşul"
+  },
+  "Eğer değilse": {
+    "prefix": "eğerd",
+    "body": [
+      "eğer ${1:koşul} {",
+      "\t$2",
+      "} değilse {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Koşul ve değilse"
+  },
+  "Değilse eğer": {
+    "prefix": "değilsee",
+    "body": [
+      "değilse eğer ${1:koşul} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Ek koşul"
+  },
+  "Kere yap": {
+    "prefix": "kere",
+    "body": [
+      "${1:5} kere yap {",
+      "\t$0",
+      "}"
+    ],
+    "description": "N kez tekrarla"
+  },
+  "Her eleman için": {
+    "prefix": "her",
+    "body": [
+      "${1:liste} içindeki her ${2:x} için yap {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Her eleman için (foreach)"
+  },
+  "Aralık döngüsü": {
+    "prefix": "aralık",
+    "body": [
+      "${1:0}..${2:10} içindeki her ${3:i} için yap {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Sayı aralığı üzerinde döngü"
+  },
+  "Sürece yap": {
+    "prefix": "sürece",
+    "body": [
+      "${1:koşul} sürece yap {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Koşul doğru olduğu sürece (while)"
+  },
+  "Sonsuz döngü": {
+    "prefix": "sonsuz",
+    "body": [
+      "doğru sürece yap {",
+      "\t$0",
+      "\teğer ${1:bitti} { dur }",
+      "}"
+    ],
+    "description": "Sonsuz döngü"
+  },
+  "C tarzı döngü": {
+    "prefix": "cfor",
+    "body": [
+      "(ata ${1:i} = 0; ${1:i} < ${2:10}; ${1:i} += 1) sürece yap {",
+      "\t$0",
+      "}"
+    ],
+    "description": "C tarzı for"
+  },
+  "Tür": {
+    "prefix": "tür",
+    "body": [
+      "tür ${1:Ad}(${2:alan}: ${3:Yazı}) {",
+      "\tfonksiyon ${4:metot}() {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Yeni tür (sınıf)"
+  },
+  "Kalıtımlı tür": {
+    "prefix": "türk",
+    "body": [
+      "tür ${1:Ad}[${2:Ebeveyn}](${3:alan}: ${4:Tam}) {",
+      "\tyeniden ${5:metot}() {",
+      "\t\t${2:Ebeveyn}.${5:metot}()",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Ebeveynden kalıtım alan tür"
+  },
+  "Arayüz": {
+    "prefix": "arayüz",
+    "body": [
+      "arayüz ${1:Ad} {",
+      "\tfonksiyon ${2:metot}() -> ${3:Yazı}",
+      "}"
+    ],
+    "description": "Arayüz"
+  },
+  "Seçenek": {
+    "prefix": "seçenek",
+    "body": [
+      "seçenek ${1:Ad} {",
+      "\t${2:Birinci}",
+      "\t${3:İkinci}",
+      "}"
+    ],
+    "description": "Seçenek (enum)"
+  },
+  "Eşleştir": {
+    "prefix": "eşleştir",
+    "body": [
+      "eşleştir ${1:değer} {",
+      "\t${2:desen} -> ${3:yazdır(\"\")}",
+      "\tdeğilse -> $0",
+      "}"
+    ],
+    "description": "Eşleştir (match)"
+  },
+  "Yazdır": {
+    "prefix": "yazdır",
+    "body": [
+      "yazdır(${1:\"\"})"
+    ],
+    "description": "Ekrana yazdır"
+  },
+  "f-yazı ile yazdır": {
+    "prefix": "yazdırf",
+    "body": [
+      "yazdır(f\"${1:metin} {${2:değer}}\")"
+    ],
+    "description": "Değer içeren yazı yazdır"
+  },
+  "Oku": {
+    "prefix": "oku",
+    "body": [
+      "ata ${1:girdi} = oku(\"${2:Soru: }\")"
+    ],
+    "description": "Klavyeden oku"
+  },
+  "Liste": {
+    "prefix": "liste",
+    "body": [
+      "ata ${1:liste}: Liste<${2:Tam}> = [$0]"
+    ],
+    "description": "Liste"
+  },
+  "Sözlük": {
+    "prefix": "sözlük",
+    "body": [
+      "ata ${1:sözlük}: Sözlük<${2:Yazı}, ${3:Tam}> = {$0}"
+    ],
+    "description": "Sözlük"
+  },
+  "Dahil et": {
+    "prefix": "dahil",
+    "body": [
+      "dahil et(\"./${1:dosya}.kolay\")"
+    ],
+    "description": "Başka dosyayı ekle"
+  },
+  "Adıyla dahil et": {
+    "prefix": "adıyla",
+    "body": [
+      "${1:m} adıyla dahil et(\"./${2:dosya}.kolay\")"
+    ],
+    "description": "Başka dosyayı isimle ekle"
+  },
+  "Klavye us": {
+    "prefix": "klavye",
+    "body": [
+      "klavye(\"us\")"
+    ],
+    "description": "Türkçe karakter olmadan yazım (ilk satır)"
+  },
+  "Çok satırlı yorum": {
+    "prefix": "yorum",
+    "body": [
+      "/<",
+      "\t$0",
+      ">/"
+    ],
+    "description": "Çok satırlı yorum"
+  },
+  "Dış kütüphane": {
+    "prefix": "dış",
+    "body": [
+      "#Güvensiz",
+      "dış kütüphane(\"${1:m}\") {",
+      "\tfonksiyon ${2:cos}(${3:x}: ${4:Ondalık}) -> ${5:Ondalık}",
+      "}"
+    ],
+    "description": "C kütüphanesinden fonksiyonlar (FFI)"
+  },
+  "Adıyla dış kütüphane": {
+    "prefix": "dışa",
+    "body": [
+      "#Güvensiz",
+      "${1:mat} adıyla dış kütüphane(\"${2:m}\") {",
+      "\tfonksiyon ${3:karekök}(${4:x}: ${5:Ondalık}) -> ${6:Ondalık} = \"${7:sqrt}\"",
+      "}"
+    ],
+    "description": "C kütüphanesi, isim alanıyla (mat.karekök)"
+  },
+  "Kütüphanesindeki fonksiyon": {
+    "prefix": "kütüphanesindeki",
+    "body": [
+      "#Güvensiz",
+      "\"${1:c}\" kütüphanesindeki fonksiyon ${2:uzunluk}(${3:s}: ${4:Yazı}) -> ${5:Tam(64)} = \"${6:strlen}\""
+    ],
+    "description": "Tek C fonksiyonu (FFI)"
+  },
+  "Olarak": {
+    "prefix": "olarak",
+    "body": [
+      "(${1:değer} olarak ${2:Tam(32)})"
+    ],
+    "description": "Tip dönüşümü"
+  },
+  "Veya tipi": {
+    "prefix": "veya",
+    "body": [
+      "ata ${1:x}: ${2:Tam} veya ${3:Yazı} = ${4:0}"
+    ],
+    "description": "Birden fazla tipten biri olabilen değişken"
+  }
+}

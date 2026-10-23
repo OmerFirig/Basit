@@ -1,0 +1,3 @@
+HATA (04_tip_degismez.kolay, satır 2): 'x' Tam(64) tipinde, Yazı atanamaz. Tipini değiştirmek için 'x: Yazı = ...' yazın.
+  2 | x = "merhaba"
+    |     ^^^^^^^^^

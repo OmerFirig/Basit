@@ -1,0 +1,39 @@
+arayüz Konuşabilir {
+    fonksiyon konuş() -> Yazı
+}
+tür Hayvan[Konuşabilir](ad: Yazı) {
+    fonksiyon konuş() -> Yazı { döndür f"{ad} ses çıkarır" }
+    fonksiyon tanıt() { yazdır(konuş()) }
+}
+tür Kedi[Hayvan](renk: Yazı) {
+    yeniden konuş() -> Yazı { döndür f"{ad} miyavlar ({renk})" }
+}
+tür Köpek[Hayvan]() {
+    yeniden konuş() -> Yazı { döndür Hayvan.konuş() + " ve havlar" }
+}
+seçenek Robot[Konuşabilir] {
+    Küçük
+    Büyük(güç: Tam(32))
+    fonksiyon konuş() -> Yazı {
+        döndür eşleştir bu {
+            Küçük -> "bip"
+            Büyük(g) -> f"BOP x{g}"
+        }
+    }
+}
+ata hepsi: Liste<Konuşabilir> = [Kedi(ad: "Tekir", renk: "gri"), Köpek(ad: "Karabaş"), Robot.Küçük, Robot.Büyük(güç: 9), Hayvan(ad: "Kuş")]
+hepsi içindeki her h için yap { yazdır(h.konuş()) }
+ata hl: Liste<Hayvan> = [Kedi(ad: "A", renk: "siyah"), Köpek(ad: "B")]
+hl içindeki her h için yap { h.tanıt() }
+fonksiyon ne(h: Hayvan) -> Yazı {
+    döndür eşleştir h {
+        Kedi(k) -> f"kedi: {k.renk}"
+        Köpek(_) -> "köpek"
+        değilse -> "başka"
+    }
+}
+hl içindeki her h için yap { yazdır(ne(h)) }
+yazdır(ne(Hayvan(ad: "x")))
+ata k = hl[0] olarak Kedi
+yazdır(k.renk, k)
+yazdır(hepsi[2] == Robot.Küçük, hepsi[3] == Robot.Büyük(güç: 9), hepsi[3] == Robot.Büyük(güç: 8))
