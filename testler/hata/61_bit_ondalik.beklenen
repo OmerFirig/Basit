@@ -1,0 +1,3 @@
+HATA (61_bit_ondalik.kolay, satır 2): '&' bir bit işlemidir, sadece tam sayılarla yapılır; ama Ondalık verildi.
+  2 | yazdır(x & 1)
+    |        ^^^^^

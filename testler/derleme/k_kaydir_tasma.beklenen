@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_kaydir_tasma.kolay, satır 2): Tam(8, +) taştı: 200 << 1 sonucu Tam(8, +) sınırlarını aşıyor (0 .. 255).
+  2 | yazdır(u << 1)

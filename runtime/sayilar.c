@@ -85,6 +85,28 @@ static Sayi sayi_carp(Sayi a, Sayi b) {
     return r;
 }
 
+/// 256 bitlik ikiye tümleyen biçimde bit işlemi (& | ^), sonuç işaret + büyüklük
+static Sayi sayi_bit(Sayi a, Sayi b, char op) {
+    uint64_t x[4], y[4], r[4];
+    for (int k = 0; k < 2; k++) {
+        Sayi *s = k ? &b : &a;
+        uint64_t *o = k ? y : x;
+        uint64_t elde = 1;
+        for (int i = 0; i < 4; i++) {
+            o[i] = s->neg ? ~s->l[i] + elde : s->l[i];
+            if (s->neg) elde = elde && o[i] == 0;
+        }
+    }
+    for (int i = 0; i < 4; i++) r[i] = op == '&' ? x[i] & y[i] : op == '|' ? x[i] | y[i] : x[i] ^ y[i];
+    Sayi s = {{0}, (int)(r[3] >> 63)};
+    uint64_t elde = 1;
+    for (int i = 0; i < 4; i++) {
+        s.l[i] = s.neg ? ~r[i] + elde : r[i];
+        if (s.neg) elde = elde && s.l[i] == 0;
+    }
+    return s;
+}
+
 static void sayi_yazi(Sayi a, char *out) {
     char tmp[100];
     int n = 0;
@@ -207,7 +229,13 @@ _Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbi
     case '*': r = sayi_carp(a, b); break;
     case '/': r = sayi(amag / bmag, a.neg != b.neg); break;
     case '%': r = sayi(amag % bmag, a.neg); break;
+    case '&': case '|': case '^': r = sayi_bit(a, b, op[0]); break;
     default: r = b; r.neg = !b.neg && !sayi_sifir(&b); break;
+    }
+    // üs ve sola kaydırmada sonuç çok büyük olabilir: yazılmaz (yorumlayıcıdaki big_result_msg gibi)
+    if (!strcmp(op, "**") || !strcmp(op, "<<")) {
+        snprintf(msg, sizeof msg, "%s taştı: %s %s %s sonucu %s sınırlarını aşıyor (%s).", tip, ga, op, gb, tip, sinir);
+        kolay_hata(msg, konum, kod);
     }
     sayi_yazi(r, sr);
     grupla(sr, gr);
@@ -242,6 +270,14 @@ _Noreturn void kolay_cevrilemez_f(double v, const char *konum, const char *kod) 
     char sv[400], msg[700];
     ondalik_yaz(v, 64, sv);
     snprintf(msg, sizeof msg, "%s tam sayıya çevrilemez.", sv);
+    kolay_hata(msg, konum, kod);
+}
+
+/// once + sayı + sonra biçiminde hata (128 bitlik sayı, biçim: bkz. sayi_bicim)
+_Noreturn void kolay_sayi_hata(i128 bits, int32_t bicim, const char *once, const char *sonra, const char *konum, const char *kod) {
+    char sv[100], msg[400];
+    tam_yazi_bicim(bits, bicim, sv);
+    snprintf(msg, sizeof msg, "%s%s%s", once, sv, sonra);
     kolay_hata(msg, konum, kod);
 }
 
@@ -571,6 +607,130 @@ int64_t kolay_esnek_metinden(const char *s) {
     return r;
 }
 
+// ---- esnek Tam: bit işlemleri, kaydırma, üs (yorumlayıcıdaki num-bigint ile aynı: ikiye tümleyen)
+
+/// Büyüklüğü n kelimelik ikiye tümleyen biçime çevirir (n, büyüklükten en az bir kelime fazla olmalı)
+static void bb_tumleyen(const BB *a, uint32_t *o, int64_t n) {
+    uint64_t elde = 1;
+    for (int64_t i = 0; i < n; i++) {
+        uint32_t v = i < a->n ? a->r[i] : 0;
+        if (a->isaret < 0) {
+            uint64_t t = (uint64_t)(uint32_t)~v + elde;
+            o[i] = (uint32_t)t;
+            elde = t >> 32;
+        } else {
+            o[i] = v;
+        }
+    }
+}
+
+static void bb_bit(const BB *x, const BB *y, char op, BB *z) {
+    int64_t n = (x->n > y->n ? x->n : y->n) + 1;
+    uint32_t *p = bb_ayir(n), *q = bb_ayir(n);
+    bb_tumleyen(x, p, n);
+    bb_tumleyen(y, q, n);
+    for (int64_t i = 0; i < n; i++) p[i] = op == '&' ? p[i] & q[i] : op == '|' ? p[i] | q[i] : p[i] ^ q[i];
+    free(q);
+    int neg = p[n - 1] >> 31;
+    if (neg) { // büyüklüğe geri çevir
+        uint64_t elde = 1;
+        for (int64_t i = 0; i < n; i++) {
+            uint64_t t = (uint64_t)(uint32_t)~p[i] + elde;
+            p[i] = (uint32_t)t;
+            elde = t >> 32;
+        }
+    }
+    z->r = p;
+    z->n = n;
+    z->isaret = neg ? -1 : 1;
+    bb_kirp(z);
+}
+
+static void bb_sola(const BB *x, uint64_t k, BB *z) {
+    int64_t kel = (int64_t)(k / 32), bit = (int64_t)(k % 32), n = x->n + kel + 1;
+    z->r = bb_ayir(n);
+    memset(z->r, 0, (size_t)n * 4);
+    for (int64_t i = 0; i < x->n; i++) {
+        uint64_t v = (uint64_t)x->r[i] << bit;
+        z->r[i + kel] |= (uint32_t)v;
+        z->r[i + kel + 1] |= (uint32_t)(v >> 32);
+    }
+    z->n = n;
+    z->isaret = x->isaret;
+    bb_kirp(z);
+}
+
+/// Sağa kaydırma aşağı yuvarlar (eksi sayılarda -5 >> 1 = -3)
+static void bb_saga(const BB *x, uint64_t k, BB *z) {
+    int64_t kel = (int64_t)(k / 32), bit = (int64_t)(k % 32);
+    int64_t n = x->n - kel > 0 ? x->n - kel : 0;
+    z->r = bb_ayir(n + 1);
+    memset(z->r, 0, (size_t)(n + 1) * 4);
+    int kayip = 0;
+    for (int64_t i = 0; i < x->n && i < kel; i++) kayip |= x->r[i] != 0;
+    if (kel < x->n && bit) kayip |= (x->r[kel] & ((1u << bit) - 1)) != 0;
+    for (int64_t i = 0; i < n; i++) {
+        uint64_t v = x->r[i + kel] >> bit;
+        if (bit && i + kel + 1 < x->n) v |= (uint64_t)x->r[i + kel + 1] << (32 - bit);
+        z->r[i] = (uint32_t)v;
+    }
+    z->n = n;
+    z->isaret = x->isaret;
+    if (x->isaret < 0 && kayip) { // büyüklüğe 1 ekle
+        uint64_t elde = 1;
+        for (int64_t i = 0; i < n && elde; i++) {
+            uint64_t t = (uint64_t)z->r[i] + elde;
+            z->r[i] = (uint32_t)t;
+            elde = t >> 32;
+        }
+        if (elde) z->r[z->n++] = 1;
+    }
+    bb_kirp(z);
+    if (z->n == 0 && x->isaret < 0 && kayip) { // -1
+        z->r[0] = 1;
+        z->n = 1;
+        z->isaret = -1;
+    }
+}
+
+static void bb_kopya(const BB *x, BB *z) {
+    z->r = bb_ayir(x->n);
+    memcpy(z->r, x->r, (size_t)x->n * 4);
+    z->n = x->n;
+    z->isaret = x->isaret;
+}
+
+static void bb_us(const BB *x, uint64_t e, BB *z) {
+    BB s, t;
+    uint32_t bir = 1;
+    BB birb = {1, 1, &bir, {0}};
+    bb_kopya(&birb, z);
+    bb_kopya(x, &s);
+    while (e) {
+        if (e & 1) {
+            bb_carp(z, &s, &t);
+            free(z->r);
+            *z = t;
+        }
+        e >>= 1;
+        if (e) {
+            bb_carp(&s, &s, &t);
+            free(s.r);
+            s = t;
+        }
+    }
+    free(s.r);
+}
+
+static const char *esnek_op_adi(int64_t op) {
+    switch (op) {
+    case 'l': return "<<";
+    case 'r': return ">>";
+    case 'p': return "**";
+    default: return NULL;
+    }
+}
+
 static void bounds_metni(int64_t isaret, char *out) {
     strcpy(out, isaret == 1 ? "0 .. sonsuz" : isaret == 2 ? "-sonsuz .. 0" : "-sonsuz .. sonsuz");
 }
@@ -594,6 +754,12 @@ static void esnek_isaret(int64_t r, int64_t isaret, int64_t a, int64_t b, const 
         snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, gb, gr, tip, sinir);
         kolay_hata(msg, konum, kod);
     }
+    if (!strcmp(op, "**") || !strcmp(op, "<<")) { // sonuç çok büyük olabilir: yazılmaz
+        char sinir[40];
+        bounds_metni(isaret, sinir);
+        snprintf(msg, sizeof msg, "%s taştı: %s %s %s sonucu %s sınırlarını aşıyor (%s).", tip, ga, op, gb, tip, sinir);
+        kolay_hata(msg, konum, kod);
+    }
     if (isaret == 2)
         snprintf(msg, sizeof msg, "%s taştı. %s %s %s = %s, ama %s en fazla 0 tutabilir.", tip, ga, op, gb, gr, tip);
     else
@@ -601,13 +767,53 @@ static void esnek_isaret(int64_t r, int64_t isaret, int64_t a, int64_t b, const 
     kolay_hata(msg, konum, kod);
 }
 
-/// Esnek Tam işlemi. op: '+', '-', '*', '/', '%'
+/// Kaydırma ve üs: eksi ya da çok büyük miktar hatası (yorumlayıcıdaki shift_pow ile aynı mesajlar).
+/// Dönüş: miktar (u64'e sığmazsa UINT64_MAX)
+static uint64_t esnek_miktar(int64_t op, int64_t a, int64_t b, const char *konum, const char *kod) {
+    char sb[2000], msg[2200];
+    if (esnek_kars(b, esnek_yap(0)) < 0) {
+        esnek_metin(b, sb, sizeof sb);
+        if (op == 'p') snprintf(msg, sizeof msg, "Tam sayının üssü negatif olamaz (%s). Ondalık sonuç için: 2.0 ** -1", sb);
+        else snprintf(msg, sizeof msg, "Kaydırma miktarı negatif olamaz (%s).", sb);
+        kolay_hata(msg, konum, kod);
+    }
+    uint64_t n = UINT64_MAX;
+    if (esnek_kucuk(b)) n = (uint64_t)esnek_deger(b);
+    else {
+        BB y;
+        bb_esnek(&y, b);
+        if (y.n <= 2) n = (uint64_t)y.r[0] | (y.n == 2 ? (uint64_t)y.r[1] << 32 : 0);
+    }
+    int sifir = esnek_kars(a, esnek_yap(0)) == 0;
+    int kucuk_taban = sifir || esnek_kars(a, esnek_yap(1)) == 0 || esnek_kars(a, esnek_yap(-1)) == 0;
+    if (n > UINT32_MAX && ((op == 'l' && !sifir) || (op == 'p' && !kucuk_taban))) {
+        esnek_metin(b, sb, sizeof sb);
+        snprintf(msg, sizeof msg, op == 'p' ? "Üs çok büyük (%s)." : "Kaydırma miktarı çok büyük (%s).", sb);
+        kolay_hata(msg, konum, kod);
+    }
+    return n;
+}
+
+/// Esnek Tam işlemi. op: '+', '-', '*', '/', '%', '&', '|', '^', 'l' (<<), 'r' (>>), 'p' (**)
 int64_t kolay_esnek_islem(int64_t op, int64_t a, int64_t b, int64_t isaret, const char *tip, const char *konum,
                           const char *kod) {
     char ops[2] = {(char)op, 0};
+    const char *opad = esnek_op_adi(op) ? esnek_op_adi(op) : ops;
     if ((op == '/' || op == '%') && esnek_kars(b, esnek_yap(0)) == 0) kolay_hata("Sıfıra bölme hatası.", konum, kod);
     int64_t r;
-    if (esnek_kucuk(a) && esnek_kucuk(b)) {
+    if (op == 'l' || op == 'r' || op == 'p') {
+        uint64_t n = esnek_miktar(op, a, b, konum, kod);
+        BB x, z;
+        bb_esnek(&x, a);
+        if (op == 'p' && x.n <= 1 && (x.n == 0 || x.r[0] == 1)) n = n == 0 ? 0 : (n % 2) + 2; // taban 0, 1, -1
+        if (op == 'l' && x.isaret == 0) n = 0;
+        if (op == 'r' && n > ((uint64_t)1 << 40)) n = (uint64_t)1 << 40;
+        if (op == 'l') bb_sola(&x, n, &z);
+        else if (op == 'r') bb_saga(&x, n, &z);
+        else bb_us(&x, n, &z);
+        r = bb_esnege(&z);
+        free(z.r);
+    } else if (esnek_kucuk(a) && esnek_kucuk(b)) {
         int64_t x = esnek_deger(a), y = esnek_deger(b);
         i128 s;
         switch (op) {
@@ -615,6 +821,9 @@ int64_t kolay_esnek_islem(int64_t op, int64_t a, int64_t b, int64_t isaret, cons
         case '-': s = (i128)x - y; break;
         case '*': s = (i128)x * y; break;
         case '/': s = (i128)x / y; break;
+        case '&': s = x & y; break;
+        case '|': s = x | y; break;
+        case '^': s = x ^ y; break;
         default: s = (i128)x % y; break;
         }
         if (s >= ESNEK_ALT && s <= ESNEK_UST) {
@@ -632,6 +841,7 @@ int64_t kolay_esnek_islem(int64_t op, int64_t a, int64_t b, int64_t isaret, cons
         case '+': bb_topla(&x, &y, &z); break;
         case '-': y.isaret = -y.isaret; bb_topla(&x, &y, &z); break;
         case '*': bb_carp(&x, &y, &z); break;
+        case '&': case '|': case '^': bb_bit(&x, &y, (char)op, &z); break;
         default:
             bb_bol(&x, &y, &z, &k);
             if (op == '%') {
@@ -645,7 +855,7 @@ int64_t kolay_esnek_islem(int64_t op, int64_t a, int64_t b, int64_t isaret, cons
         r = bb_esnege(&z);
         free(z.r);
     }
-    esnek_isaret(r, isaret, a, b, ops, tip, konum, kod);
+    esnek_isaret(r, isaret, a, b, opad, tip, konum, kod);
     return r;
 }
 

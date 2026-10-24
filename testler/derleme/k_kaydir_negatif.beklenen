@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_kaydir_negatif.kolay, satır 2): Kaydırma miktarı negatif olamaz (-2).
+  2 | yazdır(x << -2)

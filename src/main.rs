@@ -129,6 +129,28 @@ fn front(path: &Path, mode: Mode, sources: &mut Sources) -> Option<tir::Program>
     }
 }
 
+/// Ctrl+C: program Türkçe bir mesajla durur (derlenmiş programdaki runtime/cekirdek.c ile aynı).
+fn ctrl_c_yakala() {
+    use std::ffi::c_int;
+    unsafe extern "C" {
+        fn signal(sig: c_int, handler: extern "C" fn(c_int)) -> usize;
+        fn write(fd: c_int, buf: *const std::ffi::c_void, n: usize) -> isize;
+        fn _exit(code: c_int) -> !;
+    }
+    extern "C" fn durdur(_: c_int) {
+        let m = DURDURULDU.as_bytes();
+        unsafe {
+            write(2, m.as_ptr().cast(), m.len());
+            _exit(130);
+        }
+    }
+    unsafe {
+        signal(2, durdur);
+    }
+}
+
+const DURDURULDU: &str = "\nProgram durduruldu (Ctrl+C).\n";
+
 fn real_main() -> i32 {
     let o = match parse_args() {
         Ok(o) => o,
@@ -154,6 +176,7 @@ fn real_main() -> i32 {
     match o.cmd.as_str() {
         "çalıştır" => {
             let Some(prog) = front(&path, o.mode, &mut sources) else { return 1 };
+            ctrl_c_yakala();
             let dis = match dis::resolve(&prog) {
                 Ok(d) => d,
                 Err(d) => {

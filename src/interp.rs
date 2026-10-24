@@ -68,6 +68,9 @@ pub struct Interp<'p> {
     pub(crate) globals: Vec<Value>,
     pub(crate) ran: Vec<bool>,
     pub(crate) out: std::io::BufWriter<std::io::Stdout>,
+    /// Çıktı ekrana gidiyorsa her satır hemen yazılır (uzun süren programda yazılanlar görünsün);
+    /// dosyaya ya da boruya gidiyorsa hız için tamponda biriktirilir.
+    pub(crate) line_flush: bool,
     pub(crate) depth: u32,
     pub(crate) pool: Vec<Vec<Value>>,
     /// yer adımları için tekrar kullanılan listeler (resolve_place)
@@ -180,12 +183,21 @@ impl<'p> Interp<'p> {
             globals: vec![Value::Uninit; prog.nglobals as usize],
             ran: vec![false; prog.modules.len()],
             out: std::io::BufWriter::new(std::io::stdout()),
+            line_flush: std::io::IsTerminal::is_terminal(&std::io::stdout()),
             depth: 0,
             pool: Vec::new(),
             step_pool: Vec::new(),
             chunks: prog.funcs.iter().map(|f| crate::vm::compile_func(prog, f)).collect(),
             mchunks: prog.modules.iter().map(|m| crate::vm::compile_module(prog, m)).collect(),
             dis: Vec::new(),
+        }
+    }
+
+    /// yazdır'ın bir satırı
+    pub(crate) fn write_line(&mut self, line: &str) {
+        let _ = self.out.write_all(line.as_bytes());
+        if self.line_flush {
+            let _ = self.out.flush();
         }
     }
 
@@ -732,7 +744,7 @@ impl<'p> Interp<'p> {
                         write_value(&mut line, &v, Some(&a.ty), prog, true);
                     }
                     line.push('\n');
-                    let _ = self.out.write_all(line.as_bytes());
+                    self.write_line(&line);
                     Value::Hic
                 }
                 Builtin::Oku => {
@@ -998,6 +1010,9 @@ impl<'p> Interp<'p> {
                 if matches!(op, BinOp::Div | BinOp::Rem) && y.is_zero() {
                     return rt(loc, "Sıfıra bölme hatası.");
                 }
+                if matches!(op, BinOp::Shl | BinOp::Shr | BinOp::Pow) {
+                    return self.shift_pow(op, &x, &y, *bits, *sign, ty, loc).map(Value::Int);
+                }
                 let r = match (&x, &y) {
                     (Int::S(p), Int::S(q)) => {
                         let fast = match op {
@@ -1006,6 +1021,9 @@ impl<'p> Interp<'p> {
                             BinOp::Mul => p.checked_mul(*q),
                             BinOp::Div => p.checked_div(*q),
                             BinOp::Rem => p.checked_rem(*q),
+                            BinOp::BitAnd => Some(p & q),
+                            BinOp::BitOr => Some(p | q),
+                            BinOp::BitXor => Some(p ^ q),
                             _ => unreachable!(),
                         };
                         match fast {
@@ -1030,12 +1048,81 @@ impl<'p> Interp<'p> {
                     BinOp::Div if q == 0.0 => f64::NAN,
                     BinOp::Div => p / q,
                     BinOp::Rem => p % q,
+                    BinOp::Pow => p.powf(q),
                     _ => unreachable!(),
                 };
                 Ok(Value::Float(round_float(r, *bits)))
             }
             _ => unreachable!("sayı bekleniyordu"),
         }
+    }
+
+    /// `<<`, `>>` ve `**` (tam sayılarda). Derlenmiş programdakiyle (codegen/ifade.rs) aynı kurallar ve mesajlar.
+    #[allow(clippy::too_many_arguments)]
+    fn shift_pow(&self, op: BinOp, x: &Int, y: &Int, bits: Option<u32>, sign: Sign, ty: &Type, loc: Loc) -> R<Int> {
+        if y.cmp_int(&Int::S(0)) == Ordering::Less {
+            return rt(
+                loc,
+                match op {
+                    BinOp::Pow => format!("Tam sayının üssü negatif olamaz ({y}). Ondalık sonuç için: 2.0 ** -1"),
+                    _ => format!("Kaydırma miktarı negatif olamaz ({y})."),
+                },
+            );
+        }
+        let too_big = || rt(loc, self.big_result_msg(op, x, y, ty, bits, sign));
+        // boyutlu tiplerde sonuç en fazla 129 bit: büyük üs/kaydırmada sonucu hesaplamadan karar verilir
+        let n: u64 = match y.as_i64() {
+            Some(n) => n as u64,
+            None => u64::MAX,
+        };
+        let r = match op {
+            BinOp::Shr => {
+                let n = n.min(1 << 20) as usize;
+                Int::from_big(x.to_big() >> n)
+            }
+            BinOp::Shl => {
+                if x.is_zero() {
+                    Int::S(0)
+                } else if bits.is_some() && n > 130 {
+                    return too_big();
+                } else if n > u32::MAX as u64 {
+                    return rt(loc, format!("Kaydırma miktarı çok büyük ({y})."));
+                } else {
+                    Int::from_big(x.to_big() << (n as usize))
+                }
+            }
+            _ => {
+                // |x| <= 1 ise sonuç her üste küçük kalır
+                let xb = x.to_big();
+                let small = xb >= BigInt::from(-1) && xb <= BigInt::from(1);
+                if small {
+                    let n = (n % 2) as u32 + if n == 0 { 0 } else { 2 };
+                    Int::from_big(xb.pow(n))
+                } else if bits.is_some() && n > 130 {
+                    return too_big();
+                } else if n > u32::MAX as u64 {
+                    return rt(loc, format!("Üs çok büyük ({y})."));
+                } else {
+                    Int::from_big(xb.pow(n as u32))
+                }
+            }
+        };
+        if !fits_int(&r, bits, sign) {
+            return if op == BinOp::Shr { rt(loc, self.overflow_msg(op, x, y, &r, bits, sign, ty)) } else { too_big() };
+        }
+        Ok(r)
+    }
+
+    /// Üs ve sola kaydırmada taşma: sonuç çok büyük olabileceği için yazılmaz.
+    fn big_result_msg(&self, op: BinOp, x: &Int, y: &Int, ty: &Type, bits: Option<u32>, sign: Sign) -> String {
+        let t = self.tn(ty);
+        format!(
+            "{t} taştı: {} {} {} sonucu {t} sınırlarını aşıyor ({}).",
+            group_digits(&x.to_string()),
+            op.symbol(),
+            group_digits(&y.to_string()),
+            bounds_text(bits, sign)
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1189,6 +1276,9 @@ pub(crate) fn i128_op(op: BinOp, a: i128, b: i128) -> i128 {
         BinOp::Mul => a * b,
         BinOp::Div => a / b,
         BinOp::Rem => a % b,
+        BinOp::BitAnd => a & b,
+        BinOp::BitOr => a | b,
+        BinOp::BitXor => a ^ b,
         _ => unreachable!(),
     }
 }
@@ -1200,6 +1290,9 @@ pub(crate) fn big_op(op: BinOp, a: &BigInt, b: &BigInt) -> BigInt {
         BinOp::Mul => a * b,
         BinOp::Div => a / b,
         BinOp::Rem => a % b,
+        BinOp::BitAnd => a & b,
+        BinOp::BitOr => a | b,
+        BinOp::BitXor => a ^ b,
         _ => unreachable!(),
     }
 }

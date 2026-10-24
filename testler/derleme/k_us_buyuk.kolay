@@ -1,0 +1,4 @@
+ata e: Tam = 2
+ata n: Tam = 1
+n = n << 40
+yazdır(e ** n)

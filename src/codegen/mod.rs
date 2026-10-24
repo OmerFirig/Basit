@@ -60,6 +60,7 @@ declare void @kolay_sigmiyor_f(double, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_sigmiyor_esnek(i64, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_cevrilemez_f(double, ptr, ptr) noreturn
 declare void @kolay_kere_negatif(i128, i32, ptr, ptr) noreturn
+declare void @kolay_sayi_hata(i128, i32, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_tur_degil(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_tur_degil_nesne(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_indeks_hatasi(i64, i64, ptr, ptr) noreturn

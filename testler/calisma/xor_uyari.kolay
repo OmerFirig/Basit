@@ -1,0 +1,2 @@
+ata x = 5
+yazdır(x ^ 2, x ^ 0x2, x ^ 12)

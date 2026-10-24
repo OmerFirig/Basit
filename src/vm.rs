@@ -852,6 +852,9 @@ impl<'p> Interp<'p> {
                             BinOp::Mul => x.checked_mul(y),
                             BinOp::Div if y != 0 => x.checked_div(y),
                             BinOp::Rem if y != 0 => x.checked_rem(y),
+                            BinOp::BitAnd => Some(x & y),
+                            BinOp::BitOr => Some(x | y),
+                            BinOp::BitXor => Some(x ^ y),
                             _ => None,
                         };
                         if let Some(r) = r {
@@ -893,6 +896,9 @@ impl<'p> Interp<'p> {
                             BinOp::Mul => x.checked_mul(y),
                             BinOp::Div if y != 0 => x.checked_div(y),
                             BinOp::Rem if y != 0 => x.checked_rem(y),
+                            BinOp::BitAnd => Some(x & y),
+                            BinOp::BitOr => Some(x | y),
+                            BinOp::BitXor => Some(x ^ y),
                             _ => None,
                         };
                         if let Some(r) = r {
@@ -1003,8 +1009,7 @@ impl<'p> Interp<'p> {
                         write_value(&mut line, &v, Some(&ch.types[(*t0 + i) as usize]), prog, true);
                     }
                     line.push('\n');
-                    use std::io::Write;
-                    let _ = self.out.write_all(line.as_bytes());
+                    self.write_line(&line);
                 }
                 Ins::Eval(d, e, brk, cont) => match self.eval(e, f) {
                     Ok(v) => f.slots[*d as usize] = v,

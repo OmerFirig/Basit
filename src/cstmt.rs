@@ -479,6 +479,9 @@ impl Checker {
                 if !pi.ty.is_num() {
                     return err(span, format!("'{}=' sadece sayılarla kullanılabilir, ama {} verildi.", op.symbol(), self.type_name(&pi.ty)));
                 }
+                if op.is_bit() && !pi.ty.is_int() {
+                    return err(span, format!("'{}=' bir bit işlemidir, sadece tam sayılarla yapılır; ama {} verildi.", op.symbol(), self.type_name(&pi.ty)));
+                }
                 // Tam(N, -) ile pozitif sabit (x -= 1): 'x - 1' yazımındaki gibi x'in tipinde hesaplanır,
                 // sonuç çalışma anında kontrol edilir.
                 let neg_lit = match (&pi.ty, &value.kind) {

@@ -1,0 +1,4 @@
+Uyarı (xor_uyari.kolay, satır 2): '^' özel veya (xor) işlemidir; üs için '**' yazın.
+  2 | yazdır(x ^ 2, x ^ 0x2, x ^ 12)
+    |        ^^^^^
+7 7 9

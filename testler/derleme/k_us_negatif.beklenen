@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_us_negatif.kolay, satır 2): Tam sayının üssü negatif olamaz (-1). Ondalık sonuç için: 2.0 ** -1
+  2 | yazdır(x ** -1)

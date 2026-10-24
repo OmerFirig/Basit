@@ -165,6 +165,20 @@ pub enum Tok {
     AndAnd,
     OrOr,
     Bang,
+    // bit işlemleri ve üs
+    Amp,
+    Pipe,
+    Caret,
+    Tilde,
+    Shl,
+    Shr,
+    StarStar,
+    AmpEq,
+    PipeEq,
+    CaretEq,
+    ShlEq,
+    ShrEq,
+    StarStarEq,
     /// `#Güvensiz` gibi yönerge (kelime, # olmadan)
     Directive(String),
     Eof,
@@ -219,6 +233,19 @@ pub fn describe(t: &Tok, mode: Mode) -> String {
         Tok::AndAnd => "'&&'".into(),
         Tok::OrOr => "'||'".into(),
         Tok::Bang => "'!'".into(),
+        Tok::Amp => "'&'".into(),
+        Tok::Pipe => "'|'".into(),
+        Tok::Caret => "'^'".into(),
+        Tok::Tilde => "'~'".into(),
+        Tok::Shl => "'<<'".into(),
+        Tok::Shr => "'>>'".into(),
+        Tok::StarStar => "'**'".into(),
+        Tok::AmpEq => "'&='".into(),
+        Tok::PipeEq => "'|='".into(),
+        Tok::CaretEq => "'^='".into(),
+        Tok::ShlEq => "'<<='".into(),
+        Tok::ShrEq => "'>>='".into(),
+        Tok::StarStarEq => "'**='".into(),
         Tok::Directive(w) => format!("'#{w}'"),
         Tok::Eof => "dosya sonu".into(),
     }
@@ -447,10 +474,22 @@ impl<'a> Lexer<'a> {
                 }
             }
             '+' => two(self, '=', Tok::PlusEq, Tok::Plus),
+            '*' if self.peek() == Some('*') => {
+                self.bump();
+                two(self, '=', Tok::StarStarEq, Tok::StarStar)
+            }
             '*' => two(self, '=', Tok::StarEq, Tok::Star),
             '/' => two(self, '=', Tok::SlashEq, Tok::Slash),
             '=' => two(self, '=', Tok::EqEq, Tok::Assign),
             '!' => two(self, '=', Tok::Ne, Tok::Bang),
+            '<' if self.peek() == Some('<') => {
+                self.bump();
+                two(self, '=', Tok::ShlEq, Tok::Shl)
+            }
+            '>' if self.peek() == Some('>') => {
+                self.bump();
+                two(self, '=', Tok::ShrEq, Tok::Shr)
+            }
             '<' => two(self, '=', Tok::Le, Tok::Lt),
             '>' => two(self, '=', Tok::Ge, Tok::Gt),
             '&' if self.peek() == Some('&') => {
@@ -461,6 +500,10 @@ impl<'a> Lexer<'a> {
                 self.bump();
                 Tok::OrOr
             }
+            '&' => two(self, '=', Tok::AmpEq, Tok::Amp),
+            '|' => two(self, '=', Tok::PipeEq, Tok::Pipe),
+            '^' => two(self, '=', Tok::CaretEq, Tok::Caret),
+            '~' => Tok::Tilde,
             '#' if self.peek().is_some_and(|c| c.is_alphabetic()) => {
                 return match self.word(start)? {
                     Tok::Ident(w) => Ok(Tok::Directive(w)),

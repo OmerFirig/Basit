@@ -220,6 +220,16 @@ impl Checker {
         Ok(TExpr { kind: TK::Convert(Box::new(e)), ty: to.clone(), loc })
     }
 
+    /// Üs sanılabilecek küçük bir sabit mi? (`x ^ 2` uyarısı için: 0x olmadan yazılmış 2..10)
+    fn is_decimal_lit(&self, e: &Expr) -> bool {
+        matches!(&e.kind, ExprKind::Int(n) if *n >= BigInt::from(2) && *n <= BigInt::from(10))
+            && self
+                .texts
+                .get(e.span.file as usize)
+                .and_then(|t| t.get(e.span.start as usize..e.span.end as usize))
+                .is_some_and(|t| !t.trim_start_matches('-').starts_with("0x") && !t.trim_start_matches('-').starts_with("0X"))
+    }
+
     /// Kullanıcının yazdığı ifade (kısa ve tek satırsa), örnek önerilerinde kullanılır.
     fn written(&self, span: Span) -> String {
         let text = self.texts.get(span.file as usize).and_then(|t| t.get(span.start as usize..span.end as usize));
@@ -328,6 +338,20 @@ impl Checker {
                 }
                 let ty = t.ty.clone();
                 self.mk(TK::Neg(Box::new(t)), ty, span)
+            }
+            ExprKind::BitNot(x) => {
+                let t = self.expr(x, expected.filter(|t| t.is_int()))?;
+                let Type::Int { bits, sign } = t.ty.clone() else {
+                    return err(span, format!("'~' bir bit işlemidir, sadece tam sayılarla yapılır; ama {} verildi.", self.type_name(&t.ty)));
+                };
+                // ~x = -1 - x (işaretli; hiç taşmaz), sadece pozitif tiplerde (2^N - 1) - x
+                let k: num_bigint::BigInt = match (bits, sign) {
+                    (Some(b), Sign::Pos) => (num_bigint::BigInt::from(1) << b) - 1,
+                    _ => num_bigint::BigInt::from(-1),
+                };
+                let ty = t.ty.clone();
+                let c = self.mk(TK::Int(k.clone(), num_traits::ToPrimitive::to_i64(&k)), ty.clone(), span);
+                self.mk(TK::Arith(BinOp::Sub, Box::new(c), Box::new(t)), ty, span)
             }
             ExprKind::Not(x) => {
                 let t = self.expr(x, Some(&Type::Bool))?;
@@ -630,6 +654,13 @@ impl Checker {
                             format!("'{}' işlemi {} ve {} arasında yapılamaz.", op.symbol(), self.type_name(&lt.ty), self.type_name(&rt.ty)),
                         );
                     }
+                }
+                if op.is_bit() && !(lt.ty.is_int() && rt.ty.is_int()) {
+                    let bad = if lt.ty.is_int() { &rt.ty } else { &lt.ty };
+                    return err(span, format!("'{}' bir bit işlemidir, sadece tam sayılarla yapılır; ama {} verildi.", op.symbol(), self.type_name(bad)));
+                }
+                if op == BinOp::BitXor && self.is_decimal_lit(r) {
+                    self.warn(span, "'^' özel veya (xor) işlemidir; üs için '**' yazın.");
                 }
                 let ty = self.num_join(&lt.ty, &rt.ty);
                 let lt = self.coerce(lt, &ty, l.span)?;

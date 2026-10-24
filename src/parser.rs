@@ -283,6 +283,12 @@ impl Parser {
             Tok::MinusEq => Some(Some(BinOp::Sub)),
             Tok::StarEq => Some(Some(BinOp::Mul)),
             Tok::SlashEq => Some(Some(BinOp::Div)),
+            Tok::StarStarEq => Some(Some(BinOp::Pow)),
+            Tok::AmpEq => Some(Some(BinOp::BitAnd)),
+            Tok::PipeEq => Some(Some(BinOp::BitOr)),
+            Tok::CaretEq => Some(Some(BinOp::BitXor)),
+            Tok::ShlEq => Some(Some(BinOp::Shl)),
+            Tok::ShrEq => Some(Some(BinOp::Shr)),
             _ => None,
         };
         let kind = if let Some(op) = op {
@@ -690,6 +696,15 @@ impl Parser {
                     let t = &mut self.toks[self.pos];
                     t.tok = Tok::Assign;
                 }
+                Tok::Shr => {
+                    // "Liste<Liste<Tam>>": '>>' iki '>' demek; biri burada kullanılır
+                    let t = &mut self.toks[self.pos];
+                    t.tok = Tok::Gt;
+                }
+                Tok::ShrEq => {
+                    let t = &mut self.toks[self.pos];
+                    t.tok = Tok::Ge;
+                }
                 _ => return err(self.span(), format!("'>' bekleniyordu, ama {} bulundu.", self.found())),
             }
         }
@@ -825,6 +840,7 @@ impl Parser {
                 | Tok::LParen
                 | Tok::LBrack
                 | Tok::Minus
+                | Tok::Tilde
                 | Tok::Kw(Kw::Bu)
         )
     }
@@ -833,15 +849,15 @@ impl Parser {
         if self.at(&Tok::DotDot) || self.at(&Tok::DotDotEq) {
             let t = self.advance();
             let inclusive = t.tok == Tok::DotDotEq;
-            let end = if self.can_start_expr() { Some(Box::new(self.add_expr()?)) } else { None };
+            let end = if self.can_start_expr() { Some(Box::new(self.bitor_expr()?)) } else { None };
             let span = t.span.to(self.prev_span());
             return Ok(Expr { kind: ExprKind::Range { start: None, end, inclusive }, span });
         }
-        let l = self.add_expr()?;
+        let l = self.bitor_expr()?;
         if (self.at(&Tok::DotDot) || self.at(&Tok::DotDotEq)) && !self.tok().nl_before {
             let t = self.advance();
             let inclusive = t.tok == Tok::DotDotEq;
-            let end = if self.can_start_expr() { Some(Box::new(self.add_expr()?)) } else { None };
+            let end = if self.can_start_expr() { Some(Box::new(self.bitor_expr()?)) } else { None };
             if inclusive && end.is_none() {
                 return err(t.span, "'..=' sonrasında bir bitiş değeri yazılmalı.");
             }
@@ -849,6 +865,37 @@ impl Parser {
             return Ok(Expr { kind: ExprKind::Range { start: Some(Box::new(l)), end, inclusive }, span });
         }
         Ok(l)
+    }
+
+    /// Bit işlemleri (Python'daki öncelik sırasıyla): | < ^ < & < kaydırma < toplama
+    fn bin_level(&mut self, ops: &[(Tok, BinOp)], next: fn(&mut Self) -> CResult<Expr>) -> CResult<Expr> {
+        let mut l = next(self)?;
+        loop {
+            if self.tok().nl_before {
+                break;
+            }
+            let Some(op) = ops.iter().find(|(t, _)| self.at(t)).map(|x| x.1) else { break };
+            self.advance();
+            let r = next(self)?;
+            l = Self::bin(l, op, r);
+        }
+        Ok(l)
+    }
+
+    fn bitor_expr(&mut self) -> CResult<Expr> {
+        self.bin_level(&[(Tok::Pipe, BinOp::BitOr)], Self::bitxor_expr)
+    }
+
+    fn bitxor_expr(&mut self) -> CResult<Expr> {
+        self.bin_level(&[(Tok::Caret, BinOp::BitXor)], Self::bitand_expr)
+    }
+
+    fn bitand_expr(&mut self) -> CResult<Expr> {
+        self.bin_level(&[(Tok::Amp, BinOp::BitAnd)], Self::shift_expr)
+    }
+
+    fn shift_expr(&mut self) -> CResult<Expr> {
+        self.bin_level(&[(Tok::Shl, BinOp::Shl), (Tok::Shr, BinOp::Shr)], Self::add_expr)
     }
 
     fn add_expr(&mut self) -> CResult<Expr> {
@@ -900,6 +947,12 @@ impl Parser {
     }
 
     fn unary(&mut self) -> CResult<Expr> {
+        if self.at(&Tok::Tilde) {
+            let start = self.advance().span;
+            let e = self.unary()?;
+            let span = start.to(e.span);
+            return Ok(Expr { kind: ExprKind::BitNot(Box::new(e)), span });
+        }
         if self.at(&Tok::Minus) {
             let start = self.advance().span;
             let e = self.unary()?;
@@ -910,7 +963,18 @@ impl Parser {
                 _ => Expr { kind: ExprKind::Neg(Box::new(e)), span },
             });
         }
-        self.postfix()
+        self.pow_expr()
+    }
+
+    /// `a ** b`: sağdan birleşir ve tekli eksiden önce gelir (Python'daki gibi: -2 ** 2 = -4)
+    fn pow_expr(&mut self) -> CResult<Expr> {
+        let base = self.postfix()?;
+        if self.at(&Tok::StarStar) && !self.tok().nl_before {
+            self.advance();
+            let exp = self.unary()?;
+            return Ok(Self::bin(base, BinOp::Pow, exp));
+        }
+        Ok(base)
     }
 
     fn postfix(&mut self) -> CResult<Expr> {

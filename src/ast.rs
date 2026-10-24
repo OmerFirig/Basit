@@ -24,6 +24,12 @@ pub enum BinOp {
     Ge,
     And,
     Or,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
+    Pow,
 }
 
 impl BinOp {
@@ -42,10 +48,20 @@ impl BinOp {
             BinOp::Ge => ">=",
             BinOp::And => "ve",
             BinOp::Or => "veya",
+            BinOp::BitAnd => "&",
+            BinOp::BitOr => "|",
+            BinOp::BitXor => "^",
+            BinOp::Shl => "<<",
+            BinOp::Shr => ">>",
+            BinOp::Pow => "**",
         }
     }
     pub fn is_arith(self) -> bool {
-        matches!(self, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Rem)
+        matches!(self, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Rem | BinOp::Pow) || self.is_bit()
+    }
+    /// Sadece tam sayılarla yapılan işlemler
+    pub fn is_bit(self) -> bool {
+        matches!(self, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::Shl | BinOp::Shr)
     }
 }
 
@@ -75,6 +91,8 @@ pub enum ExprKind {
     Dict(Vec<(Expr, Expr)>),
     Neg(Box<Expr>),
     Not(Box<Expr>),
+    /// `~x` (bit tersleme)
+    BitNot(Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
     Range { start: Option<Box<Expr>>, end: Option<Box<Expr>>, inclusive: bool },
     Call { callee: Box<Expr>, args: Vec<Arg> },

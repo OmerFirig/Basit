@@ -683,6 +683,19 @@ impl<'p> Gen<'p> {
     pub(super) fn arith(&mut self, op: BinOp, a: &str, b: &str, ty: &Type, loc: Loc) -> CResult<String> {
         if let Type::Float(bits) = ty {
             let lt = self.llty(ty);
+            if op == BinOp::Pow {
+                // yorumlayıcıdaki gibi double'da hesaplanıp tipe yuvarlanır
+                let (x, y) = (self.to_double(a, *bits), self.to_double(b, *bits));
+                self.intrinsic("llvm.pow.f64", "declare double @llvm.pow.f64(double, double)".into());
+                let r = self.tmp();
+                self.emit(&format!("{r} = call double @llvm.pow.f64(double {x}, double {y})"));
+                if *bits == 64 {
+                    return Ok(r);
+                }
+                let t = self.tmp();
+                self.emit(&format!("{t} = fptrunc double {r} to {lt}"));
+                return Ok(t);
+            }
             let ins = match op {
                 BinOp::Add => "fadd",
                 BinOp::Sub => "fsub",
@@ -735,6 +748,22 @@ impl<'p> Gen<'p> {
                 self.overflow_branch(&bad, sym, a, b, ty, loc);
                 Ok(v)
             }
+            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor => {
+                let ins = match op {
+                    BinOp::BitAnd => "and",
+                    BinOp::BitOr => "or",
+                    _ => "xor",
+                };
+                let t = self.tmp();
+                self.emit(&format!("{t} = {ins} {lt} {a}, {b}"));
+                if s == Sign::Neg {
+                    // sadece eksi tipte sonuç sınır dışına çıkabilir (-5 ^ -3 = 6)
+                    let rc = self.neg_range_check(&t, ty);
+                    self.overflow_branch(&rc, sym, a, b, ty, loc);
+                }
+                Ok(t)
+            }
+            BinOp::Shl | BinOp::Shr | BinOp::Pow => Ok(self.shift_pow(op, a, b, ty, loc)),
             BinOp::Div | BinOp::Rem => {
                 let z = self.tmp();
                 self.emit(&format!("{z} = icmp eq {lt} {b}, 0"));
@@ -777,6 +806,129 @@ impl<'p> Gen<'p> {
         }
     }
 
+    /// Boyutlu Tam'da `<<`, `>>`, `**` (yorumlayıcıdaki Interp::shift_pow ile aynı kurallar ve mesajlar).
+    fn shift_pow(&mut self, op: BinOp, a: &str, b: &str, ty: &Type, loc: Loc) -> String {
+        let (_, s) = int_parts(ty);
+        let w = width(ty);
+        let lt = format!("i{w}");
+        if s != Sign::Pos {
+            let neg = self.tmp();
+            self.emit(&format!("{neg} = icmp slt {lt} {b}, 0"));
+            let (bad, ok) = (self.new_label(), self.new_label());
+            self.br_cold(&neg, &bad, &ok);
+            self.block(&bad);
+            let (once, sonra) = match op {
+                BinOp::Pow => ("Tam sayının üssü negatif olamaz (", "). Ondalık sonuç için: 2.0 ** -1"),
+                _ => ("Kaydırma miktarı negatif olamaz (", ")."),
+            };
+            let (once, sonra) = (self.cstr(once), self.cstr(sonra));
+            let (v, mode) = self.int128_form(b, ty);
+            let (k, kd) = self.where_(loc);
+            self.emit(&format!("call void @kolay_sayi_hata(i128 {v}, i32 {mode}, ptr {once}, ptr {sonra}, ptr {k}, ptr {kd})"));
+            self.term("unreachable");
+            self.block(&ok);
+        }
+        let t = |me: &mut Self| me.tmp();
+        match op {
+            BinOp::Shr => {
+                let (big, sh, r) = (t(self), t(self), t(self));
+                self.emit(&format!("{big} = icmp uge {lt} {b}, {w}"));
+                if s == Sign::Pos {
+                    self.emit(&format!("{sh} = select i1 {big}, {lt} 0, {lt} {b}"));
+                    let r0 = t(self);
+                    self.emit(&format!("{r0} = lshr {lt} {a}, {sh}"));
+                    self.emit(&format!("{r} = select i1 {big}, {lt} 0, {lt} {r0}"));
+                } else {
+                    // eksi sayılar aşağı yuvarlanır; büyük kaydırmada sonuç 0 ya da -1
+                    self.emit(&format!("{sh} = select i1 {big}, {lt} {}, {lt} {b}", w - 1));
+                    self.emit(&format!("{r} = ashr {lt} {a}, {sh}"));
+                }
+                r
+            }
+            BinOp::Shl => {
+                let (big, sh, r, back, lost, nz, bnz, of) = (t(self), t(self), t(self), t(self), t(self), t(self), t(self), t(self));
+                self.emit(&format!("{big} = icmp uge {lt} {b}, {w}"));
+                self.emit(&format!("{sh} = select i1 {big}, {lt} 0, {lt} {b}"));
+                self.emit(&format!("{r} = shl {lt} {a}, {sh}"));
+                let back_op = if s == Sign::Pos { "lshr" } else { "ashr" };
+                self.emit(&format!("{back} = {back_op} {lt} {r}, {sh}"));
+                self.emit(&format!("{lost} = icmp ne {lt} {back}, {a}"));
+                self.emit(&format!("{nz} = icmp ne {lt} {a}, 0"));
+                self.emit(&format!("{bnz} = and i1 {big}, {nz}"));
+                self.emit(&format!("{of} = or i1 {lost}, {bnz}"));
+                let bad = if s == Sign::Neg {
+                    let rc = self.neg_range_check(&r, ty);
+                    let o2 = t(self);
+                    self.emit(&format!("{o2} = or i1 {of}, {rc}"));
+                    o2
+                } else {
+                    of
+                };
+                self.overflow_branch(&bad, "<<", a, b, ty, loc);
+                let res = t(self);
+                self.emit(&format!("{res} = select i1 {big}, {lt} 0, {lt} {r}"));
+                res
+            }
+            _ => {
+                // kare al ve çarp; ara çarpımlardan biri taşarsa sonuç da gerçekten taşar
+                let pre = if s == Sign::Pos { "u" } else { "s" };
+                let name = format!("llvm.{pre}mul.with.overflow.{lt}");
+                self.intrinsic(&name, format!("declare {{{lt}, i1}} @{name}({lt}, {lt})"));
+                let (res, base, e) = (self.alloca(&lt), self.alloca(&lt), self.alloca(&lt));
+                self.emit(&format!("store {lt} 1, ptr {res}"));
+                self.emit(&format!("store {lt} {a}, ptr {base}"));
+                self.emit(&format!("store {lt} {b}, ptr {e}"));
+                let (cond, body, odd, even, sq, done) =
+                    (self.new_label(), self.new_label(), self.new_label(), self.new_label(), self.new_label(), self.new_label());
+                self.block(&cond);
+                let ev = t(self);
+                self.emit(&format!("{ev} = load {lt}, ptr {e}"));
+                let z = t(self);
+                self.emit(&format!("{z} = icmp eq {lt} {ev}, 0"));
+                self.term(&format!("br i1 {z}, label %{done}, label %{body}"));
+                self.block(&body);
+                let (bit, isodd) = (t(self), t(self));
+                self.emit(&format!("{bit} = and {lt} {ev}, 1"));
+                self.emit(&format!("{isodd} = icmp ne {lt} {bit}, 0"));
+                self.term(&format!("br i1 {isodd}, label %{odd}, label %{even}"));
+                self.block(&odd);
+                let (rv, bv, m, mv, mo) = (t(self), t(self), t(self), t(self), t(self));
+                self.emit(&format!("{rv} = load {lt}, ptr {res}"));
+                self.emit(&format!("{bv} = load {lt}, ptr {base}"));
+                self.emit(&format!("{m} = call {{{lt}, i1}} @{name}({lt} {rv}, {lt} {bv})"));
+                self.emit(&format!("{mv} = extractvalue {{{lt}, i1}} {m}, 0"));
+                self.emit(&format!("{mo} = extractvalue {{{lt}, i1}} {m}, 1"));
+                self.overflow_branch(&mo, "**", a, b, ty, loc);
+                self.emit(&format!("store {lt} {mv}, ptr {res}"));
+                self.term(&format!("br label %{even}"));
+                self.block(&even);
+                let (ev2, ne, z2) = (t(self), t(self), t(self));
+                self.emit(&format!("{ev2} = load {lt}, ptr {e}"));
+                self.emit(&format!("{ne} = lshr {lt} {ev2}, 1"));
+                self.emit(&format!("store {lt} {ne}, ptr {e}"));
+                self.emit(&format!("{z2} = icmp eq {lt} {ne}, 0"));
+                self.term(&format!("br i1 {z2}, label %{done}, label %{sq}"));
+                self.block(&sq);
+                let (bv2, q, qv, qo) = (t(self), t(self), t(self), t(self));
+                self.emit(&format!("{bv2} = load {lt}, ptr {base}"));
+                self.emit(&format!("{q} = call {{{lt}, i1}} @{name}({lt} {bv2}, {lt} {bv2})"));
+                self.emit(&format!("{qv} = extractvalue {{{lt}, i1}} {q}, 0"));
+                self.emit(&format!("{qo} = extractvalue {{{lt}, i1}} {q}, 1"));
+                self.overflow_branch(&qo, "**", a, b, ty, loc);
+                self.emit(&format!("store {lt} {qv}, ptr {base}"));
+                self.term(&format!("br label %{cond}"));
+                self.block(&done);
+                let r = t(self);
+                self.emit(&format!("{r} = load {lt}, ptr {res}"));
+                if s == Sign::Neg {
+                    let rc = self.neg_range_check(&r, ty);
+                    self.overflow_branch(&rc, "**", a, b, ty, loc);
+                }
+                r
+            }
+        }
+    }
+
     /// Esnek Tam işlemi: iki değer de küçükse (en sık durum) yerinde, değilse çalışma kütüphanesinde.
     fn esnek_arith(&mut self, op: BinOp, a: &str, b: &str, ty: &Type, loc: Loc) -> String {
         let isaret = sign_code(ty);
@@ -787,6 +939,12 @@ impl<'p> Gen<'p> {
             BinOp::Sub => '-',
             BinOp::Mul => '*',
             BinOp::Div => '/',
+            BinOp::BitAnd => '&',
+            BinOp::BitOr => '|',
+            BinOp::BitXor => '^',
+            BinOp::Shl => 'l',
+            BinOp::Shr => 'r',
+            BinOp::Pow => 'p',
             _ => '%',
         } as u32;
         let slow_call = |me: &mut Self| -> String {
@@ -796,7 +954,7 @@ impl<'p> Gen<'p> {
             ));
             r
         };
-        if matches!(op, BinOp::Div | BinOp::Rem) {
+        if !matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul) {
             let r = slow_call(self);
             return self.own(r, ty);
         }

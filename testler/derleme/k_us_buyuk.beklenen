@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_us_buyuk.kolay, satır 4): Üs çok büyük (1099511627776).
+  4 | yazdır(e ** n)

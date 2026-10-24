@@ -261,10 +261,20 @@ static void *calistir_is(void *arg) {
     return NULL;
 }
 
+/// Ctrl+C: Türkçe mesajla durur (yorumlayıcıdaki main.rs ctrl_c_yakala ile aynı).
+static void ctrl_c(int sig) {
+    (void)sig;
+    yaz_stderr("\nProgram durduruldu (Ctrl+C).\n");
+    _exit(130);
+}
+
 /// Programı büyük yığınlı (1 GB, yorumlayıcıyla aynı) bir iş parçacığında çalıştırır.
 void kolay_calistir(kolay_fn ana) {
     setlocale(LC_CTYPE, "C.UTF-8");
-    setvbuf(stdout, NULL, _IOFBF, 1 << 16);
+    // Çıktı ekrandaysa her satır hemen yazılır; dosya ya da boruya gidiyorsa hız için tamponlanır.
+    if (isatty(1)) setvbuf(stdout, NULL, _IOLBF, 1 << 16);
+    else setvbuf(stdout, NULL, _IOFBF, 1 << 16);
+    signal(SIGINT, ctrl_c);
     pthread_attr_t at;
     pthread_attr_init(&at);
     pthread_t t;

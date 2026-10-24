@@ -1,0 +1,27 @@
+// Bit işlemleri ve üs (Python ile aynı anlam: eksi sayılar ikiye tümleyen)
+ata a = 0xF0
+ata b = 0x3C
+yazdır(a & b, a | b, a ^ b, ~a, -5 & 3, -5 | 2, -5 ^ -1, ~-1)
+yazdır(1 << 10, 1 << 62, -1 << 3, 255 >> 4, -5 >> 1, -1 >> 100, 7 >> 64)
+yazdır(2 ** 10, (-2) ** 63, -2 ** 2, 2 ** 0, 0 ** 0, (-1) ** 1000001, 1 ** 9223372036854775807)
+yazdır(2.0 ** 0.5, 2 ** -1.0, 9.0 ** 0.5)
+ata u: Tam(8, +) = 200
+yazdır(~u, u & 0x0F, u | 0x01, u >> 3, u << 0)
+ata k: Tam(8) = -128
+yazdır(~k, k >> 7, k & 0x7F)
+ata e: Tam = 1
+e = e << 100
+yazdır(e, e >> 99, e & 0xFF, ~e, -e >> 50, e ** 2, (-e) ^ 12345, e | -1)
+ata t: Tam = 3
+yazdır(t ** 100, (-t) ** 3, (3 olarak Tam) ** 40)
+ata x = 6
+x &= 3
+x |= 8
+x ^= 1
+x <<= 2
+x >>= 1
+x **= 2
+yazdır(x)
+ata m: Liste<Liste<Tam(64)>> = [[1 << 3]]
+yazdır(m, (5 & 3) == 1, 1 + 2 << 1, 6 & 3 | 8, 2 ** 3 ** 2)
+yazdır(2 ** 63)
