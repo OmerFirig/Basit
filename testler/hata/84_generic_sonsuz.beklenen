@@ -1,0 +1,4 @@
+HATA (84_generic_sonsuz.kolay, satır 1): f içinde: 'f' 64'ten fazla farklı tiple çağrılıyor. Fonksiyon kendini her seferinde başka bir tiple (örneğin [x] ile) çağırıyor olabilir.
+(çağrı: satır 1, T = Liste<Tam(64)>[][][][][][][][][][][][][][][][][][][][][][][]...)
+  1 | fonksiyon f<T>(x: T) -> Tam { döndür f([x]) }
+    |                                      ^^^^^^

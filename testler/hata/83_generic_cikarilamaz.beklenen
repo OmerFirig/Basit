@@ -1,0 +1,3 @@
+HATA (83_generic_cikarilamaz.kolay, satır 2): 'f' için 'T' tipi verilen değerlerden çıkarılamıyor. 'T' bir parametrenin tipinde geçmeli; boş liste gibi tipi belli olmayan değerlere tip verin: [] olarak Liste<Tam>
+  2 | yazdır(f())
+    |        ^^^

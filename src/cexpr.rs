@@ -462,7 +462,7 @@ impl Checker {
                 self.mk(TK::Range { start: Box::new(s), end: Box::new(e), inclusive: *inclusive, step: None }, Type::list(TAM64), span)
             }
             ExprKind::Call { callee, args } => {
-                let t = self.call_expr(callee, args, span)?;
+                let t = self.call_expr(callee, args, span, expected)?;
                 // `dene` içinde `T veya Hata` döndüren çağrı: Hata dönerse fırlatılır, sonuç T olur
                 // (beklenen tip Hata'yı da kabul ediyorsa değer olduğu gibi kalır)
                 if self.cx.dene_depth > 0
@@ -542,17 +542,33 @@ impl Checker {
     }
 
     /// İki geçişli denetim için: lambdanın ilk denetiminde eklenenler geri alınır.
-    pub(crate) fn geri_nokta(&self) -> (usize, usize, usize, usize, usize) {
-        (self.funcs.len(), self.warnings.len(), self.mut_edges.len(), self.mut_direct.len(), self.pending_mut.len())
+    pub(crate) fn geri_nokta(&self) -> GeriNokta {
+        GeriNokta {
+            funcs: self.funcs.len(),
+            warnings: self.warnings.len(),
+            mut_edges: self.mut_edges.len(),
+            mut_direct: self.mut_direct.len(),
+            pending_mut: self.pending_mut.len(),
+            types: self.types.len(),
+        }
     }
 
-    pub(crate) fn geri_al(&mut self, g: (usize, usize, usize, usize, usize)) {
-        self.funcs.truncate(g.0);
-        self.mutates.truncate(g.0);
-        self.warnings.truncate(g.1);
-        self.mut_edges.truncate(g.2);
-        self.mut_direct.truncate(g.3);
-        self.pending_mut.truncate(g.4);
+    pub(crate) fn geri_al(&mut self, g: GeriNokta) {
+        self.funcs.truncate(g.funcs);
+        self.mutates.truncate(g.funcs);
+        self.instances.retain(|_, f| *f < g.funcs);
+        self.warnings.truncate(g.warnings);
+        self.mut_edges.truncate(g.mut_edges);
+        self.mut_direct.truncate(g.mut_direct);
+        self.pending_mut.truncate(g.pending_mut);
+        // ilk geçişte oluşan generic tür kopyaları
+        self.types.truncate(g.types);
+        self.type_decls.truncate(g.types);
+        self.own_fields.truncate(g.types);
+        self.type_methods.truncate(g.types);
+        self.tur_inst.retain(|t, _| *t < g.types);
+        self.tur_instances.retain(|_, t| *t < g.types);
+        self.dispatch.retain(|k, _| k.0 < g.types && k.1 < g.types);
     }
 
     /// `infer`: dönüş tipini bulmak için (gövde blok, `döndür` değerleri toplanır); dönen ifadenin tipi
@@ -572,6 +588,8 @@ impl Checker {
             span,
             body: None,
             dis: None,
+            generics: vec![],
+            inst: None,
         });
         self.mutates.push(false);
         let inner = Ctx {
@@ -606,7 +624,7 @@ impl Checker {
         let loc = self.loc(span);
         self.funcs[fid].ret = rty.clone();
         self.funcs[fid].body = Some(TFunc {
-            key: (span.file, span.start),
+            key: self.func_key(span),
             dis: None,
             caps: Some(frame.caps.iter().map(|(_, i, t)| (slot_no(*i), t.clone())).collect()),
             params: ptys.to_vec(),
@@ -860,6 +878,9 @@ impl Checker {
             return Ok(self.mk(TK::Field(Box::new(bu), fid), f.ty, span));
         }
         if let Some(&fid) = self.mods[self.cx.module].funcs.get(name) {
+            if !self.funcs[fid].generics.is_empty() {
+                return err(span, format!("'{name}' generic bir fonksiyon; değer olarak verilmesi henüz desteklenmiyor. Çağırarak kullanın: {name}(...)"));
+            }
             return Ok(self.func_ref(fid, span));
         }
         let m = &self.mods[self.cx.module];
@@ -930,7 +951,7 @@ impl Checker {
         Ok(self.mk(TK::List(vals), Type::list(elem), span))
     }
 
-    fn unify(&self, ts: &[Type], span: Span, what: &str) -> CResult<Type> {
+    pub(crate) fn unify(&self, ts: &[Type], span: Span, what: &str) -> CResult<Type> {
         let first = ts[0].clone();
         if ts.iter().all(|t| t.is_num()) {
             return Ok(ts.iter().skip(1).fold(first, |a, b| self.num_join(&a, b)));
@@ -1165,8 +1186,9 @@ impl Checker {
         }
     }
 
-    pub(crate) fn bind_args(&mut self, params: &[(String, Type)], args: &[Arg], span: Span, what: &str) -> CResult<Vec<TExpr>> {
-        let mut slots: Vec<Option<TExpr>> = vec![None; params.len()];
+    /// Her argümanın gittiği parametrenin sırası (adsızlar sırayla, adlılar adıyla)
+    pub(crate) fn arg_slots(&self, names: &[String], args: &[Arg], span: Span, what: &str) -> CResult<Vec<usize>> {
+        let mut out: Vec<usize> = Vec::new();
         let mut pos = 0;
         let mut seen_named = false;
         for a in args {
@@ -1175,31 +1197,41 @@ impl Checker {
                     if seen_named {
                         return err(a.value.span, "Adı yazılmış değerlerden sonra adsız değer yazılamaz.");
                     }
-                    if pos >= params.len() {
-                        return err(span, format!("'{what}' {} değer alır, ama {} değer verildi.", params.len(), args.len()));
+                    if pos >= names.len() {
+                        return err(span, format!("'{what}' {} değer alır, ama {} değer verildi.", names.len(), args.len()));
                     }
                     pos += 1;
                     pos - 1
                 }
                 Some((n, s)) => {
                     seen_named = true;
-                    match params.iter().position(|(p, _)| p == n) {
+                    match names.iter().position(|p| p == n) {
                         Some(i) => {
-                            if slots[i].is_some() {
+                            if out.contains(&i) {
                                 return err(*s, format!("'{n}' iki kez verildi."));
                             }
                             i
                         }
                         None => {
-                            let hint = closest(n, params.iter().map(|p| &p.0)).map(|c| format!(" '{c}' mı demek istediniz?")).unwrap_or_default();
+                            let hint = closest(n, names.iter()).map(|c| format!(" '{c}' mı demek istediniz?")).unwrap_or_default();
                             return err(*s, format!("'{what}' içinde '{n}' diye bir alan ya da parametre yok.{hint}"));
                         }
                     }
                 }
             };
-            let pty = params[idx].1.clone();
+            out.push(idx);
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn bind_args(&mut self, params: &[(String, Type)], args: &[Arg], span: Span, what: &str) -> CResult<Vec<TExpr>> {
+        let names: Vec<String> = params.iter().map(|p| p.0.clone()).collect();
+        let idx = self.arg_slots(&names, args, span, what)?;
+        let mut slots: Vec<Option<TExpr>> = vec![None; params.len()];
+        for (a, &i) in args.iter().zip(&idx) {
+            let pty = params[i].1.clone();
             let t = self.expr(&a.value, Some(&pty))?;
-            slots[idx] = Some(self.coerce(t, &pty, a.value.span)?);
+            slots[i] = Some(self.coerce(t, &pty, a.value.span)?);
         }
         let mut out = Vec::new();
         for (i, s) in slots.into_iter().enumerate() {
@@ -1211,7 +1243,7 @@ impl Checker {
         Ok(out)
     }
 
-    fn call_expr(&mut self, callee: &Expr, args: &[Arg], span: Span) -> CResult<TExpr> {
+    fn call_expr(&mut self, callee: &Expr, args: &[Arg], span: Span, expected: Option<&Type>) -> CResult<TExpr> {
         match &callee.kind {
             ExprKind::Ident(name) => {
                 if self.var_exists(name) || self.owner_field(name).is_some() {
@@ -1230,7 +1262,7 @@ impl Checker {
                     return self.call_func(fid, args, span);
                 }
                 if let Some(&tid) = self.mods[m].types.get(name) {
-                    return self.construct(tid, args, span);
+                    return self.construct(tid, args, span, expected);
                 }
                 match name.as_str() {
                     "yazdır" => {
@@ -1264,7 +1296,7 @@ impl Checker {
             ExprKind::Field(base, name, nspan) => {
                 // Hata.SıfıraBölme(mesaj: "...")
                 if let Some(PathRes::Type(t)) = self.static_path(callee) {
-                    return self.construct(t, args, span);
+                    return self.construct(t, args, span, expected);
                 }
                 match self.static_path(base) {
                     Some(PathRes::Type(t)) if t == self.hata_turleri[0] => return err(*nspan, hata_turu_yok(name)),
@@ -1273,7 +1305,7 @@ impl Checker {
                             return self.call_func(fid, args, span);
                         }
                         if let Some(&tid) = self.mods[mi].types.get(name) {
-                            return self.construct(tid, args, span);
+                            return self.construct(tid, args, span, expected);
                         }
                         return err(*nspan, format!("'{}' dosyasında '{name}' diye bir fonksiyon ya da tür yok.", self.mods[mi].name));
                     }
@@ -1303,6 +1335,9 @@ impl Checker {
     }
 
     fn call_func(&mut self, fid: FuncId, args: &[Arg], span: Span) -> CResult<TExpr> {
+        if !self.funcs[fid].generics.is_empty() {
+            return self.call_generic(fid, args, span);
+        }
         let params = self.funcs[fid].params.clone();
         let name = self.funcs[fid].name.clone();
         let vals = self.bind_args(&params, args, span, &name)?;
@@ -1310,7 +1345,10 @@ impl Checker {
         Ok(self.mk(TK::Call(fid, vals), ret, span))
     }
 
-    fn construct(&mut self, tid: TypeId, args: &[Arg], span: Span) -> CResult<TExpr> {
+    fn construct(&mut self, tid: TypeId, args: &[Arg], span: Span, expected: Option<&Type>) -> CResult<TExpr> {
+        if self.tur_kalip.contains_key(&tid) {
+            return self.construct_generic(tid, args, expected, span);
+        }
         let tname = self.types[tid].name.clone();
         match &self.types[tid].kind {
             TypeDefKind::Tur { fields, .. } => {

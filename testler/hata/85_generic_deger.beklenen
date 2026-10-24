@@ -1,0 +1,3 @@
+HATA (85_generic_deger.kolay, satır 2): 'f' generic bir fonksiyon; değer olarak verilmesi henüz desteklenmiyor. Çağırarak kullanın: f(...)
+  2 | ata g = f
+    |         ^

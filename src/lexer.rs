@@ -788,6 +788,17 @@ fn collect_edits(
                 edits.push((s, e, new.to_string()));
             }
             Tok::Ident(name) => {
+                // kaynak modda serbest bir ad, hedef modda anahtar kelime olabilir (tr'de 'dondur' bir ad)
+                if let Some((k, _, _)) = KEYWORDS.iter().find(|(k, _, _)| kw_text(*k, to) == name) {
+                    return err(
+                        t.span,
+                        format!(
+                            "'{name}' {} klavye modunda bir anahtar kelime ('{}'). Çevirmeden önce bu adı değiştirin.",
+                            to.name(),
+                            kw_text(*k, from)
+                        ),
+                    );
+                }
                 for (tr, us) in BUILTIN_NAMES {
                     if name == tr {
                         edits.push((s, e, if to == Mode::Us { us.to_string() } else { tr.to_string() }));

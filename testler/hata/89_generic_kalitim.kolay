@@ -1,0 +1,2 @@
+tür Kutu<T>(d: T)
+tür A[Kutu<Tam>](x: Tam)

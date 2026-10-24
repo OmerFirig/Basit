@@ -97,6 +97,9 @@ sayılar.dönüşüm(her x için x * 2)            // lambda: isimsiz fonksiyon
 sayılar.filtre(her x için x > 10).toplam()
 öğrenciler.sırala(göre: her ö için ö.yaş)
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
+fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }    // generic: T her çağrıda çıkarılır
+tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
+ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
 ata sabit pi = 3.14159           // değiştirilemez
 ata sabit mesaj: Yazı            // değeri sonra, bir kez atanır
@@ -162,6 +165,7 @@ kaynak (.kolay)
     cexpr.rs      ifadeler, tip çıkarımı, Türkçe hata mesajları
     cstmt.rs      komutlar, eşleştir, dene/yakala, akış analizi (belirsiz/sabit kontrolü)
     firlat.rs     fırlatma analizi: yakala dallarına gelebilecek değerler, uyarılar
+    generic.rs    generic fonksiyon ve türler: tipleri çıkarır, her tip ataması için kopya oluşturur
   → tir.rs        tipleri çözülmüş ara gösterim (TIR)
       → repl.rs     etkileşimli kip (oturum, hücreler, rustyline)
       → vm.rs       bytecode yorumlayıcı (kolay kod.kolay)
@@ -190,7 +194,7 @@ Yorumlayıcı programı hemen başlatır (derleme beklemez); hız gerekiyorsa `k
 ## Derleyici
 
 Dilin tamamı derlenir: tüm sayı tipleri (esnek Tam dahil), yazılar, listeler, sözlükler, türler
-(kalıtım, arayüz, `yeniden`), seçenekler, `veya` tipleri, eşleştir, `olarak`, `dahil et`, `dene`/`yakala`/`fırlat`.
+(kalıtım, arayüz, `yeniden`, generic), seçenekler, `veya` tipleri, eşleştir, `olarak`, `dahil et`, `dene`/`yakala`/`fırlat`.
 
 Derlenmiş programlarda:
 - Değerler yazmaçlarda durur; yazı, liste, sözlük ve nesneler referans sayımıyla tutulur ve

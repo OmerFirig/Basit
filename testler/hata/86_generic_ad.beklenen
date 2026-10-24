@@ -1,0 +1,3 @@
+HATA (86_generic_ad.kolay, satır 1): 'Tam' bir tipin adı; tip parametresine başka bir ad verin (T, Eleman gibi).
+  1 | fonksiyon f<Tam>(x: Tam) -> Tam { döndür x }
+    |             ^^^

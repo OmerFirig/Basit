@@ -5,3 +5,6 @@ ata n: m.Nokta = m.Nokta(x: 1, y: 2)
 n.göster()
 selamla("Ali")
 yazdır(sayi, topla(1, 1))
+ata kap = m.Kap(içerik: "modül")
+ata kap2: m.Kap<Yazı> = kap
+yazdır(kap2.al(), m.ilk([4, 5]), kap)

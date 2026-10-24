@@ -1,0 +1,2 @@
+tür Z<T>(x: Z<Liste<T>> veya Hiç)
+ata z: Z<Tam> = Z(Hiç)

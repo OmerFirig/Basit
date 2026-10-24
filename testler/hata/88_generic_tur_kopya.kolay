@@ -1,0 +1,5 @@
+tür Kutu<T>(d: T) { fonksiyon iki() -> T { döndür d * 2 } }
+ata k = Kutu(3)
+yazdır(k.iki())
+ata y = Kutu("a")
+yazdır(y.iki())

@@ -1,0 +1,5 @@
+fonksiyon topla<T, Z>(x: T, y: Z) -> T {
+    döndür x + y
+}
+yazdır(topla(1, 2))
+yazdır(topla("a", 2))

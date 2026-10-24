@@ -82,6 +82,7 @@ function scan(text) {
   const enums = new Map(); // ad -> varyantlar
   const ifaces = new Set();
   const modules = new Set();
+  const tparams = new Set(); // generic tip parametreleri: <T, Eleman>
   const clean = text.replace(/\/<[\s\S]*?>\//g, "").replace(/\/\/.*$/gm, "");
 
   for (const m of clean.matchAll(new RegExp(`ata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
@@ -93,12 +94,19 @@ function scan(text) {
   }
   for (const m of clean.matchAll(new RegExp(`(${ID})\\s+(?:adıyla|adiyla)`, "gu"))) modules.add(m[1]);
 
-  // tür blokları: tür Ad[Ebeveyn](alanlar) { ... }
+  // tür blokları: tür Ad<T>[Ebeveyn](alanlar) { ... }
   for (const m of clean.matchAll(new RegExp(`(?:tür|tur)\\s+(${ID})`, "gu"))) {
     let i = m.index + m[0].length;
     const skip = () => { while (/\s/.test(clean[i] || "")) i++; };
     skip();
-    let parents = [], params = "";
+    let parents = [], params = "", generics = "";
+    if (clean[i] === "<") {
+      const e = clean.indexOf(">", i);
+      generics = clean.slice(i + 1, e);
+      for (const g of splitTop(generics)) if (g.trim()) tparams.add(g.trim());
+      i = e + 1;
+      skip();
+    }
     if (clean[i] === "[") {
       const e = clean.indexOf("]", i);
       parents = splitTop(clean.slice(i + 1, e));
@@ -110,8 +118,8 @@ function scan(text) {
       i += params.length + 2;
       skip();
     }
-    if (clean[i] !== "{") continue;
-    const body = block(clean, i + 1);
+    // gövdesiz tür: tür Nokta(x: Tam)
+    const body = clean[i] === "{" ? block(clean, i + 1) : "";
     const fieldTypes = new Map();
     for (const f of splitTop(params)) {
       const [n, ...t] = f.replace(/^\s*(sabit|ata)\s+/, "").split(":");
@@ -122,7 +130,7 @@ function scan(text) {
     for (const x of body.matchAll(new RegExp(`(?:fonksiyon|yeniden)\\s+(${ID})\\s*\\(`, "gu"))) {
       methods.push([x[1], paren(body, x.index + x[0].length - 1)]);
     }
-    types.set(m[1], { parents, fields, fieldTypes, methods, params });
+    types.set(m[1], { parents, fields, fieldTypes, methods, params, generics });
   }
   for (const m of clean.matchAll(new RegExp(`(?:seçenek|secenek)\\s+(${ID})\\s*\\{`, "gu"))) {
     const body = block(clean, m.index + m[0].length);
@@ -130,7 +138,8 @@ function scan(text) {
   }
   for (const m of clean.matchAll(new RegExp(`(?:arayüz|arayuz)\\s+(${ID})`, "gu"))) ifaces.add(m[1]);
   // tür ve arayüz gövdelerindekiler hariç, üst düzey ve dış kütüphane fonksiyonları
-  for (const m of clean.matchAll(new RegExp(`fonksiyon\\s+(${ID})\\s*\\(`, "gu"))) {
+  for (const m of clean.matchAll(new RegExp(`fonksiyon\\s+(${ID})\\s*(?:<([^>]*)>)?\\s*\\(`, "gu"))) {
+    if (m[2]) for (const g of splitTop(m[2])) if (g.trim()) tparams.add(g.trim());
     const ps = paren(clean, m.index + m[0].length - 1);
     if (!funcs.has(m[1]) && !enclosingType(clean, m.index, true)) funcs.set(m[1], ps);
     for (const p of splitTop(ps)) {
@@ -138,7 +147,7 @@ function scan(text) {
       if (n && n.trim() && new RegExp(`^${ID}$`, "u").test(n.trim())) vars.set(n.trim(), (t || "").trim());
     }
   }
-  return { vars, funcs, types, enums, ifaces, modules };
+  return { vars, funcs, types, enums, ifaces, modules, tparams };
 }
 
 /** İmlecin içinde bulunduğu türün adı */
@@ -321,7 +330,7 @@ function complete(doc, pos) {
   for (const [v, hint] of info.vars) out.push(item(v, K.Variable, null, hint || "değişken", false));
   for (const [f, p] of info.funcs) out.push(item(f, K.Function, paramSnippet(f, p), `fonksiyon(${p})`, false));
   for (const [t, ti] of info.types) {
-    const it = item(t, K.Class, null, `tür (${ti.params})`, false);
+    const it = item(t, K.Class, ti.generics ? `${t}<\${1:Tam}>` : null, `tür${ti.generics ? `<${ti.generics}>` : ""} (${ti.params})`, false);
     out.push(it);
     // tür oluşturma: Ad(alan: , alan: )
     const fields = members(info, t).fields;
@@ -331,6 +340,7 @@ function complete(doc, pos) {
     ctor.filterText = t;
     out.push(ctor);
   }
+  for (const g of info.tparams) out.push(item(g, K.TypeParameter, null, "tip parametresi", false));
   for (const e of info.enums.keys()) out.push(item(e, K.Enum, null, "seçenek", false));
   for (const a of info.ifaces) out.push(item(a, K.Interface, null, "arayüz", false));
   for (const m of info.modules) out.push(item(m, K.Module, null, "dahil edilen dosya", false));

@@ -992,6 +992,9 @@ impl Checker {
                 StmtKind::Tur(TurDecl { name, .. }) | StmtKind::Secenek(SecenekDecl { name, .. }) => {
                     let tid = self.mods[mi].types[name];
                     let snap = self.global_snapshot();
+                    if self.tur_kalip.contains_key(&tid) {
+                        self.tur_snapshot.insert(tid, snap.clone());
+                    }
                     for fid in self.type_methods[tid].clone() {
                         self.funcs[fid].snapshot = Some(snap.clone());
                     }
@@ -1031,6 +1034,59 @@ impl Checker {
             });
             return Ok(());
         }
+        if !self.funcs[fid].generics.is_empty() {
+            // generic kalıp: gövdesi her kopyada ayrıca denetlenir; kendisi hiç çağrılmaz
+            let f = &self.funcs[fid];
+            let (key, loc) = ((f.span.file, f.span.start), self.loc(f.span));
+            self.funcs[fid].body = Some(TFunc { key, caps: None, dis: None, params: vec![], ret: Type::Hic, body: vec![], nslots: 0, owner: None, loc });
+            return Ok(());
+        }
+        if let Some(inst) = self.funcs[fid].inst.clone() {
+            self.funcs[fid].snapshot = match inst.kalip {
+                Kalip::Fonksiyon(t) => self.funcs[t].snapshot.clone(),
+                Kalip::Tur(t) => self.tur_snapshot.get(&t).cloned(),
+            };
+            let eski = std::mem::replace(&mut self.tsubst, inst.binds.iter().cloned().collect());
+            let r = self.check_body_inner(fid);
+            self.tsubst = eski;
+            return r.map_err(|mut d| {
+                let tipler: Vec<String> = inst
+                    .binds
+                    .iter()
+                    .map(|(n, t)| {
+                        let tn = self.type_name(t);
+                        match tn.char_indices().nth(60) {
+                            Some((i, _)) => format!("{n} = {}...", &tn[..i]),
+                            None => format!("{n} = {tn}"),
+                        }
+                    })
+                    .collect();
+                let (name, nerede) = match inst.kalip {
+                    Kalip::Fonksiyon(t) => (self.funcs[t].name.clone(), "çağrı"),
+                    Kalip::Tur(t) => (format!("{}.{}", self.types[t].name, self.funcs[fid].name), "ilk kullanım"),
+                };
+                d.msg = format!("{name} içinde: {}\n({nerede}: satır {}, {})", d.msg, inst.call.line, tipler.join(", "));
+                d
+            });
+        }
+        self.check_body_inner(fid)
+    }
+
+    /// Fonksiyonun kaynaktaki yeri; REPL fonksiyon değerlerini hücreden hücreye bununla eşler. Generic
+    /// kopyalarda (ve içlerindeki lambdalarda) tipler de katılır, yoksa kopyalar karışırdı.
+    pub(crate) fn func_key(&self, span: Span) -> (u32, u32) {
+        if self.tsubst.is_empty() {
+            return (span.file, span.start);
+        }
+        use std::hash::{Hash, Hasher};
+        let mut binds: Vec<(&String, &Type)> = self.tsubst.iter().collect();
+        binds.sort_by(|a, b| a.0.cmp(b.0));
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (span.start, binds).hash(&mut h);
+        (span.file, 0x8000_0000 | (h.finish() as u32 & 0x7fff_ffff))
+    }
+
+    fn check_body_inner(&mut self, fid: FuncId) -> CResult<()> {
         let f = &mut self.funcs[fid];
         let decl = f.decl.take().unwrap();
         let snapshot = f.snapshot.clone().unwrap_or_default();
@@ -1057,8 +1113,9 @@ impl Checker {
             );
         }
         let loc = self.loc(decl.span);
+        let key = self.func_key(decl.span);
         self.funcs[fid].body = Some(TFunc {
-            key: (decl.span.file, decl.span.start),
+            key,
             caps: None,
             dis: None,
             params: params.into_iter().map(|p| p.1).collect(),

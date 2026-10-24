@@ -1,0 +1,74 @@
+fonksiyon en_büyük<T>(l: Liste<T>) -> T {
+    ata e = l[0]
+    l içindeki her x için yap {
+        eğer x > e { e = x }
+    }
+    döndür e
+}
+
+fonksiyon ikile<T>(x: T) -> Liste<T> {
+    döndür [x, x]
+}
+
+fonksiyon eşle<A, B>(a: A, b: B) -> Yazı {
+    döndür f"{a} ve {b}"
+}
+
+fonksiyon uygula<T>(f: Fonksiyon(T) -> T, x: T) -> T {
+    döndür f(x)
+}
+
+fonksiyon dönüştür<T, R>(l: Liste<T>, f: Fonksiyon(T) -> R) -> Liste<R> {
+    ata sonuç: Liste<R>
+    l içindeki her x için yap { sonuç.ekle(f(x)) }
+    döndür sonuç
+}
+
+fonksiyon ilk_ya_da<T>(l: Liste<T>, varsayılan: T) -> T {
+    eğer l.uzunluk() == 0 { döndür varsayılan }
+    döndür l[0]
+}
+
+yazdır(en_büyük([3, 9, 2]))
+yazdır(en_büyük(["elma", "çilek", "armut"]))
+yazdır(en_büyük([1.5, 0.5]))
+yazdır(ikile("a"), ikile(5))
+yazdır(eşle(1, "x"), eşle(doğru, 2.5))
+yazdır(uygula(her x için x * 3, 7))
+yazdır(dönüştür([1, 2, 3], her x için f"<{x}>"))
+ata b: Tam(8) = 4
+yazdır(ilk_ya_da([] olarak Liste<Tam(8)>, 5))
+yazdır(ilk_ya_da([b], 5))
+yazdır(en_büyük(l: [7, 1]))
+
+// sayı sabiti T'ye sığmazsa T genişler
+fonksiyon topla<T>(x: T, y: T) -> T { döndür x + y }
+yazdır(topla(b, 5), topla(b, 1000), topla(2, 2.5), topla(b, -3))
+// T veya Hiç
+fonksiyon ya_da<T>(x: T veya Hiç, v: T) -> T {
+    eşleştir x {
+        Hiç -> döndür v
+        y: T -> döndür y
+    }
+}
+ata ad: Yazı veya Hiç = Hiç
+yazdır(ya_da(ad, "isimsiz"))
+ad = "Ali"
+yazdır(ya_da(ad, "isimsiz"))
+// özyineleme ve sözlük
+fonksiyon say<K>(l: Liste<K>) -> Sözlük<K, Tam> {
+    ata s: Sözlük<K, Tam>
+    l içindeki her x için yap {
+        eğer s.içerir(x) { s[x] += 1 } değilse { s[x] = 1 }
+    }
+    döndür s
+}
+yazdır(say(["a", "b", "a"]), say([1, 1, 1]))
+fonksiyon topla_hepsi<T>(l: Liste<T>, i: Tam) -> T {
+    eğer i == l.uzunluk() - 1 { döndür l[i] }
+    döndür l[i] + topla_hepsi(l, i + 1)
+}
+yazdır(topla_hepsi([1, 2, 3], 0), topla_hepsi([0.5, 0.25], 0))
+// taşma kopyanın içinde: hata generic fonksiyonun satırını gösterir
+ata c: Tam(8) = 100
+yazdır(topla(c, c))

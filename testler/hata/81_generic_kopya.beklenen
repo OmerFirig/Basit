@@ -1,0 +1,4 @@
+HATA (81_generic_kopya.kolay, satır 2): topla içinde: Yazı ile Tam(64) toplanamaz. f-yazı kullanın: f"{a}{b}"
+(çağrı: satır 5, T = Yazı, Z = Tam(64))
+  2 |     döndür x + y
+    |            ^^^^^

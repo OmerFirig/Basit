@@ -539,10 +539,31 @@ impl Parser {
 
     fn fn_rest(&mut self, start: Span, yeniden: Yeniden) -> CResult<FnDecl> {
         let (name, _) = self.ident("Fonksiyon adı")?;
+        let generics = self.type_params()?;
         let params = self.params("Parametrelerin")?;
         let ret = if self.eat(&Tok::Arrow) { Some(self.ty()?) } else { None };
         let body = self.block()?;
-        Ok(FnDecl { name, span: start, params, ret, body, yeniden })
+        Ok(FnDecl { name, span: start, generics, params, ret, body, yeniden })
+    }
+
+    /// Tip parametreleri: `<T, Z>` (yoksa boş)
+    fn type_params(&mut self) -> CResult<Vec<(String, Span)>> {
+        let mut out: Vec<(String, Span)> = Vec::new();
+        if !self.eat(&Tok::Lt) {
+            return Ok(out);
+        }
+        loop {
+            let (n, sp) = self.type_name("Tip parametresi")?;
+            if out.iter().any(|(x, _)| *x == n) {
+                return err(sp, format!("'{n}' tip parametresi iki kez yazılmış."));
+            }
+            out.push((n, sp));
+            if !self.eat(&Tok::Comma) {
+                break;
+            }
+        }
+        self.expect(&Tok::Gt, "'>'")?;
+        Ok(out)
     }
 
     fn type_name(&mut self, what: &str) -> CResult<(String, Span)> {
@@ -566,6 +587,9 @@ impl Parser {
                 path.push(self.ident("Tür adı")?.0);
             }
             out.push((path, span.to(self.prev_span())));
+            if self.at(&Tok::Lt) {
+                return err(self.span(), "Generic bir türden kalıtım alınamaz; ebeveyn olarak sadece tipi belli türler ve arayüzler yazılabilir.");
+            }
             if !self.eat(&Tok::Comma) {
                 break;
             }
@@ -577,6 +601,7 @@ impl Parser {
     fn tur(&mut self) -> CResult<TurDecl> {
         let start = self.advance().span;
         let (name, _) = self.type_name("Tür adı")?;
+        let generics = self.type_params()?;
         let parents = if self.at(&Tok::LBrack) { self.path_list()? } else { Vec::new() };
         let fields = if self.at(&Tok::LParen) { self.params("Alanların")? } else { Vec::new() };
         if self.at(&Tok::LBrack) {
@@ -599,10 +624,18 @@ impl Parser {
                 self.end_stmt()?;
             }
         }
-        Ok(TurDecl { name, span: start, parents, fields, methods })
+        Ok(TurDecl { name, span: start, generics, parents, fields, methods })
     }
 
     fn method(&mut self) -> CResult<FnDecl> {
+        let d = self.method_inner()?;
+        if let Some((_, sp)) = d.generics.first() {
+            return err(*sp, "Türün fonksiyonları tip parametresi alamaz. Türe yazın: tür Kutu<T>(...), ya da dışarıda generic bir fonksiyon tanımlayın.");
+        }
+        Ok(d)
+    }
+
+    fn method_inner(&mut self) -> CResult<FnDecl> {
         let start = self.span();
         match self.peek() {
             Tok::Kw(Kw::Fonksiyon) => {
@@ -666,6 +699,9 @@ impl Parser {
     fn secenek(&mut self) -> CResult<SecenekDecl> {
         let start = self.advance().span;
         let (name, _) = self.type_name("Seçenek adı")?;
+        if self.at(&Tok::Lt) {
+            return err(self.span(), "Seçenekler tip parametresi alamaz; sadece fonksiyonlar ve türler alabilir.");
+        }
         let interfaces = if self.at(&Tok::LBrack) { self.path_list()? } else { Vec::new() };
         self.expect(&Tok::LBrace, "'{'")?;
         let mut variants = Vec::new();

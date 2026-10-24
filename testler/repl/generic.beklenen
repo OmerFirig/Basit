@@ -1,0 +1,8 @@
+Çıktı [2]: [3, 3]                     Liste<Tam(64)>
+Çıktı [5]: "a"                        Yazı
+Çıktı [6]: ["b", "b"]                 Liste<Yazı>
+Çıktı [8]: [5, 5]                     Liste<Tam(64)>
+Çıktı [9]: [2.5, 2.5]                 Liste<Ondalık>
+Çıktı [10]: [6, 6]                    Liste<Tam(64)>
+Çıktı [11]: Kutu<Tam(64)>
+Çıktı [12]: Kutu<Yazı>(d: "a")        Kutu<Yazı>

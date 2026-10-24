@@ -66,8 +66,41 @@ pub(crate) struct FuncInfo {
     pub body: Option<TFunc>,
     /// dış (C) fonksiyonsa: kütüphane, C'deki ad
     pub dis: Option<DisInfo>,
+    /// Tip parametreleri (generic kalıp ise boş değil). Kalıbın gövdesi denetlenmez; her çağrıldığı
+    /// tiplerle ayrı bir kopyası (`inst`) oluşturulup o denetlenir.
+    pub generics: Vec<String>,
+    pub inst: Option<Inst>,
 }
 
+/// Generic bir fonksiyonun somut tiplerle oluşturulmuş kopyası
+#[derive(Clone)]
+pub(crate) struct Inst {
+    pub kalip: Kalip,
+    /// (T, Tam(64)) ...
+    pub binds: Vec<(String, Type)>,
+    /// Kopyayı ilk oluşturan çağrının yeri (hata mesajı için)
+    pub call: Span,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Kalip {
+    Fonksiyon(FuncId),
+    /// Generic türün kopyasındaki metot: türün kalıbı
+    Tur(TypeId),
+}
+
+/// Lambdanın iki geçişli denetiminde ilk geçişten önceki durum
+#[derive(Clone, Copy)]
+pub(crate) struct GeriNokta {
+    pub funcs: usize,
+    pub warnings: usize,
+    pub mut_edges: usize,
+    pub mut_direct: usize,
+    pub pending_mut: usize,
+    pub types: usize,
+}
+
+#[derive(Clone)]
 pub(crate) enum TypeDecl {
     Tur(TurDecl),
     Arayuz(ArayuzDecl),
@@ -136,6 +169,19 @@ pub struct Checker {
     pub(crate) kesif: bool,
     pub(crate) tipsiz_var: bool,
     pub(crate) yutulan: bool,
+    /// Denetlenmekte olan generic kopyadaki tip parametrelerinin karşılıkları (T -> Tam(64))
+    pub(crate) tsubst: HashMap<String, Type>,
+    /// (kalıp, tipler) -> kopya
+    pub(crate) instances: HashMap<(FuncId, Vec<Type>), FuncId>,
+    /// Generic tür kalıpları: tip parametreleri ve tanımı
+    pub(crate) tur_kalip: HashMap<TypeId, (Vec<String>, TypeDecl)>,
+    /// Generic türün kopyası -> (kalıp, tipler, ilk kullanıldığı yer)
+    pub(crate) tur_inst: HashMap<TypeId, (TypeId, Vec<Type>, Span)>,
+    pub(crate) tur_instances: HashMap<(TypeId, Vec<Type>), TypeId>,
+    /// Generic tür kalıbının tanımlandığı yerde görünen dosya değişkenleri (kopyaların metotları için)
+    pub(crate) tur_snapshot: HashMap<TypeId, Rc<HashMap<String, VarInfo>>>,
+    /// Kalıtım tabloları kuruldu mu (sonra oluşan tür kopyaları kendi tablolarını hemen kurar)
+    pub(crate) miras_hazir: bool,
 }
 
 /// Tipsiz `yakala` dalının değişken tipi, fırlatılabilen değerlere bağlıdır; bunlar ise bütün program
@@ -147,7 +193,7 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
     for _ in 0..8 {
         let (prog, mut warnings, yeni, bilgi) = check_pass(parsed.clone(), src, &tahmin, kesif)?;
         if !bilgi.0 || (yeni == tahmin && !bilgi.1) {
-            warnings.sort_by_key(|w| (w.span.file, w.span.line));
+            sort_warnings(&mut warnings);
             // tipsiz dal yok ya da tipler oturdu ve hiçbir dal yok sayılmadı: sonuç kesin
             return Ok((prog, warnings));
         }
@@ -157,8 +203,15 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
         tahmin = yeni;
     }
     let (prog, mut warnings, _, _) = check_pass(parsed, src, &tahmin, false)?;
-    warnings.sort_by_key(|w| (w.span.file, w.span.line));
+    sort_warnings(&mut warnings);
     Ok((prog, warnings))
+}
+
+/// Generic bir fonksiyonun her kopyası aynı uyarıyı verebilir: bir kez gösterilir.
+fn sort_warnings(w: &mut Vec<Diag>) {
+    w.sort_by_key(|w| (w.span.file, w.span.line));
+    let mut seen = HashSet::new();
+    w.retain(|d| seen.insert((d.span.file, d.span.start, d.msg.clone())));
 }
 
 /// Dönüş: program, uyarılar, tipsiz yakala dallarının analizden çıkan tipleri, (tipsiz dal var mı, keşifte
@@ -198,6 +251,13 @@ fn check_pass(
         kesif,
         tipsiz_var: false,
         yutulan: false,
+        tsubst: HashMap::new(),
+        instances: HashMap::new(),
+        tur_kalip: HashMap::new(),
+        tur_inst: HashMap::new(),
+        tur_instances: HashMap::new(),
+        tur_snapshot: HashMap::new(),
+        miras_hazir: false,
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -246,7 +306,7 @@ fn check_pass(
                         None => mi,
                     };
                     for f in funcs {
-                        let d = FnDecl { name: f.name.clone(), span: f.span, params: f.params.clone(), ret: f.ret.clone(), body: vec![], yeniden: Yeniden::Yok };
+                        let d = FnDecl { name: f.name.clone(), span: f.span, generics: vec![], params: f.params.clone(), ret: f.ret.clone(), body: vec![], yeniden: Yeniden::Yok };
                         let sym = f.symbol.clone().unwrap_or_else(|| f.name.clone());
                         if sym.starts_with("kolay_") || sym == "main" || sym.is_empty() {
                             return err(f.span, format!("'{sym}' C fonksiyonu adı olarak kullanılamaz."));
@@ -278,9 +338,11 @@ fn check_pass(
         }
     }
 
-    // 3. Türlerin içeriği (alanlar, seçenekler, metot imzaları)
-    for tid in 0..c.type_decls.len() {
+    // 3. Türlerin içeriği (alanlar, seçenekler, metot imzaları); generic tür kopyaları bu sırada eklenebilir
+    let mut tid = 0;
+    while tid < c.type_decls.len() {
         c.resolve_type_decl(tid)?;
+        tid += 1;
     }
     let pending = c.pending_keys.borrow_mut().take().unwrap_or_default();
     for (k, span) in pending {
@@ -290,7 +352,7 @@ fn check_pass(
     }
     // 4. Fonksiyon imzaları
     for fid in 0..c.funcs.len() {
-        if c.funcs[fid].owner.is_none() {
+        if c.funcs[fid].owner.is_none() && c.funcs[fid].generics.is_empty() {
             c.resolve_func_sig(fid)?;
         }
     }
@@ -303,9 +365,11 @@ fn check_pass(
     for (mi, stmts) in all_stmts.iter().enumerate() {
         modules_code.push(c.check_top(mi, stmts)?);
     }
-    // 7. Fonksiyon gövdeleri
-    for fid in 0..c.funcs.len() {
+    // 7. Fonksiyon gövdeleri (generic kopyalar denetlenirken yenileri eklenebilir)
+    let mut fid = 0;
+    while fid < c.funcs.len() {
         c.check_body(fid)?;
+        fid += 1;
     }
     // 8. Sabit nesneler üzerinde değiştiren metot çağrısı var mı?
     c.resolve_mutation()?;
@@ -416,7 +480,7 @@ impl Checker {
             } else {
                 (vec![(vec!["Hata".to_string()], sp)], vec![])
             };
-            let d = TurDecl { name: name.to_string(), span: sp, parents, fields, methods: vec![] };
+            let d = TurDecl { name: name.to_string(), span: sp, generics: vec![], parents, fields, methods: vec![] };
             let tid = self.types.len();
             self.types.push(TypeDef {
                 name: name.to_string(),
@@ -447,13 +511,25 @@ impl Checker {
             return err(span, format!("'{name}' bu dosyada zaten tanımlı."));
         }
         let tid = self.types.len();
-        let kind = match &decl {
+        let mut decl = Some(decl);
+        if let Some(TypeDecl::Tur(d)) = &decl {
+            if !d.generics.is_empty() {
+                for (g, sp) in &d.generics {
+                    if is_builtin_type_name(g) || self.mods[mi].types.contains_key(g) || g == name {
+                        return err(*sp, format!("'{g}' bir tipin adı; tip parametresine başka bir ad verin (T, Eleman gibi)."));
+                    }
+                }
+                let gs = d.generics.iter().map(|g| g.0.clone()).collect();
+                self.tur_kalip.insert(tid, (gs, decl.take().unwrap()));
+            }
+        }
+        let kind = match decl.as_ref().unwrap_or_else(|| &self.tur_kalip[&tid].1) {
             TypeDecl::Tur(_) => TypeDefKind::Tur { fields: vec![], parents: vec![], ancestors: vec![] },
             TypeDecl::Arayuz(_) => TypeDefKind::Arayuz { sigs: vec![] },
             TypeDecl::Secenek(_) => TypeDefKind::Secenek { variants: vec![] },
         };
         self.types.push(TypeDef { name: name.to_string(), kind, interfaces: vec![], methods: HashMap::new() });
-        self.type_decls.push((mi, span, Some(decl)));
+        self.type_decls.push((mi, span, decl));
         self.own_fields.push(Vec::new());
         self.type_methods.push(Vec::new());
         self.mods[mi].types.insert(name.to_string(), tid);
@@ -463,6 +539,11 @@ impl Checker {
     fn declare_func(&mut self, mi: usize, d: FnDecl) -> CResult<()> {
         if self.mods[mi].funcs.contains_key(&d.name) || self.mods[mi].types.contains_key(&d.name) {
             return err(d.span, format!("'{}' bu dosyada zaten tanımlı.", d.name));
+        }
+        for (g, sp) in &d.generics {
+            if is_builtin_type_name(g) || self.mods[mi].types.contains_key(g) {
+                return err(*sp, format!("'{g}' bir tipin adı; tip parametresine başka bir ad verin (T, Eleman gibi)."));
+            }
         }
         let fid = self.funcs.len();
         self.mods[mi].funcs.insert(d.name.clone(), fid);
@@ -475,10 +556,12 @@ impl Checker {
             ret: Type::Hic,
             span: d.span,
             yeniden: Yeniden::Yok,
+            generics: d.generics.iter().map(|g| g.0.clone()).collect(),
             decl: Some(d),
             snapshot: None,
             body: None,
             dis: None,
+            inst: None,
         });
         Ok(())
     }
@@ -573,7 +656,7 @@ impl Checker {
         }
     }
 
-    pub(crate) fn resolve_type(&self, te: &TypeExpr, mi: usize) -> CResult<Type> {
+    pub(crate) fn resolve_type(&mut self, te: &TypeExpr, mi: usize) -> CResult<Type> {
         match &te.kind {
             TypeKind::Func { params, ret } => {
                 let mut ps = Vec::new();
@@ -627,7 +710,7 @@ impl Checker {
     }
 
     fn resolve_base_type(
-        &self,
+        &mut self,
         span: Span,
         path: &[String],
         generics: &[TypeExpr],
@@ -642,6 +725,12 @@ impl Checker {
             if args.is_none() { Ok(()) } else { err(span, format!("{what} tipi parantez almaz.")) }
         };
         if path.len() == 1 {
+            if let Some(t) = self.tsubst.get(name) {
+                if !generics.is_empty() || args.is_some() {
+                    return err(span, format!("'{name}' bir tip parametresi; '<...>' ya da parantez almaz."));
+                }
+                return Ok(t.clone());
+            }
             match name {
                 "Tam" => {
                     no_generics("Tam")?;
@@ -727,6 +816,23 @@ impl Checker {
             }
         }
         if let Some(&tid) = self.mods[module].types.get(name) {
+            if let Some((gs, _)) = self.tur_kalip.get(&tid) {
+                let gs = gs.clone();
+                if args.is_some() || generics.is_empty() {
+                    let ornek = vec!["Tam"; gs.len()].join(", ");
+                    return err(span, format!("'{name}' generic bir tür; içindeki tipleri yazın: {name}<{ornek}>"));
+                }
+                if generics.len() != gs.len() {
+                    return err(span, format!("'{name}' {} tip alır ({name}<{}>), ama {} yazılmış.", gs.len(), gs.join(", "), generics.len()));
+                }
+                let mut ts = Vec::new();
+                for g in generics {
+                    let t = self.resolve_type(g, mi)?;
+                    self.no_hic_value(&t, g.span)?;
+                    ts.push(t);
+                }
+                return Ok(Type::Named(self.tur_instance(tid, ts, span)?));
+            }
             if !generics.is_empty() || args.is_some() {
                 return err(span, format!("'{name}' tipi '<...>' ya da parantez almaz."));
             }
@@ -788,10 +894,28 @@ impl Checker {
         }
     }
 
-    fn resolve_type_decl(&mut self, tid: TypeId) -> CResult<()> {
+    /// Generic tür kopyasıysa tip parametreleri kopyanın tipleriyle çözülür; metotları da kopyaya göre
+    /// denetlenecek şekilde işaretlenir.
+    pub(crate) fn resolve_type_decl(&mut self, tid: TypeId) -> CResult<()> {
+        let Some((kalip, ts, call)) = self.tur_inst.get(&tid).cloned() else {
+            return self.resolve_type_decl_inner(tid);
+        };
+        let binds: Vec<(String, Type)> = self.tur_kalip[&kalip].0.iter().cloned().zip(ts).collect();
+        let eski = std::mem::replace(&mut self.tsubst, binds.iter().cloned().collect());
+        let r = self.resolve_type_decl_inner(tid);
+        self.tsubst = eski;
+        r?;
+        for fid in self.type_methods[tid].clone() {
+            self.funcs[fid].inst = Some(Inst { kalip: Kalip::Tur(kalip), binds: binds.clone(), call });
+        }
+        Ok(())
+    }
+
+    fn resolve_type_decl_inner(&mut self, tid: TypeId) -> CResult<()> {
         let (mi, _span, decl) = &mut self.type_decls[tid];
         let mi = *mi;
-        let decl = decl.take().unwrap();
+        // generic tür kalıbı ya da zaten çözülmüş kopya
+        let Some(decl) = decl.take() else { return Ok(()) };
         match &decl {
             TypeDecl::Tur(d) => {
                 let mut parents = Vec::new();
@@ -907,8 +1031,9 @@ impl Checker {
     }
 
     fn add_method(&mut self, tid: TypeId, mi: usize, d: FnDecl) -> CResult<FuncId> {
-        let fid = self.funcs.len();
+        // imza çözülürken generic tür kopyaları (ve metotları) eklenebilir: numara sonra alınır
         let (params, sabits, ret) = self.sig_of(&d, mi)?;
+        let fid = self.funcs.len();
         if self.type_methods[tid].iter().any(|&f| {
             let o = &self.funcs[f];
             o.name == d.name
@@ -936,11 +1061,13 @@ impl Checker {
             snapshot: None,
             body: None,
             dis: None,
+            generics: vec![],
+            inst: None,
         });
         Ok(fid)
     }
 
-    fn sig_of(&self, d: &FnDecl, mi: usize) -> CResult<(Vec<(String, Type)>, Vec<bool>, Type)> {
+    pub(crate) fn sig_of(&mut self, d: &FnDecl, mi: usize) -> CResult<(Vec<(String, Type)>, Vec<bool>, Type)> {
         let mut params: Vec<(String, Type)> = Vec::new();
         let mut sabits = Vec::new();
         for p in &d.params {
@@ -1005,8 +1132,16 @@ impl Checker {
         for t in 0..n {
             self.topo(t, &mut state, &mut order, &mut Vec::new())?;
         }
-        let mut flat_fields: Vec<Vec<FieldInfo>> = vec![Vec::new(); n];
         for &tid in &order {
+            self.inherit_one(tid)?;
+        }
+        self.miras_hazir = true;
+        Ok(())
+    }
+
+    /// Bir türün alanları (ebeveynlerinkiyle), metot ve dağıtım tabloları; ebeveynleri önceden kurulmuş olmalı.
+    pub(crate) fn inherit_one(&mut self, tid: TypeId) -> CResult<()> {
+        {
             let span = self.type_decls[tid].1;
             match self.types[tid].kind.clone() {
                 TypeDefKind::Tur { parents, .. } => {
@@ -1015,7 +1150,7 @@ impl Checker {
                     let mut ancestors: Vec<TypeId> = Vec::new();
                     let mut interfaces = self.types[tid].interfaces.clone();
                     for &p in &parents {
-                        for f in &flat_fields[p] {
+                        for f in &self.fields_of(p).to_vec() {
                             if let Some(old) = fields.iter().find(|x| x.name == f.name) {
                                 if old.origin != f.origin {
                                     return err(
@@ -1055,7 +1190,6 @@ impl Checker {
                         }
                         fields.push(f.clone());
                     }
-                    flat_fields[tid] = fields.clone();
                     self.types[tid].kind = TypeDefKind::Tur { fields, parents: parents.clone(), ancestors: ancestors.clone() };
                     self.types[tid].interfaces = interfaces;
                     self.resolve_methods(tid, &parents, &ancestors)?;

@@ -1,0 +1,2 @@
+fonksiyon f<T>(x: T) -> Tam { döndür f([x]) }
+yazdır(f(1))

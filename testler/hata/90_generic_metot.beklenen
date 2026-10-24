@@ -1,0 +1,3 @@
+HATA (90_generic_metot.kolay, satır 1): Türün fonksiyonları tip parametresi alamaz. Türe yazın: tür Kutu<T>(...), ya da dışarıda generic bir fonksiyon tanımlayın.
+  1 | tür Kutu<T>(d: T) { fonksiyon f<Z>(x: Z) { } }
+    |                                 ^

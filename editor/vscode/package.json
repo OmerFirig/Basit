@@ -4,6 +4,7 @@
   "description": "Kolay (Türkçe programlama dili): renklendirme, tamamlama, hata gösterme ve çalıştırma",
   "version": "0.6.0",
   "publisher": "kolay",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -23,7 +24,11 @@
         "extensions": [
           ".kolay"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/icon.png",
+          "dark": "./images/icon.png"
+        }
       }
     ],
     "grammars": [

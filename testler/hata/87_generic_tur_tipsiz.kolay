@@ -1,0 +1,2 @@
+tür Kutu<T>(d: T)
+ata k: Kutu = Kutu(1)

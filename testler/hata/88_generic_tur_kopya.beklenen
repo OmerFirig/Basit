@@ -1,0 +1,4 @@
+HATA (88_generic_tur_kopya.kolay, satır 1): Kutu.iki içinde: '*' işlemi yazılarla yapılamaz.
+(ilk kullanım: satır 4, T = Yazı)
+  1 | tür Kutu<T>(d: T) { fonksiyon iki() -> T { döndür d * 2 } }
+    |                                                   ^^^^^

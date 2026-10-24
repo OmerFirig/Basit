@@ -1,0 +1,3 @@
+HATA (82_generic_cakisma.kolay, satır 2): 'T' hem Yazı hem Tam(64) olamaz: aynı tip parametresine farklı tipte değerler verildi.
+  2 | yazdır(f(1, "a"))
+    |          ^

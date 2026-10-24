@@ -1,0 +1,20 @@
+Kutu<Tam(64)>(değer: 5) 5
+7
+merhaba Kutu<Yazı>(değer: "merhaba")
+Kutu<Tam(8)>(değer: 3)
+doğru
+Çift<Tam(64), Yazı>(ilk: 1, ikinci: "bir") Çift<Yazı, Tam(64)>(ilk: "bir", ikinci: 1)
+b Yığın<Yazı>(elemanlar: ["a"])
+2.5 doğru
+Düğüm<Tam(64)>(değer: 1, sonraki: Düğüm<Tam(64)>(değer: 2, sonraki: Hiç))
+[Kutu<Yazı>(değer: "x"), Kutu<Yazı>(değer: "y")]
+Sahip(kutu: AdlıKutu<Tam>(no: 1, değer: 10))
+no 1
+kutu(x)
+5.0
+kutu(1)
+kutu(b)
+kutu 7
+[AdlıKutu<Yazı>(no: 0, değer: "kutu(1)"), AdlıKutu<Yazı>(no: 0, değer: "kutu(b)")]
+ÇALIŞMA HATASI (g_tur.kolay, satır 68): Tam(8) taştı. 100 + 100 = 200, ama Tam(8) en fazla 127 tutabilir.
+  68 | tür Sayaç<T>(n: T) { fonksiyon artır() { n += 100 } }

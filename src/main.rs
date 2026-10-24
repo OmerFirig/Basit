@@ -8,6 +8,7 @@ mod cstmt;
 mod diag;
 mod dis;
 mod firlat;
+mod generic;
 mod interp;
 mod lexer;
 mod loader;

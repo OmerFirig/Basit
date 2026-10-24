@@ -1,0 +1,1 @@
+fonksiyon f<Tam>(x: Tam) -> Tam { döndür x }

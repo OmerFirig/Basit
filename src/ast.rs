@@ -201,6 +201,8 @@ pub enum Yeniden {
 pub struct FnDecl {
     pub name: String,
     pub span: Span,
+    /// Tip parametreleri: `fonksiyon en_büyük<T>(...)`
+    pub generics: Vec<(String, Span)>,
     pub params: Vec<Param>,
     pub ret: Option<TypeExpr>,
     pub body: Block,
@@ -229,6 +231,8 @@ pub struct FnSig {
 pub struct TurDecl {
     pub name: String,
     pub span: Span,
+    /// Tip parametreleri: `tür Kutu<T>(değer: T)`
+    pub generics: Vec<(String, Span)>,
     pub parents: Vec<(Vec<String>, Span)>,
     pub fields: Vec<Param>,
     pub methods: Vec<FnDecl>,

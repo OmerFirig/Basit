@@ -39,6 +39,15 @@
     ],
     "description": "Değer döndüren fonksiyon"
   },
+  "Generic fonksiyon": {
+    "prefix": "fonksiyong",
+    "body": [
+      "fonksiyon ${1:ad}<${2:T}>(${3:x}: ${2:T}) -> ${2:T} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Her tiple çalışan fonksiyon; T çağrıda verilen değerden çıkarılır"
+  },
   "Eğer": {
     "prefix": "eğer",
     "body": [
@@ -145,6 +154,17 @@
       "}"
     ],
     "description": "Ebeveynden kalıtım alan tür"
+  },
+  "Generic tür": {
+    "prefix": "türg",
+    "body": [
+      "tür ${1:Kutu}<${2:T}>(${3:değer}: ${2:T}) {",
+      "\tfonksiyon ${4:al}() -> ${2:T} {",
+      "\t\tdöndür ${3:değer}",
+      "\t}",
+      "}"
+    ],
+    "description": "İçindeki tipi sonradan belli olan tür: Kutu<Tam>, Kutu<Yazı>"
   },
   "Arayüz": {
     "prefix": "arayüz",

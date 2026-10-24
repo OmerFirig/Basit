@@ -1,0 +1,2 @@
+fonksiyon f<T>(a: T, b: T) -> T { döndür a }
+yazdır(f(1, "a"))
