@@ -11,6 +11,7 @@ mod interp;
 mod lexer;
 mod loader;
 mod parser;
+mod repl;
 mod tir;
 mod types;
 mod values;
@@ -24,6 +25,7 @@ const YARDIM: &str = "\
 Kolay - Türkçe programlama dili
 
 Kullanım:
+  kolay                               Etkileşimli kip (REPL)
   kolay <dosya.kolay>                 Programı çalıştırır
   kolay çalıştır <dosya.kolay>        Programı çalıştırır
   kolay derle <dosya.kolay> [-o ad]   Programı makine koduna derler (LLVM)
@@ -164,6 +166,10 @@ fn real_main() -> i32 {
         return 0;
     }
     let Some(file) = o.file.clone() else {
+        if o.cmd == "çalıştır" {
+            // dosya adı yoksa etkileşimli kip
+            return repl::calistir(o.mode);
+        }
         print!("{YARDIM}");
         return 2;
     };

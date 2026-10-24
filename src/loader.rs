@@ -20,7 +20,17 @@ pub fn load(main: &Path, default_mode: Mode, sources: &mut Sources) -> CResult<V
     let mut mods = Vec::new();
     let mut by_path = HashMap::new();
     let mut stack = Vec::new();
-    load_one(main, default_mode, sources, &mut mods, &mut by_path, &mut stack, None, None)?;
+    load_one(main, default_mode, sources, &mut mods, &mut by_path, &mut stack, None, None, None)?;
+    Ok(mods)
+}
+
+/// Diskte olmayan bir ana metni yükler (REPL oturumu). `path`: dahil et yollarının çözüleceği,
+/// var olmayan sanal dosya yolu.
+pub fn load_text(path: &Path, text: String, default_mode: Mode, sources: &mut Sources) -> CResult<Vec<ParsedModule>> {
+    let mut mods = Vec::new();
+    let mut by_path = HashMap::new();
+    let mut stack = Vec::new();
+    load_one(path, default_mode, sources, &mut mods, &mut by_path, &mut stack, None, None, Some(text))?;
     Ok(mods)
 }
 
@@ -33,11 +43,13 @@ fn load_one(
     stack: &mut Vec<PathBuf>,
     from: Option<Span>,
     shown: Option<&str>,
+    given: Option<String>,
 ) -> CResult<usize> {
     let at = from.unwrap_or(Span { file: u32::MAX, ..Default::default() });
-    let canon = match path.canonicalize() {
-        Ok(p) => p,
-        Err(_) => {
+    let canon = match (path.canonicalize(), &given) {
+        (Ok(p), _) => p,
+        (Err(_), Some(_)) => path.to_path_buf(),
+        (Err(_), None) => {
             let shown = shown.map(str::to_string).unwrap_or_else(|| path.display().to_string());
             return err(at, format!("'{shown}' dosyası bulunamadı."));
         }
@@ -53,9 +65,12 @@ fn load_one(
             .collect();
         return err(at, format!("Döngüsel dahil etme: {}", chain.join(" → ")));
     }
-    let text = match std::fs::read_to_string(&canon) {
-        Ok(t) => t,
-        Err(e) => return err(at, format!("'{}' okunamadı: {e}", path.display())),
+    let text = match given {
+        Some(t) => t,
+        None => match std::fs::read_to_string(&canon) {
+            Ok(t) => t,
+            Err(e) => return err(at, format!("'{}' okunamadı: {e}", path.display())),
+        },
     };
     let file = sources.add(canon.clone(), text.clone());
     let (mode, lex_text) = match find_klavye(&text, file)? {
@@ -75,7 +90,7 @@ fn load_one(
     for (i, s) in stmts.iter().enumerate() {
         if let StmtKind::Dahil { path: p, .. } = &s.kind {
             let target = dir.join(p);
-            let idx = load_one(&target, default_mode, sources, mods, by_path, stack, Some(s.span), Some(p))
+            let idx = load_one(&target, default_mode, sources, mods, by_path, stack, Some(s.span), Some(p), None)
                 .map_err(|d| if d.span.file == u32::MAX { Diag::new(s.span, d.msg) } else { d })?;
             deps.push((i, idx));
         }

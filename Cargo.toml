@@ -1,6 +1,6 @@
 [package]
 name = "kolay"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
@@ -9,3 +9,4 @@ indexmap = "2.14.2"
 num-bigint = "0.5.1"
 num-integer = "0.1.47"
 num-traits = "0.2.19"
+rustyline = { version = "14", default-features = false, features = ["with-file-history", "custom-bindings"] }

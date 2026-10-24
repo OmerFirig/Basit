@@ -1,0 +1,42 @@
+Çıktı [2]: 10                         Tam(64)
+kare: 25
+Çıktı [5]: [3, 2, 1]                  Liste<Tam(64)>
+Hata [6]: 300, Tam(8) sınırlarını aşıyor (-128 .. 127).
+Hata [7]: 'y' tanımlı değil. 'x' mı demek istediniz?
+Çıktı [9]: 36                         Tam(64)
+Çıktı [10]: "bc"                      Yazı
+Çıktı [11]: Hiç                       Tam(64) veya Hiç
+Çıktı [12]: Mantık
+Hata [13]: ':tip' bir ifade bekler. Örnek: :tip [1, 2].bul(2)
+Çıktı [16]: [1, 2]                    Liste<Tam(64)>
+Hata [17]: Sıfıra bölme hatası.
+Çıktı [18]: [1, 2]                    Liste<Tam(64)>
+Çıktı [20]: 8                         Tam(64)
+Çıktı [21]: N(a: 5)                   N
+Çıktı [23]: 9                         Tam(64)
+[1] ata x = 5
+[2] x * 2
+[3] fonksiyon kare(n: Tam(64)) -> Tam(64) {
+        döndür n * n
+    }
+[4] yazdır("kare:", kare(x))
+[5] [1, 2, 3].tersi()
+[8] x = x + 1
+[9] kare(x)
+[10] "abc"[1..]
+[11] [1, 2].bul(5)
+[14] ata l = [1]
+[15] l.ekle(2)
+[16] l
+[18] l
+[19] tür N(a: Tam(64)) { fonksiyon iki() -> Tam(64) { döndür a * 2 } }
+[20] N(4).iki()
+[21] N(5)
+[22] /< çok satırlı
+       yorum >/ ata k = 3
+[23] k ** 2
+Hata: ':bilinmeyen' diye bir komut yok. Komutlar için :yardım
+Uyarı [24]: '^' özel veya (xor) işlemidir; üs için '**' yazın.
+4
+Oturum temizlendi.
+Hata [1]: 'x' tanımlı değil.

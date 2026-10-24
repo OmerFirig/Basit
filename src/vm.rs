@@ -125,6 +125,36 @@ pub(crate) fn compile_module<'p>(prog: &'p Program, stmts: &'p [TS]) -> Chunk<'p
     compile_body(prog, stmts, 0, own.into_keys().collect())
 }
 
+/// REPL hücresi: oturumun yeni komutları; `value` verilirse (son satır bir ifadeyse) değeri döner.
+pub(crate) fn compile_cell<'p>(prog: &'p Program, stmts: &'p [TS], value: Option<&'p TExpr>) -> Chunk<'p> {
+    let mut own = std::collections::HashMap::new();
+    crate::codegen::collect_slots_stmts(stmts, &mut own, true, prog);
+    let mut c = new_comp(0, own.into_keys().collect());
+    for s in stmts {
+        c.stmt(s);
+    }
+    match value {
+        Some(e) => {
+            let a = c.expr(e);
+            c.emit(Ins::Ret(a));
+        }
+        None => {
+            c.emit(Ins::RetV);
+        }
+    }
+    c.ch
+}
+
+fn new_comp<'p>(nslots: u32, own_globals: std::collections::HashSet<u32>) -> Comp<'p> {
+    Comp {
+        ch: Chunk { code: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
+        next: nslots,
+        loops: Vec::new(),
+        loc: Loc::default(),
+        own_globals,
+    }
+}
+
 fn compile_body<'p>(prog: &'p Program, body: &'p [TS], nslots: u32, own_globals: std::collections::HashSet<u32>) -> Chunk<'p> {
     let _ = prog;
     let mut c = Comp {
@@ -934,6 +964,9 @@ impl<'p> Interp<'p> {
                         _ => crate::interp::compare(*op, self.gr(ch, f, *a), self.gr(ch, f, *b)),
                     };
                     if r {
+                        if crate::interp::kesildi() {
+                            return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                        }
                         pc = *t as usize;
                     }
                 }
@@ -955,7 +988,13 @@ impl<'p> Interp<'p> {
                     let r = self.neg_value(v, &ch.types[*t as usize], ch.locs[pc - 1])?;
                     f.slots[*d as usize] = r;
                 }
-                Ins::Jmp(t) => pc = *t as usize,
+                Ins::Jmp(t) => {
+                    // geriye atlama = döngü turu: REPL'de Ctrl+C burada yakalanır
+                    if (*t as usize) < pc && crate::interp::kesildi() {
+                        return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                    }
+                    pc = *t as usize
+                }
                 Ins::JmpF(a, t) => {
                     if let Value::Bool(false) = self.gr(ch, f, *a) {
                         pc = *t as usize;
@@ -963,6 +1002,9 @@ impl<'p> Interp<'p> {
                 }
                 Ins::JmpT(a, t) => {
                     if let Value::Bool(true) = self.gr(ch, f, *a) {
+                        if (*t as usize) < pc && crate::interp::kesildi() {
+                            return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                        }
                         pc = *t as usize;
                     }
                 }

@@ -1,0 +1,4 @@
+m adıyla dahil et("../moduller/matematik.kolay")
+m.topla(2, 3)
+m adıyla dahil et("../moduller/matematik.kolay")
+m.pi

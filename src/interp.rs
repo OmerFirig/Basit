@@ -84,6 +84,27 @@ pub struct Interp<'p> {
 
 pub(crate) const MAX_DEPTH: u32 = 100_000;
 
+/// REPL'de Ctrl+C basıldı mı (çalışan hücre döngü turlarında durdurulur). Programlar Ctrl+C'de
+/// doğrudan kapanır (main.rs), bu bayrak sadece REPL'de kullanılır.
+pub(crate) static KESME: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[inline(always)]
+pub(crate) fn kesildi() -> bool {
+    KESME.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub(crate) const DURDURULDU: &str = "Durduruldu (Ctrl+C).";
+
+/// Komutun konumu (Ctrl+C mesajı için yaklaşık yer)
+fn stmt_loc(s: &TS) -> Loc {
+    match s {
+        TS::Let(_, e) | TS::Expr(e) | TS::Kere(e, _) | TS::While(e, _) => e.loc,
+        TS::Assign(_, _, l) | TS::Compound(_, _, _, _, l) => *l,
+        TS::ForEach { iter, .. } => iter.loc,
+        _ => Loc::default(),
+    }
+}
+
 pub(crate) fn norm_index(i: i64, len: usize, loc: Loc) -> R<usize> {
     let real = if i < 0 { i.checked_add(len as i64).unwrap_or(-1) } else { i };
     if real < 0 || real >= len as i64 {
@@ -201,6 +222,19 @@ impl<'p> Interp<'p> {
         }
     }
 
+    /// REPL hücresini çalıştırır; son satır bir ifadeyse değerini döndürür.
+    pub fn run_cell(&mut self, stmts: &'p [TS], value: Option<&'p TExpr>) -> Result<Option<Value>, RtErr> {
+        let ch = crate::vm::compile_cell(self.prog, stmts, value);
+        let mut f = Frame { slots: vec![Value::Uninit; ch.nregs as usize], bu: BuRef::Val(Value::Hic) };
+        let r = self.run_chunk(&ch, &mut f);
+        let _ = self.out.flush();
+        match r {
+            Ok(v) => Ok(value.map(|_| v)),
+            Err(Unwind::Ctl(_)) => Ok(None),
+            Err(Unwind::Err(e)) => Err(e),
+        }
+    }
+
     pub fn run(&mut self) -> Result<(), RtErr> {
         let r = self.run_module(self.prog.main_module);
         let _ = self.out.flush();
@@ -241,6 +275,9 @@ impl<'p> Interp<'p> {
     }
 
     pub(crate) fn loop_ctl(&mut self, body: &[TS], f: &mut Frame) -> R<Option<Ctl>> {
+        if kesildi() {
+            return rt(body.first().map(stmt_loc).unwrap_or_default(), DURDURULDU);
+        }
         match self.exec_block(body, f)? {
             Ctl::Normal | Ctl::Continue => Ok(None),
             Ctl::Break => Ok(Some(Ctl::Normal)),

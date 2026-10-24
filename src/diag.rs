@@ -40,6 +40,7 @@ pub fn err<T>(span: Span, msg: impl Into<String>) -> CResult<T> {
 
 pub struct SourceFile {
     pub name: String,
+    pub path: PathBuf,
     pub text: String,
 }
 
@@ -54,7 +55,7 @@ impl Sources {
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.to_string_lossy().into_owned());
-        self.files.push(SourceFile { name, text });
+        self.files.push(SourceFile { name, path, text });
         (self.files.len() - 1) as u32
     }
 
