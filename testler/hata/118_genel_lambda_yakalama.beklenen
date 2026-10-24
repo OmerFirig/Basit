@@ -1,0 +1,3 @@
+HATA (118_genel_lambda_yakalama.kolay, satır 2): 'n' dışarıdaki bir değişken; generic lambda dışarıdaki değişkenleri kullanamaz. Değeri bir parametre olarak verin.
+  2 | ata f = her<T> x: T için x * n
+    |                              ^

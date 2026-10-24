@@ -1,0 +1,3 @@
+HATA (120_genel_param_somut.kolay, satır 3): 'f' her tiple çalışan (generic) bir fonksiyon bekliyor. Örnek: fonksiyon iki_kat<T>(x: T) -> T { ... } ya da her<T> x: T için ...
+  3 | ikisine(art)
+    |         ^^^

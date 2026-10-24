@@ -10,3 +10,5 @@ tür Kap<T>(içerik: T) {
     fonksiyon al() -> T { döndür içerik }
 }
 fonksiyon ilk<T>(l: Liste<T>) -> T { döndür l[0] }
+ata üçle = her<T> x: T için x * 3
+fonksiyon kendisi<T>(x: T) -> T { döndür x }

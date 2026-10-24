@@ -1,0 +1,141 @@
+// matematik: karekök, üs, yuvarlama, mutlak değer, trigonometri, logaritma, EBOB/EKOK, PI ve E
+//
+// Kullanmak için:  m adıyla dahil et("matematik")
+//                  yazdır(m.karekök(2.0), m.yuvarla(m.PI, 2), m.mutlak(-5))
+//
+// C'nin matematik kütüphanesini (libm) Türkçe adlarla ve güvenli şekilde sarar: kullanan programın
+// #Güvensiz yazmasına gerek yoktur.
+
+#Güvensiz
+c adıyla dış kütüphane("m") {
+    fonksiyon sqrt(x: Ondalık) -> Ondalık
+    fonksiyon pow(a: Ondalık, b: Ondalık) -> Ondalık
+    fonksiyon round(x: Ondalık) -> Ondalık
+    fonksiyon floor(x: Ondalık) -> Ondalık
+    fonksiyon ceil(x: Ondalık) -> Ondalık
+    fonksiyon sin(x: Ondalık) -> Ondalık
+    fonksiyon cos(x: Ondalık) -> Ondalık
+    fonksiyon tan(x: Ondalık) -> Ondalık
+    fonksiyon atan2(y: Ondalık, x: Ondalık) -> Ondalık
+    fonksiyon log(x: Ondalık) -> Ondalık
+    fonksiyon log10(x: Ondalık) -> Ondalık
+    fonksiyon exp(x: Ondalık) -> Ondalık
+}
+
+ata sabit PI = 3.141592653589793
+ata sabit E = 2.718281828459045
+
+// ------------------------------------------------------------ kök, üs, logaritma
+
+fonksiyon karekök(x: Ondalık) -> Ondalık {
+    doğrula(x >= 0.0, "Negatif sayının karekökü alınamaz.")
+    döndür c.sqrt(x)
+}
+
+// taban ** kuvvet; kuvvet ondalık da olabilir: üs(8.0, 1.0 / 3.0) -> 2.0
+fonksiyon üs(taban: Ondalık, kuvvet: Ondalık) -> Ondalık {
+    döndür c.pow(taban, kuvvet)
+}
+
+// doğal logaritma (e tabanında)
+fonksiyon ln(x: Ondalık) -> Ondalık {
+    doğrula(x > 0.0, "Logaritma sadece pozitif sayılar için tanımlı.")
+    döndür c.log(x)
+}
+
+fonksiyon log10(x: Ondalık) -> Ondalık {
+    doğrula(x > 0.0, "Logaritma sadece pozitif sayılar için tanımlı.")
+    döndür c.log10(x)
+}
+
+// e ** x
+fonksiyon e_üssü(x: Ondalık) -> Ondalık {
+    döndür c.exp(x)
+}
+
+// ------------------------------------------------------------ yuvarlama ve mutlak değer
+
+// En yakın sayıya yuvarlar (yarım yukarı); basamak verilirse virgülden sonra o kadar basamak kalır.
+fonksiyon yuvarla(x: Ondalık, basamak: Tam(64) = 0) -> Ondalık {
+    ata k = c.pow(10.0, basamak olarak Ondalık)
+    döndür c.round(x * k) / k
+}
+
+// Aşağı yuvarlar: taban(2.7) -> 2.0, taban(-2.3) -> -3.0
+fonksiyon taban(x: Ondalık) -> Ondalık {
+    döndür c.floor(x)
+}
+
+// Yukarı yuvarlar: tavan(2.1) -> 3.0
+fonksiyon tavan(x: Ondalık) -> Ondalık {
+    döndür c.ceil(x)
+}
+
+// Her sayı tipiyle çalışır: mutlak(-5) -> 5, mutlak(-2.5) -> 2.5
+fonksiyon mutlak<T>(x: T) -> T {
+    eğer x < 0 { döndür -x }
+    döndür x
+}
+
+fonksiyon büyüğü<T>(a: T, b: T) -> T {
+    eğer a > b { döndür a }
+    döndür b
+}
+
+fonksiyon küçüğü<T>(a: T, b: T) -> T {
+    eğer a < b { döndür a }
+    döndür b
+}
+
+// ------------------------------------------------------------ trigonometri (açılar radyan)
+
+fonksiyon sinüs(x: Ondalık) -> Ondalık { döndür c.sin(x) }
+fonksiyon kosinüs(x: Ondalık) -> Ondalık { döndür c.cos(x) }
+fonksiyon tanjant(x: Ondalık) -> Ondalık { döndür c.tan(x) }
+
+// (x, y) noktasının açısı, radyan: açı(1.0, 1.0) -> PI / 4
+fonksiyon açı(x: Ondalık, y: Ondalık) -> Ondalık { döndür c.atan2(y, x) }
+
+fonksiyon radyan(derece: Ondalık) -> Ondalık { döndür derece * PI / 180.0 }
+fonksiyon derece(radyan: Ondalık) -> Ondalık { döndür radyan * 180.0 / PI }
+
+// ------------------------------------------------------------ tam sayılar
+
+// En büyük ortak bölen (Öklid)
+fonksiyon ebob(a: Tam(64), b: Tam(64)) -> Tam(64) {
+    ata x = mutlak(a)
+    ata y = mutlak(b)
+    y != 0 sürece yap {
+        ata k = x % y
+        x = y
+        y = k
+    }
+    döndür x
+}
+
+// En küçük ortak kat
+fonksiyon ekok(a: Tam(64), b: Tam(64)) -> Tam(64) {
+    eğer a == 0 veya b == 0 { döndür 0 }
+    döndür mutlak(a / ebob(a, b) * b)
+}
+
+fonksiyon asal_mı(n: Tam(64)) -> Mantık {
+    eğer n < 2 { döndür yanlış }
+    ata i = 2
+    i * i <= n sürece yap {
+        eğer n % i == 0 { döndür yanlış }
+        i += 1
+    }
+    döndür doğru
+}
+
+// ------------------------------------------------------------ testler
+doğrula(karekök(16.0) == 4.0)
+doğrula(üs(2.0, 10.0) == 1024.0)
+doğrula(yuvarla(2.5) == 3.0 ve yuvarla(PI, 2) == 3.14)
+doğrula(taban(-2.3) == -3.0 ve tavan(2.1) == 3.0)
+doğrula(mutlak(-5) == 5 ve mutlak(-2.5) == 2.5)
+doğrula(büyüğü(3, 7) == 7 ve küçüğü("b", "a") == "a")
+doğrula(ebob(12, 18) == 6 ve ekok(4, 6) == 12)
+doğrula(asal_mı(97) ve değil asal_mı(91))
+doğrula(yuvarla(derece(açı(1.0, 1.0))) == 45.0)

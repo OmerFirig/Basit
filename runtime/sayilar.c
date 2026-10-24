@@ -148,18 +148,20 @@ Yazi *kolay_tam_yazi(i128 bits, int32_t bicim) {
     return yazi_c(s);
 }
 
-// Rust'taki gibi en kısa, üssüz gösterim: 0.1 + 0.2 -> 0.30000000000000004
+// En kısa geri dönüşen gösterim için: değer bu bit sayısında aynı mı
 static int ayni(double a, double b, int32_t bits) {
     if (bits == 32) return (float)a == (float)b;
     if (bits == 16) return (_Float16)a == (_Float16)b;
     return a == b;
 }
 
+/// Ondalık sayıyı yazıya çevirir (Python'daki gibi): en kısa geri dönüşen basamaklar; üs -4 ile 15
+/// arasındaysa düz (0.0001, 123.5), dışındaysa bilimsel (1e-05, 6.022e+23). Yorumlayıcıda: values.rs fmt_float.
 void ondalik_yaz(double v, int32_t bits, char *out) {
     if (isnan(v)) { strcpy(out, "TanımsızSayı"); return; }
     if (isinf(v)) { strcpy(out, v > 0 ? "sonsuz" : "-sonsuz"); return; }
-    if (bits == 16) {
-        // yorumlayıcı ile aynı: sabit basamak sayısıyla en kısa geri dönüşen gösterim
+    if (bits == 16 && !(v != 0 && fabs((double)(_Float16)v) < 1e-4)) {
+        // Ondalık(16) düz yazımda: sabit basamak sayısıyla en kısa geri dönüşen gösterim (65504.0 gibi)
         char buf[64];
         for (int p = 1; p <= 8; p++) {
             snprintf(buf, sizeof buf, "%.*f", p, (double)(_Float16)v);
@@ -171,13 +173,14 @@ void ondalik_yaz(double v, int32_t bits, char *out) {
         strcpy(out, buf);
         return;
     }
+    if (bits == 16) v = (double)(_Float16)v;
     char sci[64];
     int p;
     for (p = 1; p <= 17; p++) {
         snprintf(sci, sizeof sci, "%.*e", p - 1, v);
         if (ayni(strtod(sci, NULL), v, bits)) break;
     }
-    // sci: [-]d.ddde[+-]XX
+    // sci: [-]d.ddde[+-]XX -> basamaklar ve üs
     char digits[40];
     int nd = 0, k = 0, neg = 0;
     if (sci[k] == '-') { neg = 1; k++; }
@@ -188,6 +191,16 @@ void ondalik_yaz(double v, int32_t bits, char *out) {
     digits[nd] = 0;
     int o = 0;
     if (neg) out[o++] = '-';
+    if (ex < -4 || ex >= 16) {
+        // bilimsel: 6.022e+23, 1e-05
+        out[o++] = digits[0];
+        if (nd > 1) {
+            out[o++] = '.';
+            for (int i = 1; i < nd; i++) out[o++] = digits[i];
+        }
+        snprintf(out + o, 16, "e%c%02d", ex < 0 ? '-' : '+', ex < 0 ? -ex : ex);
+        return;
+    }
     if (ex >= 0) {
         for (int i = 0; i <= ex; i++) out[o++] = i < nd ? digits[i] : '0';
         out[o++] = '.';

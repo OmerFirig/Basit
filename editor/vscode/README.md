@@ -6,10 +6,11 @@ Kolay (Türkçe programlama dili) için VS Code eklentisi.
   türler, seçenekler. Noktadan sonra değişkenin tipine göre metotlar ve alanlar
   (`liste.` → `ekle`, `uzunluk`...; `ali.` → türün alanları ve metotları; `bu.`; `Renk.` → seçenekler).
   `klavye("us")` dosyalarında Türkçe harfsiz önerir.
+- **Kütüphaneler:** `dahil et("` yazınca kullanılabilen kütüphaneler (`matematik`, `rastgele`, `istatistik`, kendi kurduklarınız) önerilir; `m adıyla dahil et("matematik")` sonrası `m.` yazınca kütüphanenin fonksiyonları, türleri ve sabitleri gelir.
 - **Hata gösterme:** dosya açılınca ve kaydedilince `kolay denetle` çalışır, hata kırmızı altı çizili gösterilir.
 - **Çalıştırma:** F5 ya da sağ üstteki ▷ düğmesi (`Kolay: Çalıştır`), komut paletinde `Kolay: Derle`.
 - `ortak` değer ve fonksiyonlar: `Sayaç.` yazınca türün ortak üyeleri önerilir; yazı metotları (`değiştir`, `başlar`, `bul`...), `doğrula`.
 - Generic: `fonksiyon en_büyük<T>(...)` ve `tür Kutu<T>(...)` tanınır; tip parametreleri (`T`) ve `Kutu<Tam>` tamamlamada çıkar.
-- Renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `fonksiyong` / `türg` (generic), `ortak` / `ortakf`, `doğrula`, `yazdırb` (biçimli f-yazı), `dene`, `fırlat`, `dış`, `olarak`...).
+- Renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `fonksiyong` / `türg` (generic), `ortak` / `ortakf`, `lambdag` (generic lambda), `doğrula`, `yazdırb` (biçimli f-yazı), `dene`, `fırlat`, `dış`, `olarak`...).
 
 Ayar: `kolay.yol` (boşsa PATH'teki `kolay` kullanılır).

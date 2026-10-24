@@ -1,0 +1,25 @@
+# Her gönderimde (push) ve birleştirme isteğinde (pull request) Kolay derlenir ve bütün testler çalışır:
+# yorumlayıcı, LLVM derleyicisi (iki yolun aynı çıktıyı vermesi), hata mesajları, dahil et, etkileşimli kip.
+name: Testler
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gerekenler (clang, llvm-link, libffi)
+        run: sudo apt-get update && sudo apt-get install -y clang llvm libffi-dev
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Derle
+        run: cargo build --release
+
+      - name: Testler
+        run: ./testler/calistir.sh

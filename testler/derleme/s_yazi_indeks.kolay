@@ -1,0 +1,6 @@
+ata s = "çiçek"
+yazdır(s[0], s[1], s[-1], s[1..3])
+ata n = 0
+0..s.uzunluk() içindeki her i için yap { eğer s[i] == "ç" { n += 1 } }
+yazdır(n)
+dene { yazdır(s[9]) } yakala h { yazdır(h) }

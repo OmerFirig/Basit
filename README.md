@@ -1,6 +1,11 @@
 # Kolay
 
-Türkçe, tip güvenli ve hızlı bir programlama dili. Bitirme projesi.
+Türkçe, tip güvenli ve hızlı bir programlama dili. Programlamanın temel mantığını İngilizce bilmeden
+öğrenmek ve sonra Python'a kolayca geçmek için tasarlandı. Hem yorumlayıcısı (hemen çalıştırır) hem de
+LLVM ile makine koduna derleyicisi (C'ye yakın hız) var.
+
+- **Öğrenmek için:** [Kolay Kursu](belgeler/Kolay.md): sıfırdan başlayan, alıştırmalı kurs
+- **Kütüphane yazmak ya da dile katkı için:** [Geliştirici rehberi](belgeler/GELISTIRICI.md), [Katkı](KATKI.md)
 
 ```
 fonksiyon fib(n: Tam(64)) -> Tam(64) {
@@ -16,13 +21,20 @@ sayılar içindeki her s için yap {
 
 ## Kurulum
 
-Gerekenler: Rust (cargo) ve derleme için clang (LLVM). İkisi de bu sistemde kurulu.
+Şimdilik sadece Linux. Gerekenler: Rust (1.85 ya da yenisi), clang ve llvm (derleyici için), libffi.
 
 ```
+# Ubuntu / Debian
+sudo apt install clang llvm libffi-dev
+# Arch
+sudo pacman -S clang llvm libffi
+# Rust: https://rustup.rs
+
+git clone <bu depo> && cd <depo>
 ./kur.sh
 ```
 
-Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kaldırmak için: `rm ~/.local/bin/kolay`
+`kur.sh` projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kaldırmak için: `rm ~/.local/bin/kolay`
 
 ## Kullanım
 
@@ -34,6 +46,7 @@ Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kald�
 | `kolay derle kod.kolay -o ad --ir` | Çıktıya ad verir, üretilen LLVM IR'yi de `ad.ll` olarak kaydeder |
 | `kolay denetle kod.kolay` | Sadece hataları kontrol eder |
 | `kolay çevir kod.kolay --klavye us` | Anahtar kelimeleri Türkçe karakter olmayan yazıma çevirir |
+| `kolay kütüphane liste` | Kullanılabilen kütüphaneler (`yeni <ad>`: şablon oluşturur, `kur <dosya>`: kişisel klasöre kurar) |
 | `kolay yardım` | Yardım |
 
 `--klavye tr|us`: Dosyada `klavye("...")` satırı yoksa kullanılacak mod (varsayılan `tr`).
@@ -42,7 +55,7 @@ Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kald�
 
 ```
 $ kolay
-Kolay 0.6.0 — yardım için :yardım, çıkmak için :çık
+Kolay 0.7.0 — yardım için :yardım, çıkmak için :çık
 
 Girdi [1]: ata x = 5
 
@@ -58,7 +71,7 @@ Komutlar: `:yardım`, `:tip ifade`, `:geçmiş`, `:kaydet dosya`, `:yükle dosya
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.6.0.vsix
+code --install-extension editor/vscode/kolay-0.7.0.vsix
 ```
 
 ## Örnekler
@@ -100,6 +113,9 @@ sayılar.filtre(her x için x > 10).toplam()
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
 fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }    // generic: T her çağrıda çıkarılır
 fonksiyon selam(ad: Yazı = "dünya") { }            // varsayılan değer: selam() ya da selam("Ali")
+ata iki_kat = her<T> x: T için x * 2               // generic lambda: iki_kat(5), iki_kat(2.5)
+uygula(iki_kat, 5)                                  // generic fonksiyon değer olarak
+fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) { }     // her tiple çalışan fonksiyon parametresi
 tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
 ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
@@ -164,6 +180,22 @@ mat adıyla dış kütüphane("m") {                   // C kütüphanesi
 }
 ```
 
+## Kütüphaneler
+
+Hazır kütüphaneler (`kutuphaneler/`) adıyla dahil edilir; `#Güvensiz` gerekmez:
+
+```
+m adıyla dahil et("matematik")     // karekök, üs, yuvarla, taban, tavan, mutlak, sinüs, ln, ebob, asal_mı, PI, E
+r adıyla dahil et("rastgele")      // tam_sayı(1, 6), zar(), ondalık(), şans(0.3), seç(liste), karıştır(liste)
+ist adıyla dahil et("istatistik")  // ortalama, ortanca, en_sık, varyans, standart_sapma, Rapor
+yazdır(m.karekök(2.0), r.zar(), ist.ortalama([1.0, 2.0]))
+```
+
+Kendi kütüphanenizi yazmak için `kolay kütüphane yeni geometri` (testleriyle hazır şablon), bitince
+`kolay kütüphane kur geometri.kolay`; sonra her yerden `dahil et("geometri")`. Ayrıntılar:
+[Geliştirici rehberi](belgeler/GELISTIRICI.md). Yeni bir hazır kütüphaneyi `kutuphaneler/` klasörüne
+eklemek için bkz. [Katkı](KATKI.md).
+
 ## Geliştirmek
 
 Kolay ile kütüphane yazmak, bir C kütüphanesini sarmak ya da dile hazır metot eklemek için: [`belgeler/GELISTIRICI.md`](belgeler/GELISTIRICI.md)
@@ -181,6 +213,7 @@ kaynak (.kolay)
     firlat.rs     fırlatma analizi: yakala dallarına gelebilecek değerler, uyarılar
     generic.rs    generic fonksiyon ve türler: tipleri çıkarır, her tip ataması için kopya oluşturur
     varsayilan.rs varsayılan değerler ve türün gövdesindeki alanlar
+    genel_deger.rs generic lambda ve generic fonksiyonların değer olarak verilmesi
   → tir.rs        tipleri çözülmüş ara gösterim (TIR)
       → repl.rs     etkileşimli kip (oturum, hücreler, rustyline)
       → vm.rs       bytecode yorumlayıcı (kolay kod.kolay)

@@ -349,7 +349,7 @@ Yazi *kolay_grupla(Yazi *s) {
     int isaret = p < son && *p == '-';
     const char *tam = p + isaret, *nokta = memchr(tam, '.', (size_t)(son - tam));
     const char *tam_son = nokta ? nokta : son;
-    if (tam == tam_son) return yazi_yap(s->d, (size_t)s->uzunluk);
+    if (tam == tam_son || memchr(s->d, 'e', (size_t)s->uzunluk)) return yazi_yap(s->d, (size_t)s->uzunluk);
     for (const char *c = tam; c < tam_son; c++)
         if (*c < '0' || *c > '9') return yazi_yap(s->d, (size_t)s->uzunluk);
     Yazi *y = yazi_ayir(0);

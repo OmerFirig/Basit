@@ -799,7 +799,7 @@ impl<'p> Interp<'p> {
                 }
                 Value::Dict(Rc::new(d))
             }
-            TK::Default => default_value(&e.ty),
+            TK::Default => default_value(&e.ty, e.loc)?,
             TK::Range { start, end, inclusive, step } => {
                 let plan = self.range_plan(start, end, *inclusive, step.as_deref(), e.loc, f)?;
                 range_list(plan, e.loc)?
@@ -1631,25 +1631,35 @@ pub fn value_matches(v: &Value, ty: &Type, prog: &Program) -> bool {
     }
 }
 
-pub fn default_value(t: &Type) -> Value {
-    match t {
+/// Değeri verilmemiş değişkenin başlangıç değeri. Sabit boyutlu liste bütünüyle oluşturulur;
+/// bellek yetmezse (derlenmiş programdaki gibi) Türkçe hata verilir.
+pub fn default_value(t: &Type, loc: Loc) -> R<Value> {
+    Ok(match t {
         Type::Int { .. } => Value::int(0),
         Type::Float(_) => Value::Float(0.0),
         Type::Str => Value::str(""),
         Type::Bool => Value::Bool(false),
-        Type::List(e, Some(n)) => Value::List(Rc::new(ListV { items: vec![default_value(e); *n] })),
+        Type::List(e, Some(n)) => {
+            let ilk = default_value(e, loc)?;
+            let mut items = Vec::new();
+            if items.try_reserve_exact(*n).is_err() {
+                return rtk(hata_turu::YAKALANAMAZ, loc, "Bellek yetmedi.");
+            }
+            items.resize(*n, ilk);
+            Value::List(Rc::new(ListV { items }))
+        }
         Type::List(_, None) => Value::List(Rc::new(ListV { items: vec![] })),
         Type::Dict(..) => Value::Dict(Rc::new(DictV::default())),
         Type::Union(ms) => {
             if ms.contains(&Type::Hic) {
                 Value::Hic
             } else {
-                default_value(&ms[0])
+                default_value(&ms[0], loc)?
             }
         }
         Type::Named(id) => Value::Var(Rc::new(VarV { ty: *id, idx: 0, fields: vec![] })),
         _ => Value::Hic,
-    }
+    })
 }
 
 pub(crate) fn is_mutating(m: BM) -> bool {
@@ -1884,7 +1894,7 @@ pub(crate) fn grupla_tr(s: &str) -> String {
         Some((t, k)) => (t, Some(k)),
         None => (govde, None),
     };
-    if tam.is_empty() || !tam.bytes().all(|c| c.is_ascii_digit()) {
+    if tam.is_empty() || !tam.bytes().all(|c| c.is_ascii_digit()) || s.contains('e') {
         return s.to_string();
     }
     let mut out = String::from(isaret);

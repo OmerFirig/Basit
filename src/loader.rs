@@ -90,7 +90,15 @@ fn load_one(
     let mut deps = Vec::new();
     for (i, s) in stmts.iter().enumerate() {
         if let StmtKind::Dahil { path: p, .. } = &s.kind {
-            let target = dir.join(p);
+            // yolu olmayan ad bir kütüphanedir: dahil et("matematik") (bkz. kutuphane.rs)
+            let target = if crate::kutuphane::ad_mi(p) {
+                match crate::kutuphane::bul(p, &dir) {
+                    Ok(t) => t,
+                    Err(m) => return err(s.span, m),
+                }
+            } else {
+                dir.join(p)
+            };
             let idx = load_one(&target, default_mode, sources, mods, by_path, stack, Some(s.span), Some(p), None)
                 .map_err(|d| if d.span.file == u32::MAX { Diag::new(s.span, d.msg) } else { d })?;
             deps.push((i, idx));

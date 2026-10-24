@@ -117,8 +117,8 @@ pub enum ExprKind {
     Index(Box<Expr>, Box<Expr>),
     Olarak(Box<Expr>, TypeExpr),
     Match(Box<Match>),
-    /// İsimsiz fonksiyon: `her x için x * 2`, `her (a, b) için yap { ... }`
-    Lambda { params: Vec<LParam>, body: LambdaBody },
+    /// İsimsiz fonksiyon: `her x için x * 2`, `her (a, b) için yap { ... }`; generic: `her<T> x: T için x * 2`
+    Lambda { generics: Vec<(String, Span)>, params: Vec<LParam>, body: LambdaBody },
 }
 
 #[derive(Debug, Clone)]
@@ -156,8 +156,9 @@ pub enum TypeKind {
         dims: Vec<Option<usize>>,
     },
     Union(Vec<TypeExpr>),
-    /// `Fonksiyon(Tam, Yazı) -> Mantık` (dönüş yoksa Hiç)
-    Func { params: Vec<TypeExpr>, ret: Option<Box<TypeExpr>> },
+    /// `Fonksiyon(Tam, Yazı) -> Mantık` (dönüş yoksa Hiç). `generics` boş değilse her tiple çalışan
+    /// fonksiyon: `Fonksiyon<T>(T) -> T` (sadece parametre tipi olarak yazılabilir)
+    Func { generics: Vec<String>, params: Vec<TypeExpr>, ret: Option<Box<TypeExpr>> },
 }
 
 #[derive(Debug, Clone)]

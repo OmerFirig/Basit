@@ -1,0 +1,3 @@
+HATA (122_genel_fonk_tipi_yer.kolay, satır 1): Her tiple çalışan fonksiyon tipi (Fonksiyon<T>(...)) sadece bir fonksiyonun parametresinin tipi olarak yazılabilir: fonksiyon ikisine(f: Fonksiyon<T>(T) -> T)
+  1 | fonksiyon f() -> Fonksiyon<T>(T) -> T { }
+    |                  ^^^^^^^^^^^^^^^^^^^^

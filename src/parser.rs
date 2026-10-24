@@ -778,10 +778,11 @@ impl Parser {
 
     fn type_atom(&mut self) -> CResult<TypeExpr> {
         let start = self.span();
-        if matches!(self.peek(), Tok::Ident(n) if n == "Fonksiyon") && self.peek_n(1).tok == Tok::LParen {
-            // Fonksiyon(Tam, Yazı) -> Mantık
+        if matches!(self.peek(), Tok::Ident(n) if n == "Fonksiyon") && matches!(self.peek_n(1).tok, Tok::LParen | Tok::Lt) {
+            // Fonksiyon(Tam, Yazı) -> Mantık; her tiple çalışan: Fonksiyon<T>(T) -> T
             self.advance();
-            self.advance();
+            let generics: Vec<String> = self.type_params()?.into_iter().map(|g| g.0).collect();
+            self.expect(&Tok::LParen, "'('")?;
             let mut params = Vec::new();
             while !self.at(&Tok::RParen) {
                 params.push(self.ty()?);
@@ -796,7 +797,7 @@ impl Parser {
             } else {
                 None
             };
-            return Ok(TypeExpr { kind: TypeKind::Func { params, ret }, span: start.to(self.prev_span()) });
+            return Ok(TypeExpr { kind: TypeKind::Func { generics, params, ret }, span: start.to(self.prev_span()) });
         }
         let mut path = Vec::new();
         if self.eat_kw(Kw::Hic) {
@@ -1229,6 +1230,7 @@ impl Parser {
 
     /// `her` okunduktan sonra: `x için ifade`, `(a, b: Tam) için ifade`, `x için yap { ... }`
     fn lambda(&mut self) -> CResult<ExprKind> {
+        let generics = self.type_params()?;
         let param = |p: &mut Self| -> CResult<LParam> {
             let (name, span) = p.ident("Parametre adı")?;
             let ty = if p.eat(&Tok::Colon) { Some(p.ty()?) } else { None };
@@ -1244,12 +1246,12 @@ impl Parser {
             }
             self.expect(&Tok::RParen, "')'")?;
         } else {
-            let (name, span) = self.ident("Parametre adı")?;
-            params.push(LParam { name, ty: None, span });
+            // tek parametre parantezsiz yazılabilir, tipiyle de: her x: Tam için ...
+            params.push(param(self)?);
         }
         self.expect_kw(Kw::Icin, "Örnek: her x için x * 2")?;
         let body = if self.eat_kw(Kw::Yap) { LambdaBody::Block(self.block()?) } else { LambdaBody::Expr(Box::new(self.expr()?)) };
-        Ok(ExprKind::Lambda { params, body })
+        Ok(ExprKind::Lambda { generics, params, body })
     }
 
     // ---------------------------------------------------------------- eşleştir

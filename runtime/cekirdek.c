@@ -1,14 +1,27 @@
 // Kolay çalışma kütüphanesi: başlatma, hatalar, bellek ve referans sayımı.
 
+// Büyük bellek isteyen işlemden önce (sabit boyutlu liste) kaynaktaki yeri; "Bellek yetmedi." hatası
+// bu satırı gösterir. İşlem bitince NULL ile sıfırlanır.
+static const char *bellek_konum = NULL, *bellek_kod = NULL;
+
+void kolay_bellek_yeri(const char *konum, const char *kod) {
+    bellek_konum = konum;
+    bellek_kod = kod;
+}
+
+static _Noreturn void bellek_yetmedi(void) {
+    kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", bellek_konum ? bellek_konum : "?", bellek_kod ? bellek_kod : "");
+}
+
 void *bellek(size_t n) {
     void *p = malloc(n ? n : 1);
-    if (!p) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
+    if (!p) bellek_yetmedi();
     return p;
 }
 
 void *bellek_sifir(size_t n) {
     void *p = calloc(1, n ? n : 1);
-    if (!p) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
+    if (!p) bellek_yetmedi();
     return p;
 }
 

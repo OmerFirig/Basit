@@ -1,3 +1,3 @@
-HATA (114_sabit_liste_buyuk.kolay, satır 1): Sabit boyutlu liste çok büyük (99.999.999.999 eleman); en fazla 100.000.000 eleman olabilir. Daha büyük veri için esnek liste kullanın: Liste<Tam>
-  1 | ata x: Liste<Tam>[99999999999]
-    |        ^^^^^^^^^^^^^^^^^^^^^^^
+HATA (114_sabit_liste_buyuk.kolay, satır 1): Sabit boyutlu listede çok fazla değer var (9.000.000.000.000 eleman); bu kadarı hiçbir bilgisayarın belleğine sığmaz.
+  1 | ata x: Liste<Tam>[9000000000000]
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^

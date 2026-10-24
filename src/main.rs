@@ -9,7 +9,9 @@ mod diag;
 mod dis;
 mod firlat;
 mod generic;
+mod genel_deger;
 mod interp;
+mod kutuphane;
 mod lexer;
 mod loader;
 mod parser;
@@ -36,6 +38,9 @@ Kullanım:
   kolay denetle <dosya.kolay>         Sadece hataları kontrol eder
   kolay çevir <dosya.kolay> --klavye us [-o yeni.kolay]
                                       Anahtar kelimeleri diğer klavye moduna çevirir
+  kolay kütüphane liste               Kullanılabilen kütüphaneleri gösterir
+  kolay kütüphane yeni <ad>           Testleriyle hazır bir kütüphane şablonu oluşturur
+  kolay kütüphane kur <dosya.kolay>   Kütüphaneyi kişisel klasöre kurar: dahil et(\"ad\")
   kolay yardım                        Bu yardımı gösterir
 
 Seçenekler:
@@ -157,6 +162,11 @@ fn ctrl_c_yakala() {
 const DURDURULDU: &str = "\nProgram durduruldu (Ctrl+C).\n";
 
 fn real_main() -> i32 {
+    // kolay kütüphane liste | yeni <ad> | kur <dosya>
+    let argumanlar: Vec<String> = std::env::args().skip(1).collect();
+    if matches!(argumanlar.first().map(String::as_str), Some("kütüphane" | "kutuphane")) {
+        return kutuphane::komut(&argumanlar[1..]);
+    }
     let o = match parse_args() {
         Ok(o) => o,
         Err(e) => {

@@ -14,7 +14,7 @@ Bu rehber Kolay'a bir şey eklemek isteyenler içindir. Üç yol vardır; en kol
 
 Bir kütüphane sıradan bir `.kolay` dosyasıdır. Kullanan dosya onu `dahil et` ile ekler.
 
-Çalışan bir örnek: [`ornekler/08_kutuphane/`](../ornekler/08_kutuphane/)
+Çalışan örnekler: [`ornekler/08_kutuphane/`](../ornekler/08_kutuphane/) ve hazır kütüphaneler [`kutuphaneler/`](../kutuphaneler/) (`matematik.kolay` bir C kütüphanesini sarar).
 
 ```kolay
 // istatistik.kolay
@@ -41,6 +41,26 @@ yazdır(ist.ortalama([70.0, 85.5]))
 ata r = ist.Rapor("Sınıf notları")
 yazdır(ist.Rapor.yazılan)
 ```
+
+### Kütüphaneyi adıyla kullanmak
+
+Yolu yazılmayan bir dahil etme kütüphane adıdır: `m adıyla dahil et("matematik")`. Sırasıyla şuralarda aranır:
+
+1. dahil eden dosyanın klasörü (`matematik.kolay`),
+2. `KOLAY_KUTUPHANE` ortam değişkenindeki klasörler (`:` ile ayrılmış),
+3. kişisel kütüphane klasörü: `~/.local/share/kolay/kutuphaneler`,
+4. Kolay'ın kendi `kutuphaneler/` klasörü (hazır kütüphaneler: `matematik`, `rastgele`, `istatistik`).
+
+Komutlar:
+
+| Komut | Ne yapar |
+|---|---|
+| `kolay kütüphane yeni geometri` | `geometri.kolay` şablonunu oluşturur: açıklama satırı, örnek fonksiyonlar, testler |
+| `kolay denetle geometri.kolay` | Kütüphanedeki hataları ve testleri (`doğrula`) kontrol eder |
+| `kolay kütüphane kur geometri.kolay` | Kişisel klasöre kopyalar; artık her yerden `dahil et("geometri")` |
+| `kolay kütüphane liste` | Kullanılabilen kütüphaneleri ve ilk satırlarındaki açıklamayı gösterir |
+
+Herkesin kullanması için hazır kütüphanelere eklemek isterseniz dosyayı `kutuphaneler/` klasörüne koyup bir birleştirme isteği (pull request) açın; bkz. [KATKI.md](../KATKI.md).
 
 Kurallar ve öneriler:
 
@@ -97,6 +117,8 @@ kaynak (.kolay)
     cstmt.rs      komutlar, eşleştir, akış analizi (atanmış mı, sabit mi), fonksiyon gövdeleri
     generic.rs    generic fonksiyon ve türler: tip çıkarımı, her tip için kopya
     varsayilan.rs varsayılan değerler ve türün gövdesindeki alanlar
+  → kutuphane.rs  dahil et("ad") ile kütüphane arama, kolay kütüphane komutları
+    genel_deger.rs generic lambda, generic fonksiyonların değer olarak verilmesi, Fonksiyon<T> parametresi
     firlat.rs     hangi değerin nereye fırlatılabileceği (yakala dalları, uyarılar)
   → tir.rs        tipleri çözülmüş ara gösterim (TIR): iki arka uç da bunu kullanır
       → vm.rs + interp.rs   yorumlayıcı (kolay kod.kolay); values.rs çalışma anı değerleri
@@ -105,7 +127,7 @@ kaynak (.kolay)
 
 Bilmeniz gereken üç ilke:
 
-1. **Tip denetleyici TIR üretir, arka uçlar sadece TIR'ı çalıştırır.** Generic, varsayılan değer, `ortak`, `doğrula` gibi özellikler tip denetleyicide var olan TIR yapılarına çevrilir. Yorumlayıcı ve derleyici bunlardan habersizdir. Yeni bir özellik eklerken önce "bunu var olan TIR ile yazabilir miyim?" diye bakın; çoğu zaman yazılabilir ve arka uçlara dokunmak gerekmez.
+1. **Tip denetleyici TIR üretir, arka uçlar sadece TIR'ı çalıştırır.** Generic (lambda dahil), varsayılan değer, `ortak`, `doğrula`, `s[i]` gibi özellikler tip denetleyicide var olan TIR yapılarına çevrilir. Yorumlayıcı ve derleyici bunlardan habersizdir. Yeni bir özellik eklerken önce "bunu var olan TIR ile yazabilir miyim?" diye bakın; çoğu zaman yazılabilir ve arka uçlara dokunmak gerekmez.
 2. **İki arka uç aynı sonucu vermeli:** Çıktılar ve hata mesajları dahil. `testler/derleme/` altındaki her program iki yolla da çalıştırılıp karşılaştırılır.
 3. **Hata mesajları Türkçe ve yol göstericidir:** Ne yanlış, nasıl düzeltilir, mümkünse bir örnekle. Mesajın yeri (`Span`) kullanıcının yazdığı yeri göstermeli.
 

@@ -1,0 +1,76 @@
+// rastgele: aralıkta sayı, zar, ondalık, listeden seçme ve karıştırma
+//
+// Kullanmak için:  r adıyla dahil et("rastgele")
+//                  yazdır(r.zar(), r.tam_sayı(1, 100), r.seç(["taş", "kağıt", "makas"]))
+//
+// Her çalıştırmada farklı sayılar gelir. Aynı sayıların gelmesi gerekiyorsa (test için) başta
+// r.tohum(42) yazın. C'nin rand() fonksiyonunu kullanır; şifre gibi güvenlik işlerinde kullanmayın.
+
+#Güvensiz
+c adıyla dış kütüphane("c") {
+    fonksiyon rand() -> Tam(32)
+    fonksiyon srand(t: Tam(32, +))
+    fonksiyon time(p: Tam(64)) -> Tam(64)
+}
+
+// dahil edilince bir kez: saate göre başla
+c.srand((c.time(0) % 4294967296) olarak Tam(32, +))
+
+// Aynı sırayla aynı sayıların gelmesi için (testlerde işe yarar)
+fonksiyon tohum(t: Tam(64)) {
+    c.srand((t % 4294967296) olarak Tam(32, +))
+}
+
+// alt ile üst arasında (ikisi de dahil) bir tam sayı
+fonksiyon tam_sayı(alt: Tam(64), üst: Tam(64)) -> Tam(64) {
+    doğrula(alt <= üst, "Alt sınır üst sınırdan büyük olamaz.")
+    // rand() 31 bit verir; iki tanesi birleştirilir, büyük aralıklar da eşit dağılsın diye
+    ata büyük = c.rand() olarak Tam(64) * 2147483648 + c.rand() olarak Tam(64)
+    döndür alt + büyük % (üst - alt + 1)
+}
+
+// 0.0 (dahil) ile 1.0 (hariç) arasında bir ondalık
+fonksiyon ondalık() -> Ondalık {
+    döndür c.rand() olarak Ondalık / 2147483648.0
+}
+
+// Zar atar: 1 ile yüz sayısı arasında
+fonksiyon zar(yüz: Tam(64) = 6) -> Tam(64) {
+    döndür tam_sayı(1, yüz)
+}
+
+// Olasılıkla doğru: yazı_tura() ya da şans(0.25)
+fonksiyon şans(olasılık: Ondalık = 0.5) -> Mantık {
+    döndür ondalık() < olasılık
+}
+
+// Her tiple çalışır: listeden rastgele bir eleman
+fonksiyon seç<T>(l: Liste<T>) -> T {
+    doğrula(l.uzunluk() > 0, "Boş listeden seçilemez.")
+    döndür l[tam_sayı(0, l.uzunluk() - 1)]
+}
+
+// Karıştırılmış yeni liste (Fisher-Yates)
+fonksiyon karıştır<T>(l: Liste<T>) -> Liste<T> {
+    ata s = l
+    ata i = s.uzunluk() - 1
+    i > 0 sürece yap {
+        ata j = tam_sayı(0, i)
+        ata t = s[i]
+        s[i] = s[j]
+        s[j] = t
+        i -= 1
+    }
+    döndür s
+}
+
+// ------------------------------------------------------------ testler
+1000 kere yap {
+    ata z = zar()
+    doğrula(z >= 1 ve z <= 6)
+    ata o = ondalık()
+    doğrula(o >= 0.0 ve o < 1.0)
+}
+doğrula(tam_sayı(5, 5) == 5)
+doğrula(karıştır([1, 2, 3, 4]).sıralı() == [1, 2, 3, 4])
+doğrula(["a", "b"].içerir(seç(["a", "b"])))

@@ -1,0 +1,3 @@
+fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) { yazdır(f(5)) }
+fonksiyon art(x: Tam(64)) -> Tam(64) { döndür x + 1 }
+ikisine(art)

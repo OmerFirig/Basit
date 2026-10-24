@@ -538,6 +538,17 @@ impl Checker {
         ty: Option<&TypeExpr>,
         value: Option<&Expr>,
     ) -> CResult<Vec<TS>> {
+        // generic lambda: değeri olmayan, her çağrıda kendi tipiyle kopyalanan fonksiyon
+        if let Some(Expr { kind: ExprKind::Lambda { generics, params, body }, span }) = value {
+            if !generics.is_empty() {
+                if let Some(t) = ty {
+                    return err(t.span, "Generic lambdaya tip yazılmaz; tipi her çağrıda belli olur.");
+                }
+                self.check_shadow_sabit(name, name_span)?;
+                self.genel_lambda_ata(name, generics, params, body, *span)?;
+                return Ok(vec![]);
+            }
+        }
         let declared = match ty {
             Some(t) => {
                 let r = self.resolve_type(t, self.cx.module)?;
@@ -605,6 +616,12 @@ impl Checker {
         Ok(out)
     }
 
+    /// Değişkenin tipi (ifade bir değişken adıysa)
+    fn local_var_tipi(&self, e: &Expr) -> Option<Type> {
+        let ExprKind::Ident(n) = &e.kind else { return None };
+        self.local_var(n).map(|v| v.ty)
+    }
+
     /// `s = s + a + b` (s yazı) -> `s += a + b`. Sonuç aynıdır, ama `+=` yazıyı yerinde büyütür; diğer
     /// yazımda her turda bütün yazı kopyalanır ve döngüde program karesel yavaşlar. Değiştirilecek kısım
     /// (`a + b`) döner; uymuyorsa None.
@@ -634,6 +651,11 @@ impl Checker {
     }
 
     fn assign(&mut self, target: &Expr, op: Option<BinOp>, value: &Expr, span: Span) -> CResult<TS> {
+        if let ExprKind::Ident(n) = &target.kind {
+            if self.genel_var(n).is_some() {
+                return err(span, format!("'{n}' her tiple çalışan (generic) bir fonksiyon; değeri değiştirilemez. Yeni bir ad verin: ata başka = her<T> ..."));
+            }
+        }
         // sabit ve henüz atanmamış değişkene ilk atama
         if let (ExprKind::Ident(n), None) = (&target.kind, op) {
             if let Some(v) = self.lookup_var(n, target.span)? {
@@ -662,6 +684,15 @@ impl Checker {
                         d.msg.push_str(&format!(" Yeni değişken için: ata {n} = ..."));
                     }
                     return Err(d);
+                }
+            }
+            // yazının bir karakteri ya da parçası: yazılar değişmez
+            if let ExprKind::Index(b, _) = &target.kind {
+                if self.local_var_tipi(b) == Some(Type::Str) {
+                    return err(
+                        target.span,
+                        "Yazılar değişmez; bir karakteri değiştirilemez. Yeni bir yazı oluşturun: s = \"x\" + s[1..] ya da s = s.değiştir(\"a\", \"b\")",
+                    );
                 }
             }
             return err(target.span, "Bu ifadeye değer atanamaz.");
@@ -1147,7 +1178,7 @@ impl Checker {
             });
             return Ok(());
         }
-        if !self.funcs[fid].generics.is_empty() {
+        if self.kalip_mi(fid) {
             // generic kalıp: gövdesi her kopyada ayrıca denetlenir; kendisi hiç çağrılmaz
             let f = &self.funcs[fid];
             let (key, loc) = ((f.span.file, f.span.start), self.loc(f.span));
@@ -1167,7 +1198,8 @@ impl Checker {
                     Kalip::Fonksiyon(t) => (self.funcs[t].name.clone(), "çağrı"),
                     Kalip::Tur(t) => (format!("{}.{}", self.types[t].name, self.funcs[fid].name), "ilk kullanım"),
                 };
-                self.kopya_hatasi(d, &name, nerede, inst.call, &inst.binds)
+                let ekler = self.genel_bag_yazilari(&inst.genel_baglar);
+                self.kopya_hatasi(d, &name, nerede, inst.call, &inst.binds, &ekler)
             });
         }
         let r = self.check_body_inner(fid);
@@ -1210,6 +1242,15 @@ impl Checker {
         for (i, (n, t)) in params.iter().enumerate() {
             self.check_shadow_sabit(n, decl.params[i].span)?;
             self.declare_var(n, t.clone(), sabits[i], true);
+        }
+        // Fonksiyon<T> parametrelerine verilen generic fonksiyonlar: gövdede derleme anındaki değişkenler
+        if let Some(inst) = self.funcs[fid].inst.clone() {
+            for (n, r) in inst.genel_baglar {
+                self.declare_var(&n, Type::Func(vec![], Box::new(Type::Hic)), true, true);
+                if let Some(v) = self.cx.scopes.last_mut().and_then(|s| s.get_mut(&n)) {
+                    v.genel = Some(r);
+                }
+            }
         }
         let (body, div) = self.block(&decl.body)?;
         if ret != Type::Hic && !div {

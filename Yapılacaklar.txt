@@ -1,6 +1,6 @@
 KOLAY — YAPILACAKLAR
 ====================
-Son güncelleme: 2026-10-24 (sürüm 0.6.0: hata yönetimi, generic fonksiyon ve türler)
+Son güncelleme: 2026-10-25 (sürüm 0.7.0)
 
 Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılacaklarını tutar.
 
@@ -24,7 +24,7 @@ Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılaca
 
 
 ------------------------------------------------------------------------------
-1. GENERIC  (fonksiyonlar ve türler UYGULANDI 2026-10-24; generic lambda kaldı)
+1. GENERIC  (hepsi UYGULANDI 2026-10-24: fonksiyonlar, türler, generic lambda, fonksiyon değerleri)
 ------------------------------------------------------------------------------
 Yazım:
     fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }
@@ -55,7 +55,7 @@ Uygulama notları:
 [ ] Henüz yok (Türkçe hata veriyor): türün metotlarına ayrı tip parametresi, generic türden kalıtım,
     generic seçenek. Gerekirse sorulacak.
 
-[ ] GENERIC LAMBDA — yazım kararı verildi (kullanıcı, 2026-10-24): tip parametresi açıkça yazılır
+[x] GENERIC LAMBDA (uygulandı: src/genel_deger.rs) — yazım kararı verildi (kullanıcı, 2026-10-24): tip parametresi açıkça yazılır
         ata iki_kat = her<T> x: T için x * 2      // generic: her çağrıda somutlaşır
         yazdır(iki_kat(5), iki_kat(2.5))          // 10  5.0
         ata artır = her x: Tam için x + 1          // tipi belli lambda
@@ -217,7 +217,7 @@ Değişmesi gerekenler:
     ata (a, b) = f()).
 [x] Varsayılan değerler: tür Kişi(ad: Yazı, yaş: Tam = 0), fonksiyon selam(ad: Yazı = "dünya");
     türün gövdesinde ata alanları (2026-10-24; src/varsayilan.rs)
-[ ] Standart kütüphane: dosya okuma/yazma, rastgele sayı, karekök/üs/zaman, bekle(),
-    komut satırı argümanları.
+[~] Standart kütüphane: matematik ve rastgele YAPILDI (kutuphaneler/, 2026-10-25).
+    Kalan: dosya okuma/yazma, zaman, bekle(), komut satırı argümanları.
 [ ] Eşleştir: fonksiyon değerleri için desen (gerekirse).
 [ ] Python köprüsü (pyo3).

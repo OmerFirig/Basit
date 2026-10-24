@@ -277,6 +277,13 @@
     ],
     "description": "Başka dosyayı isimle ekle"
   },
+  "Kütüphane": {
+    "prefix": "kütüphane",
+    "body": [
+      "${1:m} adıyla dahil et(\"${2|matematik,rastgele,istatistik|}\")"
+    ],
+    "description": "Hazır kütüphaneyi adıyla dahil eder; sonra m. yazınca içindekiler önerilir"
+  },
   "Klavye us": {
     "prefix": "klavye",
     "body": [
@@ -334,6 +341,13 @@
       "her ${1:x} için ${2:x * 2}"
     ],
     "description": "İsimsiz fonksiyon (her x için ...)"
+  },
+  "Generic lambda": {
+    "prefix": "lambdag",
+    "body": [
+      "ata ${1:ad} = her<${2:T}> ${3:x}: ${2:T} için ${4:x}"
+    ],
+    "description": "Her tiple çalışan isimsiz fonksiyon: ata iki_kat = her<T> x: T için x * 2"
   },
   "Veya tipi": {
     "prefix": "veya",

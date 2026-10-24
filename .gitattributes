@@ -1,0 +1,10 @@
+# Satır sonları her sistemde LF (testlerin beklenen çıktıları birebir karşılaştırılır)
+* text=auto eol=lf
+*.kolay text eol=lf
+*.beklenen text eol=lf
+*.girdi text eol=lf
+*.sh text eol=lf
+
+# ikili dosyalar
+*.png binary
+*.vsix binary

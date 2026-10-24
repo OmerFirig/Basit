@@ -1,0 +1,13 @@
+// hazır kütüphaneler adıyla: dahil et("matematik")
+m adıyla dahil et("matematik")
+r adıyla dahil et("rastgele")
+ist adıyla dahil et("istatistik")
+yazdır(m.karekök(2.0), m.üs(2.0, 0.5), m.yuvarla(m.PI, 3), m.taban(-1.5), m.tavan(1.2))
+yazdır(m.mutlak(-7), m.mutlak(-2.5), m.büyüğü(3, 9), m.küçüğü("elma", "armut"))
+yazdır(m.ebob(84, 36), m.ekok(4, 6), m.asal_mı(97), m.yuvarla(m.derece(m.PI)))
+yazdır(m.yuvarla(m.sinüs(m.radyan(30.0)), 4), m.ln(m.E), m.log10(1000.0))
+r.tohum(7)
+ata zarlar = (1..=20).dönüşüm(her i için r.zar())
+yazdır(zarlar.hepsi(her z için z >= 1 ve z <= 6), r.karıştır([1, 2, 3]).sıralı())
+ata notlar = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
+yazdır(ist.ortalama(notlar), ist.ortanca(notlar), ist.standart_sapma(notlar), ist.en_sık([3, 1, 3]))

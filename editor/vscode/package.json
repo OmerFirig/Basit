@@ -2,7 +2,7 @@
   "name": "kolay",
   "displayName": "Kolay",
   "description": "Kolay (Türkçe programlama dili): renklendirme, tamamlama, hata gösterme ve çalıştırma",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "kolay",
   "icon": "images/icon.png",
   "engines": {

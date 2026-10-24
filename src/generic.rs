@@ -22,16 +22,18 @@ pub(crate) enum PTip {
     Yazilan(TypeExpr),
     /// Ebeveynden gelen alan: tipi belli
     Belli(Type),
+    /// `Fonksiyon<T>(...)` parametresi (kaç değer aldığı): değeri generic bir fonksiyon olmalı
+    GenelFonk(usize),
 }
 
 /// Tip ifadesinde tip parametrelerinden biri geçiyor mu?
-fn has_param(te: &TypeExpr, gs: &[String]) -> bool {
+pub(crate) fn has_param(te: &TypeExpr, gs: &[String]) -> bool {
     match &te.kind {
         TypeKind::Path { path, generics, .. } => {
             (path.len() == 1 && gs.contains(&path[0])) || generics.iter().any(|g| has_param(g, gs))
         }
         TypeKind::Union(ps) => ps.iter().any(|p| has_param(p, gs)),
-        TypeKind::Func { params, ret } => params.iter().any(|p| has_param(p, gs)) || ret.as_deref().is_some_and(|r| has_param(r, gs)),
+        TypeKind::Func { params, ret, .. } => params.iter().any(|p| has_param(p, gs)) || ret.as_deref().is_some_and(|r| has_param(r, gs)),
     }
 }
 
@@ -70,12 +72,25 @@ impl Checker {
         let gs = self.funcs[fid].generics.clone();
         let mi = self.funcs[fid].module;
         let decl = self.funcs[fid].decl.clone().expect("generic kalıp");
-        let params: Vec<(String, PTip, bool)> =
-            decl.params.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()), p.varsayilan.is_some())).collect();
-        let (tipler, vals) = self.infer_call(&name, &gs, mi, &params, args, span)?;
-        let inst = match self.instances.get(&(fid, tipler.clone())) {
+        let params: Vec<(String, PTip, bool)> = decl
+            .params
+            .iter()
+            .map(|p| {
+                let tip = match crate::genel_deger::genel_fonk_tipi(&p.ty) {
+                    Some(n) => PTip::GenelFonk(n),
+                    None => PTip::Yazilan(p.ty.clone()),
+                };
+                (p.name.clone(), tip, p.varsayilan.is_some())
+            })
+            .collect();
+        let (tipler, vals, refs) = self.infer_call(&name, &gs, mi, &params, args, span)?;
+        // Fonksiyon<T> parametrelerine verilenler kopyanın parçasıdır, çalışma anında verilmez
+        let refs: Vec<GenelRef> = refs.into_iter().flatten().collect();
+        let vals: Vec<Option<(TExpr, Span)>> =
+            vals.into_iter().zip(&params).filter(|(_, p)| !matches!(p.1, PTip::GenelFonk(_))).map(|(v, _)| v).collect();
+        let inst = match self.instances.get(&(fid, tipler.clone(), refs.clone())) {
             Some(&f) => f,
-            None => self.new_instance(fid, tipler, span)?,
+            None => self.new_instance(fid, tipler, refs, span)?,
         };
         let ptys: Vec<Type> = self.funcs[inst].params.iter().map(|p| p.1.clone()).collect();
         let mut out = Vec::new();
@@ -119,14 +134,14 @@ impl Checker {
             }
         }
         params.extend(d.fields.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()), p.varsayilan.is_some())));
-        let (tipler, vals) = self.infer_call(&d.name, &gs, mi, &params, args, span)?;
+        let (tipler, vals, _) = self.infer_call(&d.name, &gs, mi, &params, args, span)?;
         let inst = self.tur_instance(tid, tipler, span)?;
         let ftys: Vec<Type> = self.fields_of(inst).iter().filter(|f| f.kurucuda).map(|f| f.ty.clone()).collect();
         let verilen = self.coerce_all(vals, &ftys)?;
         self.nesne(inst, verilen, span)
     }
 
-    fn coerce_all(&mut self, vals: Vec<Option<(TExpr, Span)>>, tys: &[Type]) -> CResult<Vec<Option<TExpr>>> {
+    pub(crate) fn coerce_all(&mut self, vals: Vec<Option<(TExpr, Span)>>, tys: &[Type]) -> CResult<Vec<Option<TExpr>>> {
         let mut out = Vec::new();
         for (v, ty) in vals.into_iter().zip(tys) {
             out.push(match v {
@@ -137,9 +152,11 @@ impl Checker {
         Ok(out)
     }
 
-    /// Argümanları denetler ve tip parametrelerini onlardan çıkarır. Dönüş: tipler (`gs` sırasıyla) ve
-    /// parametre sırasıyla değerler (henüz parametre tipine çevrilmemiş) ve yerleri.
-    fn infer_call(
+    /// Argümanları denetler ve tip parametrelerini onlardan çıkarır. Dönüş: tipler (`gs` sırasıyla),
+    /// parametre sırasıyla değerler (henüz parametre tipine çevrilmemiş) ve yerleri, `Fonksiyon<T>`
+    /// parametrelerine verilen generic fonksiyonlar.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn infer_call(
         &mut self,
         name: &str,
         gs: &[String],
@@ -147,7 +164,7 @@ impl Checker {
         params: &[(String, PTip, bool)],
         args: &[Arg],
         span: Span,
-    ) -> CResult<(Vec<Type>, Vec<Option<(TExpr, Span)>>)> {
+    ) -> CResult<(Vec<Type>, Vec<Option<(TExpr, Span)>>, Vec<Option<GenelRef>>)> {
         let names: Vec<String> = params.iter().map(|p| p.0.clone()).collect();
         let idx = self.arg_slots(&names, args, span, name)?;
         // verilmeyen parametrenin varsayılanı yoksa eksik (varsayılan değerden tip çıkarılmaz)
@@ -156,15 +173,18 @@ impl Checker {
         }
         let mut binds: HashMap<String, Type> = HashMap::new();
         let mut vals: Vec<Option<(TExpr, Span)>> = vec![None; names.len()];
+        let mut refs: Vec<Option<GenelRef>> = vec![None; names.len()];
         // Önce tipi kendinden belli değerler, sonra sayı sabitleri (T belliyse ona uysun diye: Tam(8)
         // ile 5 verilince T = Tam(8)), en son lambdalar (parametre tipleri diğerlerinden gelir).
-        let rank = |e: &Expr| match &e.kind {
+        // generic fonksiyon adları (kare, iki_kat) de lambdalar gibi sona kalır
+        let rank = |me: &Self, e: &Expr| match &e.kind {
             ExprKind::Lambda { .. } => 2,
+            _ if me.genel_ref(e).is_some() => 2,
             ExprKind::Int(_) | ExprKind::Float(_) | ExprKind::Neg(_) => 1,
             _ => 0,
         };
         let mut order: Vec<usize> = (0..args.len()).collect();
-        order.sort_by_key(|&a| rank(&args[a].value));
+        order.sort_by_key(|&a| rank(self, &args[a].value));
         for a in order {
             let arg = &args[a];
             let sp = arg.value.span;
@@ -172,6 +192,27 @@ impl Checker {
                 PTip::Belli(t) => {
                     let t = t.clone();
                     vals[idx[a]] = Some((self.expr(&arg.value, Some(&t))?, sp));
+                    continue;
+                }
+                PTip::GenelFonk(n) => {
+                    let pn = &params[idx[a]].0;
+                    let Some(r) = self.genel_arguman(&arg.value)? else {
+                        // hiç tanımlı olmayan ad: önce onu söyle
+                        if let ExprKind::Ident(n) = &arg.value.kind {
+                            if !self.var_exists(n) && !self.mods[self.cx.module].funcs.contains_key(n) {
+                                return Err(self.unknown_name(n, sp));
+                            }
+                        }
+                        return err(
+                            sp,
+                            format!("'{pn}' her tiple çalışan (generic) bir fonksiyon bekliyor. Örnek: fonksiyon iki_kat<T>(x: T) -> T {{ ... }} ya da her<T> x: T için ..."),
+                        );
+                    };
+                    let m = self.genel_parametre_sayisi(r);
+                    if m != *n {
+                        return err(sp, format!("'{pn}' {n} değer alan bir fonksiyon bekliyor, ama verilen fonksiyon {m} değer alıyor."));
+                    }
+                    refs[idx[a]] = Some(r);
                     continue;
                 }
                 PTip::Yazilan(te) => te,
@@ -185,8 +226,29 @@ impl Checker {
                     continue;
                 }
             }
+            // generic fonksiyon değeri: parametre tipleri diğer değerlerden belli olunca somutlaşır
+            if let TypeKind::Func { params: fps, ret, .. } = &te.kind {
+                if let Some(g) = self.genel_arguman(&arg.value)? {
+                    let mut ptys = Vec::new();
+                    for fp in fps {
+                        if !all_bound(fp, gs, &binds) {
+                            return err(sp, format!("'{}' burada hangi tiple kullanılacağı belli değil; diğer değerlerden çıkarılamıyor.", self.kaynak(sp)));
+                        }
+                        ptys.push(self.with_subst(&binds, |c| c.resolve_type(fp, mi))?);
+                    }
+                    let rt = match ret {
+                        Some(r) if all_bound(r, gs, &binds) => Some(self.with_subst(&binds, |c| c.resolve_type(r, mi))?),
+                        Some(_) => None,
+                        None => Some(Type::Hic),
+                    };
+                    let t = self.genel_deger(g, &ptys, rt.as_ref(), sp)?;
+                    self.infer(te, &t.ty, gs, &mut binds, mi, sp)?;
+                    vals[idx[a]] = Some((t, sp));
+                    continue;
+                }
+            }
             let t = match (&arg.value.kind, &te.kind) {
-                (ExprKind::Lambda { params: lp, body }, TypeKind::Func { params: fps, ret }) => {
+                (ExprKind::Lambda { params: lp, body, .. }, TypeKind::Func { params: fps, ret, .. }) => {
                     let mut ptys = Vec::new();
                     for fp in fps {
                         if !all_bound(fp, gs, &binds) {
@@ -218,7 +280,7 @@ impl Checker {
             }
         }
         let tipler = gs.iter().map(|g| binds[g].clone()).collect();
-        Ok((tipler, vals))
+        Ok((tipler, vals, refs))
     }
 
     /// Generic türün kopyası: `Kutu<Tam(64)>`. İlk kez istenince oluşturulur ve hemen çözülür (alanlar,
@@ -248,7 +310,7 @@ impl Checker {
         self.tur_instances.insert((tid, ts), new);
         let binds: Vec<(String, Type)> = self.tur_kalip[&tid].0.iter().cloned().zip(self.tur_inst[&new].1.iter().cloned()).collect();
         if let Err(d) = self.resolve_type_decl(new) {
-            return Err(self.kopya_hatasi(d, &tname, "ilk kullanım", span, &binds));
+            return Err(self.kopya_hatasi(d, &tname, "ilk kullanım", span, &binds, &[]));
         }
         if self.miras_hazir {
             self.inherit_one(new)?;
@@ -257,7 +319,9 @@ impl Checker {
         Ok(new)
     }
 
-    fn new_instance(&mut self, fid: FuncId, tipler: Vec<Type>, span: Span) -> CResult<FuncId> {
+    /// Generic fonksiyonun kopyası. `refs`: `Fonksiyon<T>` parametrelerine (sırasıyla) verilen generic
+    /// fonksiyonlar; bu parametreler kopyada yoktur, gövdede derleme anındaki değişkenlerdir.
+    pub(crate) fn new_instance(&mut self, fid: FuncId, tipler: Vec<Type>, refs: Vec<GenelRef>, span: Span) -> CResult<FuncId> {
         let name = self.funcs[fid].name.clone();
         if self.instances.keys().filter(|k| k.0 == fid).count() >= KOPYA_SINIRI {
             return err(
@@ -270,12 +334,17 @@ impl Checker {
         }
         let gs = self.funcs[fid].generics.clone();
         let mi = self.funcs[fid].module;
-        let decl = self.funcs[fid].decl.clone().expect("generic kalıp");
+        let mut decl = self.funcs[fid].decl.clone().expect("generic kalıp");
+        let genel_adlar: Vec<String> =
+            decl.params.iter().filter(|p| crate::genel_deger::genel_fonk_tipi(&p.ty).is_some()).map(|p| p.name.clone()).collect();
+        decl.params.retain(|p| crate::genel_deger::genel_fonk_tipi(&p.ty).is_none());
+        let genel_baglar: Vec<(String, GenelRef)> = genel_adlar.into_iter().zip(refs.iter().copied()).collect();
+        let ekler = self.genel_bag_yazilari(&genel_baglar);
         let binds: Vec<(String, Type)> = gs.into_iter().zip(tipler.iter().cloned()).collect();
         let map: HashMap<String, Type> = binds.iter().cloned().collect();
         let (params, param_sabit, ret) = match self.with_subst(&map, |c| c.sig_of(&decl, mi)) {
             Ok(x) => x,
-            Err(d) => return Err(self.kopya_hatasi(d, &name, "çağrı", span, &binds)),
+            Err(d) => return Err(self.kopya_hatasi(d, &name, "çağrı", span, &binds, &ekler)),
         };
         let inst = self.funcs.len();
         self.funcs.push(FuncInfo {
@@ -293,21 +362,22 @@ impl Checker {
             body: None,
             dis: None,
             generics: vec![],
-            inst: Some(Inst { kalip: Kalip::Fonksiyon(fid), binds, call: span }),
+            inst: Some(Inst { kalip: Kalip::Fonksiyon(fid), binds, call: span, genel_baglar }),
             ortak_of: None,
         });
         self.mutates.push(false);
-        self.instances.insert((fid, tipler), inst);
+        self.instances.insert((fid, tipler, refs), inst);
         Ok(inst)
     }
 
     /// Generic kopyada çıkan hataya hangi çağrının ve hangi tiplerin yol açtığını ekler:
     /// "topla içinde: ... \n(çağrı: satır 5, T = Yazı)"
-    pub(crate) fn kopya_hatasi(&self, mut d: Diag, ad: &str, nerede: &str, cagri: Span, binds: &[(String, Type)]) -> Diag {
+    /// `ekler`: tiplerin yanında yazılacak başka bağlamalar ("f = iki_kat" gibi)
+    pub(crate) fn kopya_hatasi(&self, mut d: Diag, ad: &str, nerede: &str, cagri: Span, binds: &[(String, Type)], ekler: &[String]) -> Diag {
         if d.msg.contains(&format!("\n({nerede}: satır")) {
             return d; // iç içe kopyalarda bilgi bir kez eklenir (en içteki)
         }
-        let tipler: Vec<String> = binds
+        let mut tipler: Vec<String> = binds
             .iter()
             .map(|(n, t)| {
                 let tn = self.type_name(t);
@@ -317,6 +387,7 @@ impl Checker {
                 }
             })
             .collect();
+        tipler.extend(ekler.iter().cloned());
         // çağrı başka bir dosyadaysa adı da yazılır (hata kütüphanede, çağrı ana dosyada olabilir)
         let dosya = match self.dosya_adlari.get(cagri.file as usize) {
             Some(n) if cagri.file != d.span.file => format!("{n}, "),
@@ -324,6 +395,17 @@ impl Checker {
         };
         d.msg = format!("{ad} içinde: {}\n({nerede}: {dosya}satır {}, {})", d.msg, cagri.line, tipler.join(", "));
         d
+    }
+
+    /// Hata mesajı için: "f = iki_kat"
+    pub(crate) fn genel_bag_yazilari(&self, baglar: &[(String, GenelRef)]) -> Vec<String> {
+        baglar
+            .iter()
+            .map(|(n, r)| match r {
+                GenelRef::Fonksiyon(f) => format!("{n} = {}", self.funcs[*f].name),
+                GenelRef::Lambda(i) => format!("{n} = {}", self.genel_lambdalar[*i].ad),
+            })
+            .collect()
     }
 
     /// Yazılan yol (`Kutu`, `m.Kutu`) bir generic tür kalıbıysa onun numarası
@@ -339,7 +421,7 @@ impl Checker {
     /// Parametre tipini (`te`) verilen değerin tipiyle (`actual`) karşılaştırıp tip parametrelerini bulur:
     /// `Liste<T>` ile `Liste<Yazı>` -> T = Yazı. Uymayan yerler burada değil, değer parametreye
     /// verilirken (coerce) hata verir.
-    fn infer(&mut self, te: &TypeExpr, actual: &Type, gs: &[String], binds: &mut HashMap<String, Type>, mi: usize, span: Span) -> CResult<()> {
+    pub(crate) fn infer(&mut self, te: &TypeExpr, actual: &Type, gs: &[String], binds: &mut HashMap<String, Type>, mi: usize, span: Span) -> CResult<()> {
         match &te.kind {
             TypeKind::Path { path, generics, dims, .. } => {
                 if path.len() == 1 && gs.contains(&path[0]) {
@@ -395,7 +477,7 @@ impl Checker {
                     _ => Ok(()),
                 }
             }
-            TypeKind::Func { params, ret } => {
+            TypeKind::Func { params, ret, .. } => {
                 let Type::Func(ps, r) = actual else { return Ok(()) };
                 for (p, a) in params.iter().zip(ps) {
                     self.infer(p, a, gs, binds, mi, span)?;

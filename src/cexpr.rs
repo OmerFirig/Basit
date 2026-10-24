@@ -165,7 +165,7 @@ impl Checker {
         };
         let r = found.map(|v| {
             let slot = self.new_slot();
-            let info = VarInfo { slot, ty: v.ty.clone(), sabit: false, key: ALWAYS, loop_depth: 0, yakalanan: true };
+            let info = VarInfo { slot, ty: v.ty.clone(), sabit: false, key: ALWAYS, loop_depth: 0, yakalanan: true, genel: None };
             self.cx.scopes[0].insert(name.to_string(), info.clone());
             frame.caps.push((v.slot, slot, v.ty));
             info
@@ -209,7 +209,7 @@ impl Checker {
         let slot = self.new_slot();
         let key = self.cx.flow.len();
         self.cx.flow.push(if assigned { FlowSt::Assigned } else { FlowSt::Unassigned });
-        let info = VarInfo { slot, ty, sabit, key, loop_depth: self.cx.loop_depth, yakalanan: false };
+        let info = VarInfo { slot, ty, sabit, key, loop_depth: self.cx.loop_depth, yakalanan: false, genel: None };
         self.cx.scopes.last_mut().unwrap().insert(name.to_string(), info.clone());
         info
     }
@@ -250,6 +250,12 @@ impl Checker {
     }
 
     pub(crate) fn unknown_name(&self, name: &str, span: Span) -> Diag {
+        if self.cx.genel_lambda {
+            return Diag::new(
+                span,
+                format!("'{name}' burada kullanılamaz: generic lambda dışarıdaki değişkenleri kullanamaz. Değeri bir parametre olarak verin."),
+            );
+        }
         if self.cx.varsayilan {
             return Diag::new(
                 span,
@@ -454,6 +460,22 @@ impl Checker {
 
     pub(crate) fn expr(&mut self, e: &Expr, expected: Option<&Type>) -> CResult<TExpr> {
         let span = e.span;
+        // generic fonksiyon değeri (adı ya da generic lambda): tipi belli fonksiyon bekleniyorsa somutlaşır
+        if let Some(Type::Func(ps, r)) = expected {
+            if let Some(g) = self.genel_arguman(e)? {
+                return self.genel_deger(g, ps, Some(r), span);
+            }
+        }
+        if let ExprKind::Lambda { generics, .. } = &e.kind {
+            if !generics.is_empty() {
+                return err(span, "Generic lambda bir değişkene atanmalı ya da tipi belli bir fonksiyon bekleyen yere verilmeli: ata iki_kat = her<T> x: T için x * 2");
+            }
+        }
+        if let ExprKind::Ident(n) = &e.kind {
+            if let Some(g) = self.genel_var(n) {
+                return Err(self.genel_deger_hatasi(g, span));
+            }
+        }
         Ok(match &e.kind {
             ExprKind::Int(n) => self.int_lit(n, expected, span)?,
             ExprKind::Float(f) => {
@@ -570,7 +592,7 @@ impl Checker {
                 let (tm, ty, _) = self.match_(m, true, expected)?;
                 self.mk(TK::Match(Box::new(tm)), ty, span)
             }
-            ExprKind::Lambda { params, body } => match expected {
+            ExprKind::Lambda { params, body, .. } => match expected {
                 Some(Type::Func(ps, r)) => self.lambda(params, body, Some(ps), Some(r), span)?,
                 _ => self.lambda(params, body, None, None, span)?,
             },
@@ -637,6 +659,7 @@ impl Checker {
             mut_direct: self.mut_direct.len(),
             pending_mut: self.pending_mut.len(),
             types: self.types.len(),
+            genel_lambdalar: self.genel_lambdalar.len(),
         }
     }
 
@@ -657,6 +680,10 @@ impl Checker {
         self.tur_instances.retain(|_, t| *t < g.types);
         self.dispatch.retain(|k, _| k.0 < g.types && k.1 < g.types);
         self.alan_varsayilan.retain(|k, _| k.0 < g.types);
+        self.genel_lambdalar.truncate(g.genel_lambdalar);
+        for gl in &mut self.genel_lambdalar {
+            gl.ornekler.retain(|_, f| *f < g.funcs);
+        }
     }
 
     /// `infer`: dönüş tipini bulmak için (gövde blok, `döndür` değerleri toplanır); dönen ifadenin tipi
@@ -792,7 +819,10 @@ impl Checker {
 
     /// Fonksiyon bekleyen argüman (dönüşüm, filtre...): lambda ise parametre tipleri buradan gelir.
     fn func_arg(&mut self, a: &Arg, params: &[Type], ret: Option<&Type>, what: &str) -> CResult<TExpr> {
-        if let ExprKind::Lambda { params: lp, body } = &a.value.kind {
+        if let Some(g) = self.genel_arguman(&a.value)? {
+            return self.genel_deger(g, params, ret, a.value.span);
+        }
+        if let ExprKind::Lambda { params: lp, body, .. } = &a.value.kind {
             return self.lambda(lp, body, Some(params), ret, a.value.span);
         }
         let t = self.expr(&a.value, None)?;
@@ -969,8 +999,11 @@ impl Checker {
             return Ok(self.mk(TK::Field(Box::new(bu), fid), f.ty, span));
         }
         if let Some(&fid) = self.mods[self.cx.module].funcs.get(name) {
+            if self.kalip_param_var(fid) {
+                return err(span, format!("'{name}' her tiple çalışan bir fonksiyon parametresi alıyor; değer olarak verilemez, çağırın: {name}(...)"));
+            }
             if !self.funcs[fid].generics.is_empty() {
-                return err(span, format!("'{name}' generic bir fonksiyon; değer olarak verilmesi henüz desteklenmiyor. Çağırarak kullanın: {name}(...)"));
+                return Err(self.genel_deger_hatasi(GenelRef::Fonksiyon(fid), span));
             }
             return Ok(self.func_ref(fid, span));
         }
@@ -1001,7 +1034,7 @@ impl Checker {
     }
 
     /// İsimli fonksiyon değer olarak: `uygula(kare, 3)`
-    fn func_ref(&self, fid: FuncId, span: Span) -> TExpr {
+    pub(crate) fn func_ref(&self, fid: FuncId, span: Span) -> TExpr {
         let f = &self.funcs[fid];
         let ty = Type::Func(f.params.iter().map(|p| p.1.clone()).collect(), Box::new(f.ret.clone()));
         self.mk(TK::FuncRef(fid), ty, span)
@@ -1337,6 +1370,9 @@ impl Checker {
     fn call_expr(&mut self, callee: &Expr, args: &[Arg], span: Span, expected: Option<&Type>) -> CResult<TExpr> {
         match &callee.kind {
             ExprKind::Ident(name) => {
+                if let Some(g) = self.genel_var(name) {
+                    return self.genel_cagri(g, args, span);
+                }
                 if self.var_exists(name) || self.owner_field(name).is_some() {
                     // fonksiyon tipindeki değişken: f(3)
                     let f = self.expr(callee, None)?;
@@ -1388,6 +1424,9 @@ impl Checker {
                 match self.static_path(base) {
                     Some(PathRes::Type(t)) if t == self.hata_turleri[0] => return err(*nspan, hata_turu_yok(name)),
                     Some(PathRes::Module(mi)) => {
+                        if let Some(g) = self.mods[mi].globals.get(name).and_then(|v| v.genel) {
+                            return self.genel_cagri(g, args, span);
+                        }
                         if let Some(&fid) = self.mods[mi].funcs.get(name) {
                             return self.call_func(fid, args, span);
                         }
@@ -1425,7 +1464,7 @@ impl Checker {
     }
 
     fn call_func(&mut self, fid: FuncId, args: &[Arg], span: Span) -> CResult<TExpr> {
-        if !self.funcs[fid].generics.is_empty() {
+        if self.kalip_mi(fid) {
             return self.call_generic(fid, args, span);
         }
         let name = self.funcs[fid].name.clone();
@@ -2011,6 +2050,10 @@ impl Checker {
                 if let Some(v) = self.ortak_var(tid, name, nspan)? {
                     return Ok(self.mk(TK::Var(v.slot), v.ty, span));
                 }
+                // ortak fonksiyon değer olarak: uygula(Hesap.iki, 6)
+                if let Some(f) = self.ortak_fonk_bul(tid, name) {
+                    return Ok(self.func_ref(f, span));
+                }
                 if matches!(self.types[tid].kind, TypeDefKind::Secenek { .. }) {
                     return self.variant(tid, name, nspan, None, span);
                 }
@@ -2073,10 +2116,11 @@ impl Checker {
                 Ok(self.mk(TK::Index(Box::new(b), Box::new(kt)), *v, span))
             }
             Type::Str if matches!(idx.kind, ExprKind::Range { .. }) => self.slice(b, idx, Type::Str, span),
-            Type::Str => err(
-                span,
-                format!("Yazıda tek karakter için {} kullanın: yazı.karakter(0). Bir parça için dilim yazın: yazı[0..3]", self.shown("karakter")),
-            ),
+            // yazı[i] = yazı.karakter(i): Türkçe harfler tek karakter sayılır
+            Type::Str => {
+                let i = self.index_value(idx)?;
+                Ok(self.mk(TK::BMethod { recv: Recv::Value(Box::new(b)), m: BM::Karakter, args: vec![i] }, Type::Str, span))
+            }
             t => err(span, format!("{} tipinde köşeli parantezle erişim yapılamaz.", self.type_name(&t))),
         }
     }

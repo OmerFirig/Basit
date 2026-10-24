@@ -8,3 +8,5 @@ yazdır(sayi, topla(1, 1))
 ata kap = m.Kap(içerik: "modül")
 ata kap2: m.Kap<Yazı> = kap
 yazdır(kap2.al(), m.ilk([4, 5]), kap)
+fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
+yazdır(m.üçle(2), m.üçle(1.5), uygula(m.üçle, 4), uygula(m.kendisi, 9))

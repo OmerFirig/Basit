@@ -1,3 +1,3 @@
-HATA (85_generic_deger.kolay, satır 2): 'f' generic bir fonksiyon; değer olarak verilmesi henüz desteklenmiyor. Çağırarak kullanın: f(...)
+HATA (85_generic_deger.kolay, satır 2): 'f' her tiple çalışan (generic) bir fonksiyon: Fonksiyon<T>(T) -> T. Çağırın: f(...), ya da tipi belli bir fonksiyon bekleyen yere verin: uygula(f, 5)
   2 | ata g = f
     |         ^

@@ -1,0 +1,3 @@
+HATA (123_yazi_karakter_atama.kolay, satır 2): Yazılar değişmez; bir karakteri değiştirilemez. Yeni bir yazı oluşturun: s = "x" + s[1..] ya da s = s.değiştir("a", "b")
+  2 | s[0] = "x"
+    | ^^^^

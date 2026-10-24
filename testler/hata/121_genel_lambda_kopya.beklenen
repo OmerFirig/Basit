@@ -1,0 +1,4 @@
+HATA (121_genel_lambda_kopya.kolay, satır 1): iki_kat içinde: '*' işlemi yazılarla yapılamaz.
+(çağrı: satır 2, T = Yazı)
+  1 | ata iki_kat = her<T> x: T için x * 2
+    |                                ^^^^^

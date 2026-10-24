@@ -141,7 +141,16 @@ impl<'p> Gen<'p> {
                 let tip = self.tip(&e.ty);
                 let st = self.stor(&e.ty);
                 let a = self.alloca(&st.ll);
+                // sabit boyutlu liste büyük olabilir: bellek yetmezse hata bu satırı göstersin
+                let sabit_liste = matches!(e.ty, Type::List(_, Some(_)));
+                if sabit_liste {
+                    let (k, kd) = self.where_(e.loc);
+                    self.emit(&format!("call void @kolay_bellek_yeri(ptr {k}, ptr {kd})"));
+                }
                 self.emit(&format!("call void @kolay_varsayilan(ptr {a}, ptr {tip})"));
+                if sabit_liste {
+                    self.emit("call void @kolay_bellek_yeri(ptr null, ptr null)");
+                }
                 let v = self.load_mem(&a, &e.ty);
                 self.own(v, &e.ty)
             }

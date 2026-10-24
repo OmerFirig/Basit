@@ -2,7 +2,7 @@
 
 Kolay, Türkçe yazılan, tip güvenli ve hızlı bir programlama dilidir. Bu kurs hiç programlama bilmeyen birini adım adım ilk programından nesnelere, kendi veri tiplerine, hataları yakalamaya ve C kütüphanelerini kullanmaya kadar götürür.
 
-> Bu kurs **Kolay 0.6.0** içindir. Hangi sürümün kurulu olduğunu etkileşimli kipi açarak (`kolay`) görebilirsiniz.
+> Bu kurs **Kolay 0.7.0** içindir. Hangi sürümün kurulu olduğunu etkileşimli kipi açarak (`kolay`) görebilirsiniz.
 
 Kursun amacı yalnızca Kolay'ı öğretmek değil, **programlamanın temel mantığını** oturtmaktır: değişken, tip, koşul, döngü, fonksiyon, liste, nesne. Bu kavramlar bütün dillerde aynıdır. Kolay'da öğrendiğiniz her şeyin Python karşılığını kursun sonunda bulacaksınız. Kolay'ı bitiren biri Python'a birkaç günde geçebilir.
 
@@ -95,6 +95,7 @@ VS Code'da dosya açıkken **F5**'e ya da sağ üstteki ▷ düğmesine basmak d
 | `kolay denetle dosya.kolay` | Çalıştırmadan sadece hataları kontrol eder; hata yoksa `Hata bulunamadı.` yazar |
 | `kolay çevir dosya.kolay --klavye us` | Türkçe karakterli yazımı Türkçe karaktersiz yazıma çevirir ve ekrana yazar |
 | `kolay çevir dosya.kolay --klavye us -o yeni.kolay` | Çeviriyi bir dosyaya yazar |
+| `kolay kütüphane liste` | Kullanılabilen kütüphaneleri gösterir (`yeni <ad>` şablon oluşturur, `kur <dosya>` kurar) |
 | `kolay --klavye us dosya.kolay` | Dosyada `klavye(...)` satırı yoksa hangi yazımın kullanılacağını belirler (varsayılan `tr`) |
 | `kolay yardım` | Yardım |
 
@@ -113,7 +114,7 @@ Kolay'ın VS Code eklentisi yazmayı kolaylaştırır:
 Kurmak için Kolay'ın kaynak klasöründe:
 
 ```
-code --install-extension editor/vscode/kolay-0.6.0.vsix
+code --install-extension editor/vscode/kolay-0.7.0.vsix
 ```
 
 Eklenti `kolay` komutunu kullanır; komut başka bir yerdeyse VS Code ayarlarında `kolay.yol` ile yolunu yazabilirsiniz.
@@ -269,7 +270,7 @@ Bir şeyi denemek için her seferinde dosya yazıp çalıştırmak zorunda deği
 
 ```
 $ kolay
-Kolay 0.6.0 — yardım için :yardım, çıkmak için :çık
+Kolay 0.7.0 — yardım için :yardım, çıkmak için :çık
 
 Girdi [1]:
 ```
@@ -741,9 +742,15 @@ Ondalık tipin de boyutları vardır: `Ondalık(16)`, `Ondalık(32)`, `Ondalık(
 Çok büyük ya da çok küçük sayılar **bilimsel yazımla** yazılabilir: `e`'den sonraki sayı, 10'un kuvvetidir. Bilimsel yazılan sayı her zaman `Ondalık`'tır:
 
 ```kolay
-yazdır(1.5e-7, 2E3)               // 0.00000015 2000.0   (1,5 × 10⁻⁷ ve 2 × 10³)
+yazdır(1.5e-7, 2E3)               // 1.5e-07 2000.0   (1,5 × 10⁻⁷ ve 2 × 10³)
 ata ışık_hızı = 3e8
 yazdır(f"{ışık_hızı:,.0} m/sn")   // 300.000.000 m/sn
+```
+
+Kolay ondalık sayıları Python gibi yazdırır: çok küçük (0,0001'den küçük) ya da çok büyük (10¹⁶ ve üstü) sayılar bilimsel gösterimle yazılır, diğerleri olduğu gibi:
+
+```kolay
+yazdır(0.0001, 0.00001, 6.022e23, 123.5)    // 0.0001 1e-05 6.022e+23 123.5
 ```
 
 ### Tanımsız sayı
@@ -990,17 +997,14 @@ abahrem
 ğaç
 ```
 
-Dilimin kuralları listelerdekiyle aynıdır, ayrıntıları [Listeler](#12-listeler) bölümünde. Tek bir karakter için köşeli parantez değil `karakter(i)` kullanılır:
+Dilimin kuralları listelerdekiyle aynıdır, ayrıntıları [Listeler](#12-listeler) bölümünde. Tek bir karakter için de köşeli parantez kullanılabilir; `s[i]` ile `s.karakter(i)` aynıdır:
 
 ```kolay
-yazdır("abc"[1])    // ✗ HATA
+ata s = "çiçek"
+yazdır(s[0], s[-1], s.karakter(1))    // ç k i
 ```
 
-```
-HATA (deneme.kolay, satır 1): Yazıda tek karakter için karakter kullanın: yazı.karakter(0). Bir parça için dilim yazın: yazı[0..3]
-  1 | yazdır("abc"[1])    // ✗ HATA
-    |        ^^^^^^^^
-```
+Yazılar değişmez: bir karakterine değer atanamaz. `s[0] = "x"` yazılırsa Kolay yeni bir yazı oluşturmayı önerir: `s = "x" + s[1..]`.
 
 ### Yazıyı sayıya çevirmek: tama() ve ondalığa()
 
@@ -3839,6 +3843,65 @@ yazdır(dönüştür(["a", "bc"], her s için s.uzunluk()))
 
 Lambdanın parametre tipini yazmadık: `T` listeden belli olduğu için Kolay `x`'in tipini kendisi bilir. `R` ise lambdanın döndürdüğü değerden bulunur. (Listelerin hazır `dönüşüm` metodu tam olarak budur.)
 
+### Generic lambda
+
+İsimsiz fonksiyonlar (lambdalar) da her tiple çalışabilir. Tip parametresi `her`'den sonra yazılır:
+
+```kolay
+ata iki_kat = her<T> x: T için x * 2
+yazdır(iki_kat(5), iki_kat(2.5))
+ata topla = her<T> (a: T, b: T) için a + b
+yazdır(topla(1, 2), topla("a", "b"))
+```
+
+```
+10 5.0
+3 ab
+```
+
+- Parametrelerin tipi yazılır (`x: T`), `T` çağrıda verilen değerden bulunur.
+- Generic lambda dışarıdaki değişkenleri kullanamaz: `ata n = 3; ata f = her<T> x: T için x * n` hata verir. Gereken değeri parametre olarak verin. (Generic lambdanın kopyaları başka yerlerde oluşturulabildiği için neyin kopyalanacağı belli olmazdı.)
+
+### Generic fonksiyonları değer olarak vermek
+
+Generic bir fonksiyon ya da lambda, tipi belli bir fonksiyon bekleyen yere verilebilir. Orada o tiple somutlaşır:
+
+```kolay
+fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) {
+    döndür f(x)
+}
+fonksiyon kare<T>(x: T) -> T { döndür x * x }
+
+yazdır(uygula(iki_kat, 5), uygula(kare, 7))                  // T = Tam(64)
+yazdır([1, 2, 3].dönüşüm(kare), [1.5, 2.5].dönüşüm(iki_kat))  // T listeden belli olur
+```
+
+```
+10 49
+[1, 4, 9] [3.0, 5.0]
+```
+
+Tipin belli olmadığı yerde (`ata f = kare`, `yazdır(kare)`) Kolay ne yapılacağını söyler: ya çağırın ya da tipi belli bir yere verin.
+
+### Her tiple çalışan fonksiyon parametresi
+
+Bir fonksiyon, parametre olarak her tiple çalışan bir fonksiyon isteyebilir ve onu içeride farklı tiplerle çağırabilir. Parametrenin tipi `Fonksiyon<T>(...)` diye yazılır:
+
+```kolay
+fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) {
+    yazdır(f(5), f(2.5))
+}
+ikisine(iki_kat)
+ikisine(kare)
+```
+
+```
+10 5.0
+25 6.25
+```
+
+`ikisine`'ye verilen fonksiyon generic olmalıdır; `Tam` alan sıradan bir fonksiyon verilirse hata alırsınız, çünkü içeride `2.5` ile de çağrılıyor. Kolay, `ikisine`'nin her verilen fonksiyon için ayrı bir kopyasını oluşturur.
+
 ### Arka planda ne oluyor?
 
 Kolay, generic bir fonksiyonu bir **kalıp** gibi kullanır. `en_büyüğü([3, 9, 2])` çağrısını görünce `T` yerine `Tam(64)` yazılmış bir kopya oluşturur; `en_büyüğü(["elma"])` için `T` yerine `Yazı` yazılmış ikinci bir kopya. Aynı tiple yapılan diğer çağrılar aynı kopyayı kullanır. Bunun üç sonucu var:
@@ -3967,7 +4030,6 @@ Bunları yazarsanız Kolay ne yapmanız gerektiğini söyleyen bir hata verir:
 - Generic bir türden kalıtım: `tür A[Kutu<Tam>]`.
 - Türün içindeki bir metoda ayrıca tip parametresi: `tür Kutu<T> { fonksiyon f<Z>() { } }`. Dışarıda generic bir fonksiyon yazın.
 - Generic seçenek: `seçenek S<T> { ... }`. Yerine `T veya Hiç` kullanılabilir.
-- Generic bir fonksiyonu değer olarak vermek: `ata f = en_büyüğü`. Çağırarak kullanın: `en_büyüğü(...)`.
 
 ### Python'daki karşılığı
 
@@ -4780,6 +4842,28 @@ Kurallar:
 - Dahil edilen dosyadaki `yazdır` gibi komutlar, dosya dahil edildiği anda bir kez çalışır.
 - İsimsiz dahil etmede iki dosyada aynı isim varsa Kolay hata verir ve isimli dahil etmeyi önerir.
 
+### Hazır kütüphaneler
+
+Kolay'la birlikte gelen kütüphaneler yolu yazılmadan, adıyla dahil edilir:
+
+```kolay
+m adıyla dahil et("matematik")
+r adıyla dahil et("rastgele")
+ist adıyla dahil et("istatistik")
+
+yazdır(m.karekök(2.0), m.yuvarla(m.PI, 2), m.mutlak(-7), m.ebob(84, 36))
+yazdır(r.zar(), r.tam_sayı(1, 100), r.seç(["taş", "kağıt", "makas"]))
+yazdır(ist.ortalama([70.0, 85.5, 92.0]), ist.ortanca([5.0, 1.0, 3.0]))
+```
+
+| Kütüphane | İçindekiler |
+|---|---|
+| `matematik` | `karekök`, `üs`, `yuvarla(x, basamak)`, `taban`, `tavan`, `mutlak`, `büyüğü`, `küçüğü`, `sinüs`, `kosinüs`, `tanjant`, `açı`, `radyan`, `derece`, `ln`, `log10`, `e_üssü`, `ebob`, `ekok`, `asal_mı`, `PI`, `E` |
+| `rastgele` | `tam_sayı(alt, üst)`, `zar(yüz)`, `ondalık()`, `şans(olasılık)`, `seç(liste)`, `karıştır(liste)`, `tohum(sayı)` |
+| `istatistik` | `ortalama`, `ortanca`, `en_sık`, `varyans`, `standart_sapma`, `Rapor` |
+
+Kullanılabilen bütün kütüphaneleri görmek için terminalde `kolay kütüphane liste` yazın. VS Code'da `m.` yazınca kütüphanenin içindekiler önerilir.
+
 ### Kendi kütüphanenizi yazmak
 
 Başkalarının da kullanacağı fonksiyon ve türleri bir dosyada toplarsanız bir **kütüphane** yazmış olursunuz. Birkaç öneri:
@@ -4787,6 +4871,16 @@ Başkalarının da kullanacağı fonksiyon ve türleri bir dosyada toplarsanız 
 - Kullananlara `x adıyla dahil et(...)` yazmalarını önerin; adlarınız onların adlarıyla çakışmaz.
 - Kütüphanede `yazdır` gibi ekrana yazan üst düzey komutlar olmasın. Bunun yerine `doğrula` ile kütüphanenin kendi testlerini yazın; dahil edilince bir kez çalışır, hata yoksa bir şey yazmaz.
 - Her tiple çalışan fonksiyonları generic (`<T>`) yazın, varsayılan değerlerle kullanımı kolaylaştırın.
+
+Üç komut işinizi kolaylaştırır:
+
+```
+kolay kütüphane yeni geometri          # testleriyle hazır bir geometri.kolay şablonu
+kolay denetle geometri.kolay           # hataları ve testleri kontrol eder
+kolay kütüphane kur geometri.kolay     # artık her yerden: g adıyla dahil et("geometri")
+```
+
+Yolu yazılmayan bir kütüphane önce dahil eden dosyanın klasöründe, sonra kişisel kütüphane klasöründe, en son Kolay'ın hazır kütüphanelerinde aranır.
 
 Çalışan bir örnek Kolay'ın kaynak klasöründe: `ornekler/08_kutuphane/` (istatistik kütüphanesi ve onu kullanan program). C kütüphanelerini sarmak ya da dile hazır metot eklemek için: `belgeler/GELISTIRICI.md`.
 
@@ -4997,7 +5091,7 @@ yazdır(uzunluk("merhaba"))
 
 ### Rastgele sayı
 
-Kolay'da hazır bir rastgele sayı fonksiyonu yok, ama C'ninki kullanılabilir:
+Rastgele sayılar için hazır `rastgele` kütüphanesini kullanın (bkz. [Hazır kütüphaneler](#hazır-kütüphaneler)); `#Güvensiz` gerekmez. Aşağıdaki örnek, o kütüphanenin içinde C'nin `rand` fonksiyonunun nasıl kullanıldığını gösterir:
 
 ```kolay
 #Güvensiz
@@ -5040,15 +5134,9 @@ Bilgisayar 1–100 arasında bir sayı tutar; kullanıcı tahmin eder, program "
 <summary>Çözüm</summary>
 
 ```kolay
-#Güvensiz
-dış kütüphane("c") {
-    fonksiyon rastgele() -> Tam(32) = "rand"
-    fonksiyon tohum(t: Tam(32, +)) = "srand"
-    fonksiyon zaman(p: Tam(64)) -> Tam(64) = "time"
-}
+r adıyla dahil et("rastgele")
 
-tohum(zaman(0) olarak Tam(32, +))
-ata tutulan = rastgele() % 100 + 1
+ata tutulan = r.tam_sayı(1, 100)
 ata deneme = 0
 
 yazdır("1 ile 100 arasında bir sayı tuttum.")
@@ -5416,11 +5504,12 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `l.ters_çevir()` | `l.reverse()` |
 | `l.tersi()`, `l[-1..=0]` | `l[::-1]` |
 | `l.adım(2)` | `l[::2]` |
-| `l[-1]`, `l[1..3]` | `l[-1]`, `l[1:3]` |
+| `l[-1]`, `l[1..3]`, `s[0]` | `l[-1]`, `l[1:3]`, `s[0]` |
 | `l[4..1]` | `l[4:1:-1]` |
 | `l.bul(x)` (yoksa `Hiç`) | `l.index(x)` (yoksa `ValueError`) |
 | `l.toplam()`, `l.en_büyük()`, `l.en_küçük()` | `sum(l)`, `max(l)`, `min(l)` |
 | `her x için x * 2` | `lambda x: x * 2` |
+| `ata f = her<T> x: T için x * 2` | `f = lambda x: x * 2` (Python'da her lambda zaten her tiple çağrılabilir) |
 | `l.dönüşüm(her x için x * 2)` | `[x * 2 for x in l]` ya da `list(map(lambda x: x * 2, l))` |
 | `l.filtre(her x için x > 0)` | `[x for x in l if x > 0]` |
 | `l.hepsi(her x için x > 0)`, `l.herhangi(...)` | `all(x > 0 for x in l)`, `any(...)` |
@@ -5451,6 +5540,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `Hiç` | `None` |
 | `dahil et("./m.kolay")` | `from m import *` |
 | `m adıyla dahil et("./m.kolay")` | `import m` |
+| `m adıyla dahil et("matematik")`, `r.tam_sayı(1, 6)` | `import math`, `random.randint(1, 6)` |
 | `dene { } yakala h: Hata.Dönüşüm { }` | `try: ... except ValueError as h: ...` |
 | `yakala h: Hata { }` | `except Exception as h:` |
 | `yakala diğer { }` | `except:` (tavsiye edilmez) ya da `except BaseException` |
@@ -5535,6 +5625,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `T` (tip parametresi) | generic fonksiyon ya da türde, sonradan belli olan tip: `fonksiyon f<T>(x: T)` |
 | `Kutu<Tam>` | generic türün bir tiple kullanımı |
 | `Fonksiyon(A, B) -> C` | A ve B alıp C döndüren fonksiyon; dönüşü yoksa `Fonksiyon(A, B)` |
+| `Fonksiyon<T>(T) -> T` | her tiple çalışan fonksiyon (sadece parametre tipi olarak) |
 | `Hata` | hata nesnesi (`mesaj` alanı var) |
 | `Hata.SıfıraBölme`, `Hata.İndeks`, `Hata.Anahtar`, `Hata.Taşma`, `Hata.Dönüşüm` | hazır hata türleri (`us` modunda `SifiraBolme`, `Indeks`, `Tasma`, `Donusum`) |
 | `T veya Hata` | ya bir değer ya da bir hata (`dene` içinde hata fırlatılır) |
@@ -5544,7 +5635,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | Ne | Metotlar |
 |---|---|
 | her yerde | `yazdır(...)` (`ayraç:`, `son:` alabilir), `oku("soru")`, `doğrula(koşul)`, `doğrula(koşul, "mesaj")` |
-| `Yazı` | `uzunluk()`, `büyük_harf()`, `küçük_harf()`, `karakter(i)`, `içerir(parça)`, `böl(ayraç)`, `kırp()`, `değiştir(eski, yeni)`, `başlar(p)`, `biter(p)`, `bul(p)` → `Tam(64) veya Hiç`, `say(p)`, `tekrar(n)`, `tersi()`, `tama()` → `Tam(64) veya Hata.Dönüşüm`, `ondalığa()` → `Ondalık veya Hata.Dönüşüm`, `yazıya()`, dilim `s[a..b]` |
+| `Yazı` | `s[i]`, `uzunluk()`, `büyük_harf()`, `küçük_harf()`, `karakter(i)`, `içerir(parça)`, `böl(ayraç)`, `kırp()`, `değiştir(eski, yeni)`, `başlar(p)`, `biter(p)`, `bul(p)` → `Tam(64) veya Hiç`, `say(p)`, `tekrar(n)`, `tersi()`, `tama()` → `Tam(64) veya Hata.Dönüşüm`, `ondalığa()` → `Ondalık veya Hata.Dönüşüm`, `yazıya()`, dilim `s[a..b]` |
 | `Liste` (değiştiren) | `ekle(x)`, `araya_ekle(i, x)`, `sil(i)`, `çıkar()`, `sırala()`, `sırala(göre: f)`, `ters_çevir()`, `temizle()` |
 | `Liste` (yeni değer veren) | `uzunluk()`, `içerir(x)`, `bul(x)` → `Tam(64) veya Hiç`, `sıralı()`, `sıralı(göre: f)`, `tersi()`, `adım(n)`, `dönüşüm(f)`, `filtre(f)`, `hepsi(f)`, `herhangi(f)`, `toplam()`, `en_büyük()`, `en_küçük()`, `birleşik(ayraç)`, `yazıya()`, dilim `l[a..b]` |
 | `Sözlük` | `uzunluk()`, `içerir(anahtar)`, `sil(anahtar)`, `anahtarlar()`, `değerler()`, `temizle()`, `yazıya()` |

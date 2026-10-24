@@ -1,0 +1,3 @@
+HATA (119_genel_lambda_deger.kolay, satır 2): 'iki_kat' her tiple çalışan (generic) bir fonksiyon: Fonksiyon<T>(T) -> (çağrıda belli olur). Çağırın: iki_kat(...), ya da tipi belli bir fonksiyon bekleyen yere verin: uygula(iki_kat, 5)
+  2 | yazdır(iki_kat)
+    |        ^^^^^^^

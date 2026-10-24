@@ -432,6 +432,9 @@ pub fn cmp_values(a: &Value, b: &Value) -> Ordering {
 
 // ------------------------------------------------------------ yazıya çevirme
 
+/// Ondalık sayıyı yazıya çevirir (Python'daki gibi): en kısa geri dönüşen basamaklar; üs -4 ile 15
+/// arasındaysa düz (0.0001, 123.5, 1e15 -> 1000000000000000.0), dışındaysa bilimsel (1e-05, 6.022e+23).
+/// Derlenmiş programda: runtime/sayilar.c ondalik_yaz (aynı sonucu vermeli).
 pub fn fmt_float(f: f64, bits: u32) -> String {
     if f.is_nan() {
         return "TanımsızSayı".into();
@@ -439,22 +442,54 @@ pub fn fmt_float(f: f64, bits: u32) -> String {
     if f.is_infinite() {
         return if f > 0.0 { "sonsuz".into() } else { "-sonsuz".into() };
     }
-    let s = match bits {
-        32 => format!("{}", f as f32),
-        16 => {
-            let h = half::f16::from_f64(f);
-            (1..=8)
-                .map(|p| format!("{:.*}", p, h.to_f64()))
-                .find(|t| t.parse::<f64>().map(half::f16::from_f64) == Ok(h))
-                .map(|t| {
-                    let t = t.trim_end_matches('0');
-                    if t.ends_with('.') { format!("{t}0") } else { t.to_string() }
-                })
-                .unwrap_or_else(|| format!("{}", h.to_f64()))
+    if bits == 16 {
+        let h = half::f16::from_f64(f).to_f64();
+        if h != 0.0 && h.abs() < 1e-4 {
+            // küçük Ondalık(16): en kısa bilimsel gösterim
+            let sci = (1..=8)
+                .map(|p| format!("{:.*e}", p - 1, h))
+                .find(|t| t.parse::<f64>().map(half::f16::from_f64) == Ok(half::f16::from_f64(h)))
+                .unwrap_or_else(|| format!("{h:e}"));
+            return ondalik_bicim(&sci);
         }
-        _ => format!("{f}"),
+        // Ondalık(16) düz yazımda en kısa geri dönüşen sabit basamaklı gösterim (65504.0 gibi)
+        return (1..=8)
+            .map(|p| format!("{:.*}", p, h))
+            .find(|t| t.parse::<f64>().map(half::f16::from_f64) == Ok(half::f16::from_f64(h)))
+            .map(|t| {
+                let t = t.trim_end_matches('0');
+                if t.ends_with('.') { format!("{t}0") } else { t.to_string() }
+            })
+            .unwrap_or_else(|| format!("{h}"));
+    }
+    let sci = if bits == 32 { format!("{:e}", f as f32) } else { format!("{f:e}") };
+    ondalik_bicim(&sci)
+}
+
+/// Rust'ın en kısa bilimsel gösteriminden ("-1.5e-7") Python biçimi
+fn ondalik_bicim(sci: &str) -> String {
+    let (mant, us) = sci.split_once('e').expect("bilimsel gösterim");
+    let us: i32 = us.parse().expect("üs");
+    let (isaret, mant) = match mant.strip_prefix('-') {
+        Some(m) => ("-", m),
+        None => ("", mant),
     };
-    if s.contains('.') || s.contains('e') { s } else { format!("{s}.0") }
+    let mut basamak: String = mant.chars().filter(|c| *c != '.').collect();
+    while basamak.len() > 1 && basamak.ends_with('0') {
+        basamak.pop();
+    }
+    if !(-4..16).contains(&us) {
+        let kesir = if basamak.len() > 1 { format!(".{}", &basamak[1..]) } else { String::new() };
+        return format!("{isaret}{}{kesir}e{}{:02}", &basamak[..1], if us < 0 { '-' } else { '+' }, us.abs());
+    }
+    if us >= 0 {
+        let u = us as usize + 1;
+        let tam: String = (0..u).map(|i| basamak.as_bytes().get(i).map_or('0', |b| *b as char)).collect();
+        let kesir = if basamak.len() > u { &basamak[u..] } else { "0" };
+        format!("{isaret}{tam}.{kesir}")
+    } else {
+        format!("{isaret}0.{}{basamak}", "0".repeat((-us - 1) as usize))
+    }
 }
 
 pub fn type_display(t: &Type, prog: &Program) -> String {

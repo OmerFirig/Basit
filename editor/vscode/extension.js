@@ -101,7 +101,11 @@ function scan(text) {
     vars.set(m[1], vars.get(m[1]) || "");
     if (m[2]) vars.set(m[2], vars.get(m[2]) || "");
   }
-  for (const m of clean.matchAll(new RegExp(`(${ID})\\s+(?:adıyla|adiyla)`, "gu"))) modules.add(m[1]);
+  const modulYollari = new Map(); // ad -> dahil et("...") içindeki yol ya da kütüphane adı
+  for (const m of clean.matchAll(new RegExp(`(${ID})\\s+(?:adıyla|adiyla)(?:\\s+dahil\\s+et\\s*\\(\\s*"([^"]*)")?`, "gu"))) {
+    modules.add(m[1]);
+    if (m[2]) modulYollari.set(m[1], m[2]);
+  }
 
   // tür blokları: tür Ad<T>[Ebeveyn](alanlar) { ... }
   for (const m of clean.matchAll(new RegExp(`(?:tür|tur)\\s+(${ID})`, "gu"))) {
@@ -165,7 +169,7 @@ function scan(text) {
       if (n && n.trim() && new RegExp(`^${ID}$`, "u").test(n.trim())) vars.set(n.trim(), (t || "").trim());
     }
   }
-  return { vars, funcs, types, enums, ifaces, modules, tparams };
+  return { vars, funcs, types, enums, ifaces, modules, modulYollari, tparams };
 }
 
 /** İmlecin içinde bulunduğu türün adı */
@@ -270,11 +274,65 @@ function paramSnippet(name, params) {
 
 const K = vscode.CompletionItemKind;
 
+// ---- kütüphaneler: dahil et("matematik") ----
+
+/** Kullanılabilen kütüphaneler: ad -> dosya (kolay kütüphane yollar; birkaç saniye saklanır) */
+const kutuphaneOnbellek = new Map();
+function kutuphaneler(klasor) {
+  const k = kutuphaneOnbellek.get(klasor);
+  if (k && Date.now() - k.zaman < 10000) return k.harita;
+  const harita = new Map();
+  try {
+    const out = cp.execFileSync(kolayPath(), ["kütüphane", "yollar", klasor], { encoding: "utf8", timeout: 3000 });
+    for (const satir of out.split("\n")) {
+      const [ad, yol] = satir.split("\t");
+      if (ad && yol) harita.set(ad, yol);
+    }
+  } catch (_) {
+    // kolay bulunamadı ya da eski sürüm: sadece yanındaki dosyalar
+  }
+  kutuphaneOnbellek.set(klasor, { zaman: Date.now(), harita });
+  return harita;
+}
+
+/** `m adıyla dahil et(...)` ile eklenen dosyanın tanımları (m. yazınca önerilir) */
+function modulTanimlari(doc, yazilan) {
+  const klasor = path.dirname(doc.uri.fsPath);
+  const dosya = /[\/\\]|\.kolay$/.test(yazilan) ? path.resolve(klasor, yazilan) : kutuphaneler(klasor).get(yazilan);
+  if (!dosya) return null;
+  let metin;
+  try {
+    metin = require("fs").readFileSync(dosya, "utf8");
+  } catch (_) {
+    return null;
+  }
+  // isimli dış kütüphane blokları (c adıyla dış kütüphane("m") { ... }) dışarıdan görünmez
+  metin = metin.replace(new RegExp(`${ID}\\s+(?:adıyla|adiyla)\\s+(?:dış|dis)\\s+(?:kütüphane|kutuphane)\\s*\\([^)]*\\)\\s*\\{[^}]*\\}`, "gu"), "");
+  const m = scan(metin);
+  // sadece üst düzey (girintisiz) değişkenler; fonksiyonların içindekiler ve parametreler değil
+  m.vars = new Map();
+  for (const x of metin.matchAll(new RegExp(`^(?:ata|ortak ata)\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gmu"))) {
+    m.vars.set(x[1], (x[2] || x[3] || "").trim());
+  }
+  return m;
+}
+
 function complete(doc, pos) {
   const text = doc.getText();
   const us = isUs(text);
   const info = scan(text);
   const before = doc.lineAt(pos.line).text.slice(0, pos.character);
+
+  // dahil et(" -> kütüphane adları
+  if (/dahil\s+et\s*\(\s*"[^"]*$/u.test(before)) {
+    const out = [];
+    for (const [ad, yol] of kutuphaneler(path.dirname(doc.uri.fsPath))) {
+      const it = new vscode.CompletionItem(ad, vscode.CompletionItemKind.Module);
+      it.detail = yol;
+      out.push(it);
+    }
+    return out;
+  }
 
   // nokta sonrası: metotlar, alanlar, seçenek varyantları, modül üyeleri
   const dot = before.match(new RegExp(`(${ID}(?:\\s*\\.\\s*${ID})*|\\)|\\]|")\\s*\\.\\s*[${L}]*$`, "u"));
@@ -288,6 +346,17 @@ function complete(doc, pos) {
         out.push(item(n, K.Method, `${n}(${args})`, d, us));
       }
     };
+    // dahil edilen dosya ya da kütüphane: m.karekök, m.PI
+    if (chain.length === 1 && info.modulYollari.has(recv)) {
+      const m = modulTanimlari(doc, info.modulYollari.get(recv));
+      if (m) {
+        for (const [f, p] of m.funcs) out.push(item(f, K.Function, paramSnippet(f, p), `${recv}: fonksiyon(${p})`, false));
+        for (const [t, ti] of m.types) out.push(item(t, K.Class, null, `${recv}: tür (${ti.params})`, false));
+        for (const e of m.enums.keys()) out.push(item(e, K.Enum, null, `${recv}: seçenek`, false));
+        for (const [v, hint] of m.vars) out.push(item(v, K.Variable, null, hint || `${recv}: değişken`, false));
+        return out;
+      }
+    }
     if (recv === "Hata") {
       for (const h of ["SıfıraBölme", "İndeks", "Anahtar", "Taşma", "Dönüşüm"]) out.push(item(h, K.Class, null, "hazır hata türü", us));
       return out;
@@ -433,7 +502,7 @@ function parse(out, doc) {
 function activate(ctx) {
   const sel = { language: "kolay" };
   ctx.subscriptions.push(
-    vscode.languages.registerCompletionItemProvider(sel, { provideCompletionItems: complete }, ".")
+    vscode.languages.registerCompletionItemProvider(sel, { provideCompletionItems: complete }, ".", '"')
   );
 
   const diags = vscode.languages.createDiagnosticCollection("kolay");

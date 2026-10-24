@@ -1,0 +1,2 @@
+ata iki_kat = her<T> x: T için x * 2
+yazdır(iki_kat)

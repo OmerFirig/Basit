@@ -4,6 +4,7 @@
 
 use crate::ast::*;
 use crate::diag::{err, CResult, Diag, Sources, Span};
+pub(crate) use crate::genel_deger::{GenelLambda, GenelRef};
 use crate::lexer::{Mode, BUILTIN_NAMES};
 use crate::loader::ParsedModule;
 use crate::tir::*;
@@ -30,6 +31,9 @@ pub(crate) struct VarInfo {
     pub loop_depth: u32,
     /// Lambdanın dışarıdan kopya olarak yakaladığı değişken (lambda içinde değiştirilemez)
     pub yakalanan: bool,
+    /// Generic fonksiyon değeri (generic lambda ya da `Fonksiyon<T>` parametresine verilen fonksiyon):
+    /// çalışma anında yoktur, her kullanımda tipleri belli bir kopyası oluşturulur (bkz. genel_deger.rs)
+    pub genel: Option<GenelRef>,
 }
 
 /// Denetlenmekte olan bir lambdanın dışarıdaki bağlamı ve yakaladıkları.
@@ -84,6 +88,8 @@ pub(crate) struct Inst {
     pub binds: Vec<(String, Type)>,
     /// Kopyayı ilk oluşturan çağrının yeri (hata mesajı için)
     pub call: Span,
+    /// `Fonksiyon<T>(...)` parametrelerine verilen generic fonksiyonlar: (parametre adı, fonksiyon)
+    pub genel_baglar: Vec<(String, GenelRef)>,
 }
 
 #[derive(Clone, Copy)]
@@ -102,6 +108,7 @@ pub(crate) struct GeriNokta {
     pub mut_direct: usize,
     pub pending_mut: usize,
     pub types: usize,
+    pub genel_lambdalar: usize,
 }
 
 #[derive(Clone)]
@@ -132,6 +139,8 @@ pub(crate) struct Ctx {
     pub ortak_tur: Option<TypeId>,
     /// Varsayılan değer denetleniyor (değişken görünmez)
     pub varsayilan: bool,
+    /// Generic lambdanın kopyası denetleniyor (dışarıdaki değişkenler görünmez)
+    pub genel_lambda: bool,
 }
 
 pub(crate) struct PendingMut {
@@ -180,8 +189,10 @@ pub struct Checker {
     pub(crate) yutulan: bool,
     /// Denetlenmekte olan generic kopyadaki tip parametrelerinin karşılıkları (T -> Tam(64))
     pub(crate) tsubst: HashMap<String, Type>,
-    /// (kalıp, tipler) -> kopya
-    pub(crate) instances: HashMap<(FuncId, Vec<Type>), FuncId>,
+    /// (kalıp, tipler, Fonksiyon<T> parametrelerine verilenler) -> kopya
+    pub(crate) instances: HashMap<(FuncId, Vec<Type>, Vec<GenelRef>), FuncId>,
+    /// `ata f = her<T> ...` ile tanımlanan generic lambdalar
+    pub(crate) genel_lambdalar: Vec<GenelLambda>,
     /// Generic tür kalıpları: tip parametreleri ve tanımı
     pub(crate) tur_kalip: HashMap<TypeId, (Vec<String>, TypeDecl)>,
     /// Generic türün kopyası -> (kalıp, tipler, ilk kullanıldığı yer)
@@ -273,6 +284,7 @@ fn check_pass(
         yutulan: false,
         tsubst: HashMap::new(),
         instances: HashMap::new(),
+        genel_lambdalar: Vec::new(),
         tur_kalip: HashMap::new(),
         tur_inst: HashMap::new(),
         tur_instances: HashMap::new(),
@@ -377,7 +389,7 @@ fn check_pass(
     }
     // 4. Fonksiyon imzaları
     for fid in 0..c.funcs.len() {
-        if c.funcs[fid].owner.is_none() && c.funcs[fid].generics.is_empty() {
+        if c.funcs[fid].owner.is_none() && !c.kalip_mi(fid) {
             c.yasak_tip = c.ortak_yasak(c.funcs[fid].ortak_of);
             c.resolve_func_sig(fid)?;
             c.yasak_tip.clear();
@@ -767,7 +779,13 @@ impl Checker {
 
     pub(crate) fn resolve_type(&mut self, te: &TypeExpr, mi: usize) -> CResult<Type> {
         match &te.kind {
-            TypeKind::Func { params, ret } => {
+            TypeKind::Func { generics, params, ret } => {
+                if !generics.is_empty() {
+                    return err(
+                        te.span,
+                        "Her tiple çalışan fonksiyon tipi (Fonksiyon<T>(...)) sadece bir fonksiyonun parametresinin tipi olarak yazılabilir: fonksiyon ikisine(f: Fonksiyon<T>(T) -> T)",
+                    );
+                }
                 let mut ps = Vec::new();
                 for p in params {
                     let t = self.resolve_type(p, mi)?;
@@ -810,15 +828,15 @@ impl Checker {
                 if dims.is_empty() {
                     return Ok(Type::List(Box::new(t), None));
                 }
-                // sabit boyutlu liste program başında bütünüyle oluşturulur: bellek yetmeden önce durdur
+                // hiçbir bilgisayarın belleğine sığmayacak boyut: program başlamadan söyle. Daha küçükleri
+                // çalışırken denenir, bellek yetmezse "Bellek yetmedi." hatası verilir.
                 let eleman = dims.iter().flatten().try_fold(1u64, |a, &d| a.checked_mul(d as u64)).unwrap_or(u64::MAX);
                 if eleman > SABIT_LISTE_SINIRI {
                     return err(
                         te.span,
                         format!(
-                            "Sabit boyutlu liste çok büyük ({} eleman); en fazla {} eleman olabilir. Daha büyük veri için esnek liste kullanın: Liste<Tam>",
-                            group_digits(&eleman.to_string()),
-                            group_digits(&SABIT_LISTE_SINIRI.to_string())
+                            "Sabit boyutlu listede çok fazla değer var ({} eleman); bu kadarı hiçbir bilgisayarın belleğine sığmaz.",
+                            group_digits(&eleman.to_string())
                         ),
                     );
                 }
@@ -1033,7 +1051,7 @@ impl Checker {
         self.tsubst = eski;
         r?;
         for fid in self.type_methods[tid].clone() {
-            self.funcs[fid].inst = Some(Inst { kalip: Kalip::Tur(kalip), binds: binds.clone(), call });
+            self.funcs[fid].inst = Some(Inst { kalip: Kalip::Tur(kalip), binds: binds.clone(), call, genel_baglar: vec![] });
         }
         Ok(())
     }
@@ -1608,8 +1626,9 @@ impl Checker {
     }
 }
 
-/// Sabit boyutlu bir listenin en fazla eleman sayısı (Tam(64) için 800 MB)
-const SABIT_LISTE_SINIRI: u64 = 100_000_000;
+/// Sabit boyutlu bir listenin en fazla eleman sayısı: 2^37 eleman (Tam(64) ile 1 TB). Bunun altında
+/// kalan ama belleğe sığmayan listeler çalışırken "Bellek yetmedi." hatası verir.
+const SABIT_LISTE_SINIRI: u64 = 1 << 37;
 
 const DIS_TIPLER: &str = "Kullanılabilen tipler: Tam(8/16/32/64), Tam(N, +), Ondalık, Ondalık(32), Mantık, Yazı.";
 
