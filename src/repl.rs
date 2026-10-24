@@ -1,5 +1,5 @@
 // REPL (etkileşimli kip): `kolay` dosya adı olmadan çalışınca açılır. Girdi/Çıktı hücreleri, değerin
-// tipi soluk renkte, hatalar tek satır (kararlar: Notes_Claude.md 4.8).
+// tipi soluk renkte, hatalar tek satır.
 //
 // Oturum, hatasız girdilerin art arda eklendiği tek bir sanal dosyadır. Her yeni girdide bütün metin
 // yeniden denetlenir (tipler, değişken yuvaları ve türler önceki girdilerde aynı kaldığı için), ama

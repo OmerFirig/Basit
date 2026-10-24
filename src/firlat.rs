@@ -1,7 +1,7 @@
 // Fırlatma analizi (tip denetiminden sonra): hangi fonksiyonun hangi tipte değerler fırlatabileceği,
 // her `yakala` dalına hangi değerlerin gelebileceği ve tipsiz `yakala diğer` dalının değişken tipi.
 //
-// Kurallar (Notes_Claude.md 4.8):
+// Kurallar:
 // - Tipsiz dalın tipi, o blokta fırlatılabilenlerin 'veya'sıdır. Çalışma hataları (Hata.SıfıraBölme,
 //   Hata.İndeks ...) hemen her işlemde olabileceği için her blokta fırlatılabilir sayılır; Hata'nın alt
 //   türleri tek bir `Hata` üyesinde birleşir: `Tam(64) veya Hata`.

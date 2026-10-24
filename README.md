@@ -30,7 +30,7 @@ sudo apt install clang llvm libffi-dev
 sudo pacman -S clang llvm libffi
 # Rust: https://rustup.rs
 
-git clone <bu depo> && cd <depo>
+git clone https://github.com/OmerFirig/Kolay.git && cd Kolay
 ./kur.sh
 ```
 
@@ -50,6 +50,10 @@ git clone <bu depo> && cd <depo>
 | `kolay yardım` | Yardım |
 
 `--klavye tr|us`: Dosyada `klavye("...")` satırı yoksa kullanılacak mod (varsayılan `tr`).
+
+Türkçe klavyesi olmayanlar dosyanın ilk satırına `klavye("us")` yazar: dilin kelimeleri Türkçe harfsiz yazılır
+(`eger`, `dondur`, `yazdir`). Dahil edilen `tr` dosyalarındaki Türkçe harfli adlar da harfsiz yazılabilir:
+`m.karekok(16.0)` → `karekök`.
 
 ## Etkileşimli kip (REPL)
 
@@ -207,6 +211,8 @@ kaynak (.kolay)
   → lexer.rs      token'lar (klavye modu, yorumlar, f-yazılar, onaltılık sayılar)
   → parser.rs     sözdizimi ağacı (ast.rs)
   → loader.rs     dahil et ile eklenen dosyalar
+    kutuphane.rs  kütüphaneleri adıyla bulma, kolay kütüphane komutları
+    us_adlar.rs   us modunda tr dosyalarının Türkçe harfli adlarını bulma
   → check.rs      tip denetleyici: tanımlar, kalıtım, arayüzler
     cexpr.rs      ifadeler, tip çıkarımı, Türkçe hata mesajları
     cstmt.rs      komutlar, eşleştir, dene/yakala, akış analizi (belirsiz/sabit kontrolü)
@@ -225,6 +231,7 @@ kaynak (.kolay)
           ifade.rs    ifadeler, dönüştürmeler      komut.rs   komutlar, döngüler, eşleştir
           sahip.rs    referans sayımı              yerlesik.rs hazır metotlar
         runtime/    derlenmiş programların C kütüphanesi (yazı, liste, sözlük, büyük sayı...)
+  diag.rs: Türkçe hata ve uyarı mesajlarını kaynak satırıyla yazar (her aşama kullanır)
 ```
 
 ## Hız (bu bilgisayarda, saniye)
