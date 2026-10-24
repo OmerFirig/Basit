@@ -143,6 +143,16 @@
     ],
     "description": "Yeni tür (sınıf)"
   },
+  "Varsayılan değerli tür": {
+    "prefix": "türv",
+    "body": [
+      "tür ${1:Ad}(${2:ad}: ${3:Yazı}, ${4:yaş}: ${5:Tam} = ${6:0}) {",
+      "\tata ${7:puan} = ${8:0}",
+      "\t$0",
+      "}"
+    ],
+    "description": "Başlıkta varsayılan değer (verilmezse kullanılır), gövdede başlangıç değerli alan"
+  },
   "Kalıtımlı tür": {
     "prefix": "türk",
     "body": [

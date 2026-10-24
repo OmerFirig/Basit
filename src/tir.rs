@@ -323,6 +323,8 @@ pub struct FieldInfo {
     pub ty: Type,
     pub sabit: bool,
     pub origin: TypeId,
+    /// Oluştururken verilir mi (başlıktaki alanlar); gövdedeki `ata` alanları verilmez
+    pub kurucuda: bool,
 }
 
 #[derive(Clone, Debug)]

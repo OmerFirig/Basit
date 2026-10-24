@@ -2,7 +2,6 @@ KOLAY — YAPILACAKLAR
 ====================
 Son güncelleme: 2026-10-24 (sürüm 0.6.0: hata yönetimi, generic fonksiyon ve türler)
 
-Tasarım kararlarının tamamı: ../Notes_Claude.md (bölüm 4.8: generic, hata yönetimi, lambda, REPL).
 Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılacaklarını tutar.
 
 İşaretler:  [ ] yapılacak   [?] önce kullanıcıya sorulacak   [x] yapıldı
@@ -21,7 +20,7 @@ Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılaca
 [x] Lambda: her x için ..., Fonksiyon(T) -> R tipi, isimli fonksiyonlar değer olarak,
     dönüşüm / filtre / hepsi / herhangi / sırala(göre:) / sıralı(göre:) / toplam /
     en_büyük / en_küçük.
-[x] Hata düzeltmeleri: bkz. ../Notes_Claude.md bölüm 10 "Durum".
+[x] Hata düzeltmeleri.
 
 
 ------------------------------------------------------------------------------
@@ -149,7 +148,7 @@ Uygulama (yapıldı):
 [x] Hata ve alt türleri hazır 'tür' olarak (mesaj: Yazı) her dosyada tanımlı (check.rs).
 [x] Fırlatma analizi (src/firlat.rs): fonksiyonların fırlatabildikleri, yakala dallarının
     kaynakları, tipsiz dalın tipi ve uyarılar. Tipsiz dal varsa program birkaç geçişte denetlenir.
-Uygularken Claude'un verdiği küçük kararlar (💡 onay bekliyor, ayrıntı: Notes_Claude.md 4.8):
+Uygularken verilen küçük kararlar (💡 onay bekliyor):
     - Çalışma hatalarının türleri: SıfıraBölme (/ ve %), İndeks (liste/yazı sınırı, boş listeden
       çıkar/en_büyük), Anahtar, Taşma (Tam taşması, büyük üs/kaydırma), Dönüşüm (olarak, tama,
       ondalığa, sabit boyutlu listeye uymayan liste, "Bu değer X değil"). Diğerleri ("Adım sıfır
@@ -214,7 +213,8 @@ Değişmesi gerekenler:
     0..liste.uzunluk() içindeki her i için yap { ... liste[i] ... }
 [ ] Küme<T> ({1, 2, 3}; birleşim, kesişim, fark), demet ((Tam, Yazı); sadece açma:
     ata (a, b) = f()).
-[ ] Varsayılan değerler: tür Kişi(ad: Yazı, yaş: Tam = 0), fonksiyon selam(ad: Yazı = "dünya")
+[x] Varsayılan değerler: tür Kişi(ad: Yazı, yaş: Tam = 0), fonksiyon selam(ad: Yazı = "dünya");
+    türün gövdesinde ata alanları (2026-10-24; src/varsayilan.rs)
 [ ] Standart kütüphane: dosya okuma/yazma, rastgele sayı, karekök/üs/zaman, bekle(),
     komut satırı argümanları.
 [ ] Eşleştir: fonksiyon değerleri için desen (gerekirse).

@@ -17,6 +17,7 @@ mod repl;
 mod tir;
 mod types;
 mod values;
+mod varsayilan;
 mod vm;
 
 use diag::Sources;

@@ -527,7 +527,8 @@ impl Parser {
             }
             self.advance();
             let ty = self.ty()?;
-            out.push(Param { name, ty, sabit, span: span.to(self.prev_span()).to(start) });
+            let varsayilan = if self.eat(&Tok::Assign) { Some(self.expr()?) } else { None };
+            out.push(Param { name, ty, sabit, span: span.to(self.prev_span()).to(start), varsayilan });
             out.last_mut().unwrap().span = span;
             if !self.eat(&Tok::Comma) {
                 break;
@@ -611,7 +612,7 @@ impl Parser {
             );
         }
         let mut methods = Vec::new();
-        let (mut ortak, mut ortak_fonk) = (Vec::new(), Vec::new());
+        let (mut ortak, mut ortak_fonk, mut alanlar) = (Vec::new(), Vec::new(), Vec::new());
         if self.at(&Tok::LBrace) {
             self.advance();
             loop {
@@ -644,13 +645,15 @@ impl Parser {
                             ),
                         );
                     }
+                } else if self.at_kw(Kw::Ata) {
+                    alanlar.push(self.ata()?);
                 } else {
                     methods.push(self.method()?);
                 }
                 self.end_stmt()?;
             }
         }
-        Ok(TurDecl { name, span: start, generics, parents, fields, methods, ortak, ortak_fonk })
+        Ok(TurDecl { name, span: start, generics, parents, fields, methods, alanlar, ortak, ortak_fonk })
     }
 
     fn method(&mut self) -> CResult<FnDecl> {
@@ -688,7 +691,8 @@ impl Parser {
             _ => err(
                 self.span(),
                 format!(
-                    "Tür içinde sadece '{}', '{}' ya da '{}' yazılabilir, ama {} bulundu. Alanlar tür adından sonra parantez içinde yazılır.",
+                    "Tür içinde sadece '{}', '{}', '{}' ya da '{}' yazılabilir, ama {} bulundu.",
+                    self.kw(Kw::Ata),
                     self.kw(Kw::Fonksiyon),
                     self.kw(Kw::Yeniden),
                     self.kw(Kw::Ortak),

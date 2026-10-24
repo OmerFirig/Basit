@@ -1778,6 +1778,34 @@ yazdır(fib(20))
 
 Özyinelemenin her zaman bir **durma koşulu** olmalıdır (`n <= 1`). Olmazsa fonksiyon kendini sonsuza kadar çağırır ve Kolay "Çok derin özyineleme" hatasıyla durur.
 
+### Varsayılan değerler
+
+Bir parametreye `=` ile **varsayılan değer** verilebilir. Çağıran o değeri vermezse bu kullanılır:
+
+```kolay
+fonksiyon selam(ad: Yazı = "dünya", ünlem: Mantık = yanlış) {
+    eğer ünlem {
+        yazdır(f"Merhaba {ad}!")
+    } değilse {
+        yazdır(f"Merhaba {ad}")
+    }
+}
+selam()
+selam("Ali")
+selam("Ayşe", doğru)
+selam(ünlem: doğru)       // ad verilmedi, ünlem adıyla verildi
+```
+
+```
+Merhaba dünya
+Merhaba Ali
+Merhaba Ayşe!
+Merhaba dünya!
+```
+
+- Varsayılan değerli parametreler **sona** yazılır; `f(x: Tam = 1, y: Tam)` hata verir.
+- Varsayılan değerde değişken kullanılamaz; sayı, yazı, liste ya da bir fonksiyon çağrısı yazılabilir. Değer her çağrıda yeniden hesaplanır.
+
 ### Dosyadaki değişkenler
 
 Fonksiyonlar, dosyada kendilerinden **önce** tanımlanmış değişkenleri görebilir ve değiştirebilir:
@@ -2803,6 +2831,40 @@ sepet içindeki her ü için yap {
 yazdır(f"Toplam: {toplam} TL")
 ```
 
+### Başlangıç değeri olan alanlar
+
+Başlıktaki alanların hepsi nesne oluşturulurken verilir. İki yolla bazı alanlar verilmeden de oluşturulabilir:
+
+```kolay
+tür Kişi(ad: Yazı, şehir: Yazı = "Ankara") {
+    ata puan = 0
+    ata notlar: Liste<Tam(64)> = []
+
+    fonksiyon not_ekle(n: Tam(64)) {
+        notlar.ekle(n)
+        puan += n
+    }
+}
+
+ata ali = Kişi("Ali")
+ata ayşe = Kişi("Ayşe", şehir: "İzmir")
+ali.not_ekle(90)
+ali.not_ekle(70)
+yazdır(ali)
+yazdır(ayşe)
+```
+
+```
+Kişi(ad: "Ali", şehir: "Ankara", puan: 160, notlar: [90, 70])
+Kişi(ad: "Ayşe", şehir: "İzmir", puan: 0, notlar: [])
+```
+
+- **Başlıkta varsayılan değer** (`şehir: Yazı = "Ankara"`): istenirse oluştururken verilir, verilmezse varsayılan kullanılır. Fonksiyon parametrelerindeki gibi sona yazılır.
+- **Gövdede `ata`** (`ata puan = 0`): her nesnenin kendi alanıdır, ama oluştururken verilmez; her nesne bu değerle başlar. Sonra değiştirilebilir: `ali.puan = 5`. Başlangıç değeri zorunludur; tipi değerden belli değilse yazılır: `ata notlar: Liste<Tam(64)> = []`. `ata sabit` yazılırsa değiştirilemez.
+- Oluştururken gövdedeki bir alanı vermeye çalışırsanız: `'puan' türün içinde başlangıç değeriyle tanımlı bir alan; oluştururken verilemez.`
+
+Gövdedeki `ata` ile aşağıdaki `ortak ata` arasındaki fark: `ata puan = 0` her nesne için ayrı bir puandır; `ortak ata sayı = 0` bütün nesnelerin paylaştığı tek bir sayıdır.
+
 ### Ortak değerler: türe ait bilgiler
 
 Her nesnenin alanları kendisine aittir: Ali'nin adı ile Ayşe'nin adı ayrıdır. Bazen ise bir bilgi tek bir nesneye değil **türün kendisine** aittir: kaç öğrenci kaydedildiği, okulun adı gibi. Bunlar tür içinde `ortak` ile yazılır:
@@ -3808,6 +3870,22 @@ Düğüm<Tam(64)>(değer: 1, sonraki: Düğüm<Tam(64)>(değer: 2, sonraki: Dü�
 ```
 
 Generic türler kalıtım alabilir ve arayüz uygulayabilir: `tür AdlıKutu<T>[Temel, Adlı](değer: T)`.
+
+### Generic türlerde ortak değerler
+
+Generic bir türün ortak değeri **bütün kopyalar için tektir**: `Kutu<Tam(64)>` ile `Kutu<Yazı>` aynı değeri paylaşır.
+
+```kolay
+tür Kutu<T>(değer: T) {
+    ortak ata sayı = 0
+    fonksiyon say() { sayı += 1 }
+}
+Kutu(5).say()
+Kutu("x").say()
+yazdır(Kutu.sayı)        // 2
+```
+
+Bu yüzden ortak değere başlangıç değeri verilmesi zorunludur ve tipi `T` olamaz (`T` her kopyada başka bir tiptir). Ortak fonksiyonlarda da `T` kullanılamaz.
 
 ### Şimdilik olmayanlar
 
@@ -5239,6 +5317,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `koşul sürece yap { }` | `while koşul:` |
 | `dur`, `devam` | `break`, `continue` |
 | `fonksiyon f(a: Tam) -> Tam { döndür a }` | `def f(a: int) -> int: return a` |
+| `fonksiyon selam(ad: Yazı = "dünya")` | `def selam(ad: str = "dünya"):` (Python'da varsayılan bir kez hesaplanır, Kolay'da her çağrıda) |
 | `[1, 2, 3]` | `[1, 2, 3]` |
 | `l.ekle(4)` | `l.append(4)` |
 | `l.uzunluk()` | `len(l)` |
@@ -5273,6 +5352,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `doğrula(x > 0, "mesaj")` | `assert x > 0, "mesaj"` |
 | `tür Kişi(ad: Yazı) { }` | `class Kişi:` + `def __init__(self, ad): self.ad = ad` |
 | `bu.ad` | `self.ad` |
+| `tür Kişi(ad: Yazı) { ata puan = 0 }` | `__init__` içinde `self.puan = 0` |
 | `ortak ata sayı = 0`, `Öğrenci.sayı` | sınıf değişkeni: `sayi = 0` (sınıf içinde), `Ogrenci.sayi` |
 | `ortak fonksiyon yeni()` | `@staticmethod def yeni():` |
 | `tür Öğrenci[Kişi]` | `class Öğrenci(Kişi):` |
@@ -5318,7 +5398,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 
 | Kolay | `us` yazımı | Anlamı |
 |---|---|---|
-| `ata` | `ata` | değişken tanımla |
+| `ata` | `ata` | değişken tanımla; tür içinde başlangıç değerli alan |
 | `ata sabit` | `ata sabit` | sabit tanımla |
 | `fonksiyon` | `fonksiyon` | fonksiyon tanımla |
 | `döndür` | `dondur` | fonksiyondan değer döndür |

@@ -205,6 +205,8 @@ pub struct Param {
     pub ty: TypeExpr,
     pub sabit: bool,
     pub span: Span,
+    /// Varsayılan değer: `yaş: Tam = 0` (verilmezse bu kullanılır)
+    pub varsayilan: Option<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -253,6 +255,8 @@ pub struct TurDecl {
     pub parents: Vec<(Vec<String>, Span)>,
     pub fields: Vec<Param>,
     pub methods: Vec<FnDecl>,
+    /// Gövdede `ata` ile yazılan alanlar: her nesnenin kendi alanı, oluştururken verilmez, başlangıç değeri var
+    pub alanlar: Vec<Stmt>,
     /// Türe ait ortak değerler (`ortak ata toplam = 0`, her biri bir `Ata` komutu) ve fonksiyonlar
     pub ortak: Vec<Stmt>,
     pub ortak_fonk: Vec<FnDecl>,

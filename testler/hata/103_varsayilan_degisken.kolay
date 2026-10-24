@@ -1,0 +1,2 @@
+ata n = 5
+fonksiyon f(x: Tam(64) = n) { }

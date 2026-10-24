@@ -1,0 +1,2 @@
+tür S(ad: Yazı) { ata x = 0 }
+S("a", x: 5)

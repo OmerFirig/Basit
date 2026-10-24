@@ -140,7 +140,15 @@ function scan(text) {
       (x[1] ? ortakFonk : methods).push([x[2], paren(body, x.index + x[0].length - 1)]);
     }
     for (const x of body.matchAll(new RegExp(`ortak\\s+ata\\s+(?:sabit\\s+)?(${ID})`, "gu"))) ortak.push(x[1]);
-    types.set(m[1], { parents, fields, fieldTypes, methods, params, generics, ortak, ortakFonk });
+    // gövdedeki alanlar: ata değer = 0 (oluştururken verilmez)
+    const govde = [];
+    for (const x of body.matchAll(new RegExp(`(ortak\\s+)?\\bata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
+      if (x[1] || fieldTypes.has(x[2])) continue;
+      fieldTypes.set(x[2], (x[3] || x[4] || "").trim());
+      govde.push(x[2]);
+    }
+    fields.push(...govde);
+    types.set(m[1], { parents, fields, fieldTypes, methods, params, generics, ortak, ortakFonk, govde });
   }
   for (const m of clean.matchAll(new RegExp(`(?:seçenek|secenek)\\s+(${ID})\\s*\\{`, "gu"))) {
     const body = block(clean, m.index + m[0].length);
@@ -352,7 +360,9 @@ function complete(doc, pos) {
     const it = item(t, K.Class, ti.generics ? `${t}<\${1:Tam}>` : null, `tür${ti.generics ? `<${ti.generics}>` : ""} (${ti.params})`, false);
     out.push(it);
     // tür oluşturma: Ad(alan: , alan: )
-    const fields = members(info, t).fields;
+    // gövdedeki alanlar (kendisinin ve ebeveynlerinin) oluştururken verilmez
+    const govde = new Set([...info.types.values()].flatMap((x) => x.govde));
+    const fields = members(info, t).fields.filter((f) => !govde.has(f));
     const ctor = new vscode.CompletionItem(`${t}(...)`, K.Constructor);
     ctor.insertText = new vscode.SnippetString(`${t}(${fields.map((f, i) => `${f}: \${${i + 1}}`).join(", ")})`);
     ctor.detail = "yeni nesne";

@@ -87,18 +87,18 @@ impl Checker {
     /// Ortak değerlerine adıyla erişilebilen türler: içinde bulunulan tür ve ebeveynleri
     pub(crate) fn ortak_turleri(&self) -> Vec<TypeId> {
         let Some(t) = self.cx.ortak_tur.or(self.cx.owner) else { return vec![] };
-        let mut v = vec![t];
+        let mut v = vec![self.ortak_kok(t)];
         if let TypeDefKind::Tur { ancestors, .. } = &self.types[t].kind {
-            v.extend(ancestors);
+            v.extend(ancestors.iter().map(|a| self.ortak_kok(*a)));
         }
         v
     }
 
     /// `Tür.ad` ortak değeri (türün ya da ebeveynlerinin). Tanımlı ama henüz oluşmamışsa hata.
     pub(crate) fn ortak_var(&mut self, tid: TypeId, name: &str, span: Span) -> CResult<Option<VarInfo>> {
-        let mut turler = vec![tid];
+        let mut turler = vec![self.ortak_kok(tid)];
         if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
-            turler.extend(ancestors);
+            turler.extend(ancestors.iter().map(|a| self.ortak_kok(*a)));
         }
         for t in turler {
             if !self.ortak_adlar.get(&t).is_some_and(|a| a.iter().any(|x| x == name)) {
@@ -119,9 +119,9 @@ impl Checker {
 
     /// `ad` türün (ya da bir ebeveyninin) ortak değeri ya da fonksiyonu mu? Öyleyse ait olduğu tür.
     pub(crate) fn ortak_sahibi(&self, tid: TypeId, name: &str) -> Option<TypeId> {
-        let mut turler = vec![tid];
+        let mut turler = vec![self.ortak_kok(tid)];
         if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
-            turler.extend(ancestors);
+            turler.extend(ancestors.iter().map(|a| self.ortak_kok(*a)));
         }
         turler.into_iter().find(|t| {
             self.ortak_adlar.get(t).is_some_and(|a| a.iter().any(|x| x == name)) || self.ortak_fonk.contains_key(&(*t, name.to_string()))
@@ -130,9 +130,9 @@ impl Checker {
 
     /// `Tür.f()` ortak fonksiyonu (türün ya da ebeveynlerinin)
     pub(crate) fn ortak_fonk_bul(&self, tid: TypeId, name: &str) -> Option<FuncId> {
-        let mut turler = vec![tid];
+        let mut turler = vec![self.ortak_kok(tid)];
         if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
-            turler.extend(ancestors);
+            turler.extend(ancestors.iter().map(|a| self.ortak_kok(*a)));
         }
         turler.into_iter().find_map(|t| self.ortak_fonk.get(&(t, name.to_string())).copied())
     }
@@ -250,6 +250,12 @@ impl Checker {
     }
 
     pub(crate) fn unknown_name(&self, name: &str, span: Span) -> Diag {
+        if self.cx.varsayilan {
+            return Diag::new(
+                span,
+                format!("'{name}' burada kullanılamaz: varsayılan değerde değişkenler kullanılamaz. Sayı, yazı, liste ya da fonksiyon çağrısı yazılabilir."),
+            );
+        }
         if let Some(t) = self.cx.ortak_tur {
             if self.fields_of(t).iter().any(|f| &*f.name == name) || self.types[t].methods.contains_key(name) {
                 let tn = &self.types[t].name;
@@ -663,6 +669,7 @@ impl Checker {
             params: params.iter().zip(ptys).map(|(p, t)| (p.name.clone(), t.clone())).collect(),
             param_sabit: vec![false; params.len()],
             ret: ret.cloned().unwrap_or(Type::Hic),
+            varsayilan: vec![],
             decl: None,
             snapshot: None,
             yeniden: Yeniden::Yok,
@@ -1433,9 +1440,8 @@ impl Checker {
         if !self.funcs[fid].generics.is_empty() {
             return self.call_generic(fid, args, span);
         }
-        let params = self.funcs[fid].params.clone();
         let name = self.funcs[fid].name.clone();
-        let vals = self.bind_args(&params, args, span, &name)?;
+        let vals = self.fonk_argumanlari(fid, args, span, &name)?;
         let ret = self.funcs[fid].ret.clone();
         Ok(self.mk(TK::Call(fid, vals), ret, span))
     }
@@ -1446,11 +1452,7 @@ impl Checker {
         }
         let tname = self.types[tid].name.clone();
         match &self.types[tid].kind {
-            TypeDefKind::Tur { fields, .. } => {
-                let params: Vec<(String, Type)> = fields.iter().map(|f| (f.name.to_string(), f.ty.clone())).collect();
-                let vals = self.bind_args(&params, args, span, &tname)?;
-                Ok(self.mk(TK::New(tid, vals), Type::Named(tid), span))
-            }
+            TypeDefKind::Tur { .. } => self.kur(tid, args, span, &tname),
             TypeDefKind::Arayuz { .. } => err(span, format!("'{tname}' bir arayüz; arayüzden nesne oluşturulamaz.")),
             TypeDefKind::Secenek { variants } => {
                 err(span, format!("'{tname}' bir seçenek; {tname}.{} gibi yazın.", variants[0].name))
@@ -1494,8 +1496,7 @@ impl Checker {
             Some(MethodRes::Ambiguous(_)) => return err(nspan, format!("'{pname}.{name}' belirsiz.")),
             None => return err(nspan, format!("'{pname}' içinde '{name}' diye bir fonksiyon yok.")),
         };
-        let params = self.funcs[f].params.clone();
-        let vals = self.bind_args(&params, args, span, name)?;
+        let vals = self.fonk_argumanlari(f, args, span, name)?;
         if let Some(cur) = self.cx.func {
             self.mut_direct.push((cur, f));
         }
@@ -1662,9 +1663,9 @@ impl Checker {
         };
         if let Type::Named(tid) = recv_ty {
             let user = match &self.types[tid].kind {
-                TypeDefKind::Arayuz { sigs } => sigs.iter().find(|s| s.name == name).map(|s| (s.params.clone(), s.ret.clone())),
+                TypeDefKind::Arayuz { sigs } => sigs.iter().find(|s| s.name == name).map(|s| (s.params.clone(), s.ret.clone(), None)),
                 _ => match self.types[tid].methods.get(name) {
-                    Some(MethodRes::Impl(f)) => Some((self.funcs[*f].params.clone(), self.funcs[*f].ret.clone())),
+                    Some(MethodRes::Impl(f)) => Some((self.funcs[*f].params.clone(), self.funcs[*f].ret.clone(), Some(*f))),
                     Some(MethodRes::Ambiguous(ps)) => {
                         let opts: Vec<String> = ps.iter().map(|p| format!("{}.{name}", self.types[*p].name)).collect();
                         return err(
@@ -1675,8 +1676,11 @@ impl Checker {
                     None => None,
                 },
             };
-            if let Some((params, ret)) = user {
-                let vals = self.bind_args(&params, args, span, name)?;
+            if let Some((params, ret, f)) = user {
+                let vals = match f {
+                    Some(f) => self.fonk_argumanlari(f, args, span, name)?,
+                    None => self.bind_args(&params, args, span, name)?,
+                };
                 let recv = match pi {
                     Some(p) => {
                         if p.rooted_bu {
@@ -1768,6 +1772,19 @@ impl Checker {
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
             let hint = closest(name, hint.iter()).map(|c| format!(" '{}' mı demek istediniz?", self.shown(&c))).unwrap_or_default();
+            if recv_ty == Type::Bool && self.builtin_method(&Type::Str, name).is_some() {
+                let ad = self.shown(name);
+                return err(
+                    nspan,
+                    format!(
+                        "Bu değer bir Mantık (doğru/yanlış), yazı değil; '{ad}' yazılarda kullanılır. İki koşulu birlikte sormak için '{}' kullanın: s.{}(\"x\") {} s.{}(\"y\")",
+                        self.shown("ve"),
+                        self.shown("başlar"),
+                        self.shown("ve"),
+                        self.shown("biter")
+                    ),
+                );
+            }
             return err(nspan, format!("{tn} tipinde '{name}' diye bir fonksiyon yok.{hint}"));
         };
         let shown = self.shown(name);

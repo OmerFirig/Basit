@@ -70,14 +70,21 @@ impl Checker {
         let gs = self.funcs[fid].generics.clone();
         let mi = self.funcs[fid].module;
         let decl = self.funcs[fid].decl.clone().expect("generic kalıp");
-        let params: Vec<(String, PTip)> = decl.params.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()))).collect();
+        let params: Vec<(String, PTip, bool)> =
+            decl.params.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()), p.varsayilan.is_some())).collect();
         let (tipler, vals) = self.infer_call(&name, &gs, mi, &params, args, span)?;
         let inst = match self.instances.get(&(fid, tipler.clone())) {
             Some(&f) => f,
             None => self.new_instance(fid, tipler, span)?,
         };
         let ptys: Vec<Type> = self.funcs[inst].params.iter().map(|p| p.1.clone()).collect();
-        let out = self.coerce_all(vals, &ptys)?;
+        let mut out = Vec::new();
+        for (i, v) in self.coerce_all(vals, &ptys)?.into_iter().enumerate() {
+            out.push(match v {
+                Some(t) => t,
+                None => self.fonk_varsayilan(inst, i)?,
+            });
+        }
         let ret = self.funcs[inst].ret.clone();
         Ok(self.mk(TK::Call(inst, out), ret, span))
     }
@@ -93,37 +100,39 @@ impl Checker {
         });
         if let Some(inst) = hedef {
             let tname = self.types[inst].name.clone();
-            let params: Vec<(String, Type)> = self.fields_of(inst).iter().map(|f| (f.name.to_string(), f.ty.clone())).collect();
-            let vals = self.bind_args(&params, args, span, &tname)?;
-            return Ok(self.mk(TK::New(inst, vals), Type::Named(inst), span));
+            return self.kur(inst, args, span, &tname);
         }
         let (gs, decl) = self.tur_kalip[&tid].clone();
         let TypeDecl::Tur(d) = decl else { unreachable!("generic seçenek yok") };
         let mi = self.type_decls[tid].0;
         // ebeveynlerin alanları önce (tipleri belli), sonra türün kendi alanları
-        let mut params: Vec<(String, PTip)> = Vec::new();
+        let mut params: Vec<(String, PTip, bool)> = Vec::new();
         for (path, pspan) in &d.parents {
             let te = TypeExpr { kind: TypeKind::Path { path: path.clone(), generics: vec![], args: None, dims: vec![] }, span: *pspan };
             if let Type::Named(p) = self.with_subst(&HashMap::new(), |c| c.resolve_type(&te, mi))? {
                 for f in self.fields_of(p).to_vec() {
-                    if !params.iter().any(|x| *x.0 == *f.name) {
-                        params.push((f.name.to_string(), PTip::Belli(f.ty)));
+                    if f.kurucuda && !params.iter().any(|x| *x.0 == *f.name) {
+                        let v = self.alan_varsayilani_var(&f);
+                        params.push((f.name.to_string(), PTip::Belli(f.ty), v));
                     }
                 }
             }
         }
-        params.extend(d.fields.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()))));
+        params.extend(d.fields.iter().map(|p| (p.name.clone(), PTip::Yazilan(p.ty.clone()), p.varsayilan.is_some())));
         let (tipler, vals) = self.infer_call(&d.name, &gs, mi, &params, args, span)?;
         let inst = self.tur_instance(tid, tipler, span)?;
-        let ftys: Vec<Type> = self.fields_of(inst).iter().map(|f| f.ty.clone()).collect();
-        let out = self.coerce_all(vals, &ftys)?;
-        Ok(self.mk(TK::New(inst, out), Type::Named(inst), span))
+        let ftys: Vec<Type> = self.fields_of(inst).iter().filter(|f| f.kurucuda).map(|f| f.ty.clone()).collect();
+        let verilen = self.coerce_all(vals, &ftys)?;
+        self.nesne(inst, verilen, span)
     }
 
-    fn coerce_all(&mut self, vals: Vec<(TExpr, Span)>, tys: &[Type]) -> CResult<Vec<TExpr>> {
+    fn coerce_all(&mut self, vals: Vec<Option<(TExpr, Span)>>, tys: &[Type]) -> CResult<Vec<Option<TExpr>>> {
         let mut out = Vec::new();
-        for ((t, sp), ty) in vals.into_iter().zip(tys) {
-            out.push(self.coerce(t, ty, sp)?);
+        for (v, ty) in vals.into_iter().zip(tys) {
+            out.push(match v {
+                Some((t, sp)) => Some(self.coerce(t, ty, sp)?),
+                None => None,
+            });
         }
         Ok(out)
     }
@@ -135,13 +144,14 @@ impl Checker {
         name: &str,
         gs: &[String],
         mi: usize,
-        params: &[(String, PTip)],
+        params: &[(String, PTip, bool)],
         args: &[Arg],
         span: Span,
-    ) -> CResult<(Vec<Type>, Vec<(TExpr, Span)>)> {
+    ) -> CResult<(Vec<Type>, Vec<Option<(TExpr, Span)>>)> {
         let names: Vec<String> = params.iter().map(|p| p.0.clone()).collect();
         let idx = self.arg_slots(&names, args, span, name)?;
-        if let Some(i) = (0..names.len()).find(|i| !idx.contains(i)) {
+        // verilmeyen parametrenin varsayılanı yoksa eksik (varsayılan değerden tip çıkarılmaz)
+        if let Some(i) = (0..names.len()).find(|i| !idx.contains(i) && !params[*i].2) {
             return err(span, format!("'{name}' için '{}' değeri eksik.", names[i]));
         }
         let mut binds: HashMap<String, Type> = HashMap::new();
@@ -208,7 +218,7 @@ impl Checker {
             }
         }
         let tipler = gs.iter().map(|g| binds[g].clone()).collect();
-        Ok((tipler, vals.into_iter().map(|v| v.expect("değer")).collect()))
+        Ok((tipler, vals))
     }
 
     /// Generic türün kopyası: `Kutu<Tam(64)>`. İlk kez istenince oluşturulur ve hemen çözülür (alanlar,
@@ -271,6 +281,7 @@ impl Checker {
             ret,
             span: decl.span,
             yeniden: Yeniden::Yok,
+            varsayilan: decl.params.iter().map(|p| p.varsayilan.clone()).collect(),
             decl: Some(decl),
             snapshot: None,
             body: None,

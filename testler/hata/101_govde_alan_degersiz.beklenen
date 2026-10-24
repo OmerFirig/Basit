@@ -1,0 +1,3 @@
+HATA (101_govde_alan_degersiz.kolay, satır 1): Türün içindeki alana başlangıç değeri verilmeli: ata x = 0
+  1 | tür S(ad: Yazı) { ata x: Tam }
+    |                       ^

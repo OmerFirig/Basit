@@ -98,6 +98,7 @@ sayılar.filtre(her x için x > 10).toplam()
 öğrenciler.sırala(göre: her ö için ö.yaş)
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
 fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }    // generic: T her çağrıda çıkarılır
+fonksiyon selam(ad: Yazı = "dünya") { }            // varsayılan değer: selam() ya da selam("Ali")
 tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
 ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
@@ -123,6 +124,7 @@ koşul sürece yap { }
 // dur, devam
 
 tür Öğrenci[Kişi, Sporcu](sabit numara: Tam(32, +)) {
+    ata puan = 0                                 // gövdede alan: oluştururken verilmez
     ortak ata sayı = 0                           // türe ait: Öğrenci.sayı
     ortak fonksiyon özet() -> Yazı { döndür f"{sayı} öğrenci" }
     yeniden tanıt() { Kişi.tanıt() }

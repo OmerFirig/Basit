@@ -1,0 +1,3 @@
+HATA (109_mantik_zincir.kolay, satır 1): Bu değer bir Mantık (doğru/yanlış), yazı değil; 'biter' yazılarda kullanılır. İki koşulu birlikte sormak için 've' kullanın: s.başlar("x") ve s.biter("y")
+  1 | yazdır("deneme".başlar("x").biter("y"))
+    |                             ^^^^^

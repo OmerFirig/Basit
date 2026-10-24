@@ -1,0 +1,3 @@
+HATA (108_generic_ortak_degersiz.kolay, satır 1): Generic türün ortak değerine başlangıç değeri verilmeli: ortak ata x = ...
+  1 | tür Kutu<T>(d: T) { ortak ata x: Tam }
+    |                               ^

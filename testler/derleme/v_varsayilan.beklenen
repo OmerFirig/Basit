@@ -1,0 +1,9 @@
+Merhaba dünya
+Merhaba Ali
+Merhaba dünya!
+Kişi(ad: "Ali", yaş: 0, kayıt: "yeni", notlar: [90], puan: 100) Kişi(ad: "Ayşe", yaş: 20, kayıt: "yeni", notlar: [], puan: 10)
+100 []
+Öğrenci(ad: "Can", yaş: 0, kayıt: "yeni", notlar: [], puan: 10, okul: "Lise", sınıf: 9) Öğrenci(ad: "Ece", yaş: 15, kayıt: "yeni", notlar: [], puan: 10, okul: "Kolej", sınıf: 9)
+Kutu<Ondalık>(değer: 2.5, adet: 1, etiket: "kutu") Kutu<Yazı>(değer: "x", adet: 3, etiket: "kutu")
+["a", "a"] [7, 7, 7]
+43 ["a"]

@@ -1,0 +1,16 @@
+tür Kutu<T>(değer: T) {
+    ortak ata sayı = 0
+    ortak ata sabit AD = "kutu"
+    fonksiyon say() { sayı += 1 }
+    fonksiyon göster() -> Yazı { döndür f"{AD} #{sayı}: {değer}" }
+    ortak fonksiyon rapor() -> Yazı { döndür f"{sayı} {AD}" }
+}
+ata a = Kutu(5)
+ata b = Kutu("x")
+a.say()
+b.say()
+b.say()
+yazdır(a.göster(), b.göster())
+yazdır(Kutu.sayı, Kutu.rapor())
+Kutu.sayı = 0
+yazdır(Kutu.rapor())

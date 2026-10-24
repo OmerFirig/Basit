@@ -72,6 +72,8 @@ pub(crate) struct FuncInfo {
     pub inst: Option<Inst>,
     /// `ortak fonksiyon` ise ait olduğu tür (nesnesi yok, türün ortak değerlerine adıyla erişir)
     pub ortak_of: Option<TypeId>,
+    /// Parametrelerin varsayılan değerleri (gövde denetlenince `decl` alındığı için ayrıca saklanır)
+    pub varsayilan: Vec<Option<Expr>>,
 }
 
 /// Generic bir fonksiyonun somut tiplerle oluşturulmuş kopyası
@@ -128,6 +130,8 @@ pub(crate) struct Ctx {
     pub dene_depth: u32,
     /// `ortak fonksiyon` içindeyse türü (metotlarda `owner` yeterli)
     pub ortak_tur: Option<TypeId>,
+    /// Varsayılan değer denetleniyor (değişken görünmez)
+    pub varsayilan: bool,
 }
 
 pub(crate) struct PendingMut {
@@ -190,6 +194,10 @@ pub struct Checker {
     /// dosya değişkenidir; `.` kullanıcı adlarında olmadığı için çakışmaz.
     pub(crate) ortak_adlar: HashMap<TypeId, Vec<String>>,
     pub(crate) ortak_fonk: HashMap<(TypeId, String), FuncId>,
+    /// Generic türün ortak değerleri ve fonksiyonları denetlenirken kullanılamayan tip parametreleri
+    pub(crate) yasak_tip: Vec<String>,
+    /// Alanların başlangıç değerleri: (alanın tanımlandığı tür, ad) -> ifade
+    pub(crate) alan_varsayilan: HashMap<(TypeId, String), Expr>,
 }
 
 /// Tipsiz `yakala` dalının değişken tipi, fırlatılabilen değerlere bağlıdır; bunlar ise bütün program
@@ -268,6 +276,8 @@ fn check_pass(
         miras_hazir: false,
         ortak_adlar: HashMap::new(),
         ortak_fonk: HashMap::new(),
+        yasak_tip: Vec::new(),
+        alan_varsayilan: HashMap::new(),
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -363,7 +373,9 @@ fn check_pass(
     // 4. Fonksiyon imzaları
     for fid in 0..c.funcs.len() {
         if c.funcs[fid].owner.is_none() && c.funcs[fid].generics.is_empty() {
+            c.yasak_tip = c.ortak_yasak(c.funcs[fid].ortak_of);
             c.resolve_func_sig(fid)?;
+            c.yasak_tip.clear();
         }
     }
     // 5. Kalıtım, metot tabloları, arayüz kontrolü
@@ -374,6 +386,23 @@ fn check_pass(
     let mut modules_code = Vec::new();
     for (mi, stmts) in all_stmts.iter().enumerate() {
         modules_code.push(c.check_top(mi, stmts)?);
+    }
+    // 7a. Varsayılan değerler (hiç kullanılmasalar da hataları görünsün)
+    for fid in 0..c.funcs.len() {
+        if c.funcs[fid].generics.is_empty() {
+            for i in 0..c.funcs[fid].varsayilan.len() {
+                if c.funcs[fid].varsayilan[i].is_some() {
+                    c.fonk_varsayilan(fid, i)?;
+                }
+            }
+        }
+    }
+    for t in 0..c.types.len() {
+        for f in c.own_fields[t].clone() {
+            if c.alan_varsayilani_var(&f) {
+                c.alan_varsayilan(&f)?;
+            }
+        }
     }
     // 7. Fonksiyon gövdeleri (generic kopyalar denetlenirken yenileri eklenebilir)
     let mut fid = 0;
@@ -486,11 +515,11 @@ impl Checker {
         let yazi = TypeExpr { kind: TypeKind::Path { path: vec!["Yazı".into()], generics: vec![], args: None, dims: vec![] }, span: sp };
         for (i, name) in HATA_TURLERI.iter().enumerate() {
             let (parents, fields) = if i == 0 {
-                (vec![], vec![Param { name: "mesaj".into(), ty: yazi.clone(), sabit: false, span: sp }])
+                (vec![], vec![Param { name: "mesaj".into(), ty: yazi.clone(), sabit: false, span: sp, varsayilan: None }])
             } else {
                 (vec![(vec!["Hata".to_string()], sp)], vec![])
             };
-            let d = TurDecl { name: name.to_string(), span: sp, generics: vec![], parents, fields, methods: vec![], ortak: vec![], ortak_fonk: vec![] };
+            let d = TurDecl { name: name.to_string(), span: sp, generics: vec![], parents, fields, methods: vec![], alanlar: vec![], ortak: vec![], ortak_fonk: vec![] };
             let tid = self.types.len();
             self.types.push(TypeDef {
                 name: name.to_string(),
@@ -553,18 +582,28 @@ impl Checker {
         Ok(())
     }
 
+    /// Ortak fonksiyonun türü generic ise kullanılamayan tip parametreleri
+    pub(crate) fn ortak_yasak(&self, ortak_of: Option<TypeId>) -> Vec<String> {
+        ortak_of.and_then(|t| self.tur_kalip.get(&t)).map(|k| k.0.clone()).unwrap_or_default()
+    }
+
+    /// Generic türün kopyası ise kalıbı (ortak değerler kalıba aittir)
+    pub(crate) fn ortak_kok(&self, t: TypeId) -> TypeId {
+        self.tur_inst.get(&t).map(|x| x.0).unwrap_or(t)
+    }
+
     /// `ortak ata` adları ve `ortak fonksiyon`lar
     fn declare_ortak(&mut self, mi: usize, tid: TypeId, d: &TurDecl) -> CResult<()> {
         if d.ortak.is_empty() && d.ortak_fonk.is_empty() {
             return Ok(());
         }
-        if !d.generics.is_empty() {
-            let sp = d.ortak.first().map(|s| s.span).unwrap_or_else(|| d.ortak_fonk[0].span);
-            return err(sp, "Generic türlerde ortak değer ya da ortak fonksiyon olamaz (her tip için ayrı mı olacağı belli değil).");
-        }
         let mut adlar: Vec<String> = Vec::new();
         for s in &d.ortak {
-            let StmtKind::Ata { name, name_span, .. } = &s.kind else { unreachable!("ortak ata") };
+            let StmtKind::Ata { name, name_span, value, .. } = &s.kind else { unreachable!("ortak ata") };
+            // generic türün ortak değeri bütün kopyalar için tektir: değeri baştan belli olmalı
+            if !d.generics.is_empty() && value.is_none() {
+                return err(*name_span, format!("Generic türün ortak değerine başlangıç değeri verilmeli: ortak ata {name} = ..."));
+            }
             if adlar.contains(name) {
                 return err(*name_span, format!("'{name}' bu türde iki kez tanımlanmış."));
             }
@@ -585,6 +624,7 @@ impl Checker {
                 span: f.span,
                 yeniden: Yeniden::Yok,
                 generics: vec![],
+                varsayilan: f.params.iter().map(|p| p.varsayilan.clone()).collect(),
                 decl: Some(f.clone()),
                 snapshot: None,
                 body: None,
@@ -619,6 +659,7 @@ impl Checker {
             span: d.span,
             yeniden: Yeniden::Yok,
             generics: d.generics.iter().map(|g| g.0.clone()).collect(),
+            varsayilan: d.params.iter().map(|p| p.varsayilan.clone()).collect(),
             decl: Some(d),
             snapshot: None,
             body: None,
@@ -878,6 +919,12 @@ impl Checker {
                 None => return err(span, format!("'{}' diye bir dosya adı yok.", path[..=i].join("."))),
             }
         }
+        if path.len() == 1 && self.yasak_tip.iter().any(|g| g == name) {
+            return err(
+                span,
+                format!("'{name}' burada kullanılamaz: generic türün ortak değerleri ve fonksiyonları bütün kopyalar için tektir, tip parametresine bağlı olamaz."),
+            );
+        }
         if let Some(&tid) = self.mods[module].types.get(name) {
             if let Some((gs, _)) = self.tur_kalip.get(&tid) {
                 let gs = gs.clone();
@@ -1008,19 +1055,37 @@ impl Checker {
                     }
                 }
                 let mut fields: Vec<FieldInfo> = Vec::new();
+                self.varsayilan_sirasi(&d.fields)?;
                 for p in &d.fields {
                     if fields.iter().any(|f| *f.name == *p.name) {
                         return err(p.span, format!("'{}' alanı iki kez tanımlanmış.", p.name));
                     }
                     let ty = self.resolve_type(&p.ty, mi)?;
                     self.no_hic_value(&ty, p.ty.span)?;
-                    fields.push(FieldInfo { name: p.name.as_str().into(), ty, sabit: p.sabit, origin: tid });
+                    if let Some(v) = &p.varsayilan {
+                        self.alan_varsayilan.insert((tid, p.name.clone()), v.clone());
+                    }
+                    fields.push(FieldInfo { name: p.name.as_str().into(), ty, sabit: p.sabit, origin: tid, kurucuda: true });
+                }
+                // gövdedeki alanlar: ata değer = 0
+                for s in &d.alanlar {
+                    let StmtKind::Ata { sabit, name, name_span, ty, value, .. } = &s.kind else { unreachable!("tür alanı") };
+                    if fields.iter().any(|f| *f.name == **name) || d.methods.iter().any(|m| m.name == *name) {
+                        return err(*name_span, format!("'{name}' bu türde zaten tanımlı."));
+                    }
+                    let Some(v) = value else {
+                        return err(*name_span, format!("Türün içindeki alana başlangıç değeri verilmeli: ata {name} = 0"));
+                    };
+                    let t = self.govde_alan_tipi(mi, ty.as_ref(), v, name)?;
+                    self.no_hic_value(&t, *name_span)?;
+                    self.alan_varsayilan.insert((tid, name.clone()), v.clone());
+                    fields.push(FieldInfo { name: name.as_str().into(), ty: t, sabit: *sabit, origin: tid, kurucuda: false });
                 }
                 if let TypeDefKind::Tur { parents: ps, .. } = &mut self.types[tid].kind {
                     *ps = parents;
                 }
                 self.types[tid].interfaces = interfaces;
-                for o in self.ortak_adlar.get(&tid).into_iter().flatten().chain(d.ortak_fonk.iter().map(|f| &f.name)) {
+                for o in self.ortak_adlar.get(&self.ortak_kok(tid)).into_iter().flatten().chain(d.ortak_fonk.iter().map(|f| &f.name)) {
                     if fields.iter().any(|f| *f.name == **o) || d.methods.iter().any(|m| m.name == *o) {
                         return err(d.span, format!("'{o}' hem ortak hem de alan ya da fonksiyon adı olarak kullanılmış."));
                     }
@@ -1052,6 +1117,9 @@ impl Checker {
                         return err(v.span, format!("'{}' seçeneği iki kez yazılmış.", v.name));
                     }
                     let mut fs = Vec::new();
+                    if let Some(p) = v.fields.iter().find(|p| p.varsayilan.is_some()) {
+                        return err(p.span, "Seçeneklerin değerlerine varsayılan değer yazılamaz.");
+                    }
                     for p in &v.fields {
                         let ty = self.resolve_type(&p.ty, mi)?;
                         self.no_hic_value(&ty, p.ty.span)?;
@@ -1076,6 +1144,9 @@ impl Checker {
                         return err(s.span, format!("'{}' arayüzde iki kez yazılmış.", s.name));
                     }
                     let mut params = Vec::new();
+                    if let Some(p) = s.params.iter().find(|p| p.varsayilan.is_some()) {
+                        return err(p.span, "Arayüzdeki fonksiyon imzalarına varsayılan değer yazılamaz; değeri türdeki fonksiyona yazın.");
+                    }
                     for p in &s.params {
                         params.push((p.name.clone(), self.resolve_type(&p.ty, mi)?));
                     }
@@ -1125,6 +1196,7 @@ impl Checker {
             ret,
             span: d.span,
             yeniden: d.yeniden.clone(),
+            varsayilan: d.params.iter().map(|p| p.varsayilan.clone()).collect(),
             decl: Some(d),
             snapshot: None,
             body: None,
@@ -1139,6 +1211,7 @@ impl Checker {
     pub(crate) fn sig_of(&mut self, d: &FnDecl, mi: usize) -> CResult<(Vec<(String, Type)>, Vec<bool>, Type)> {
         let mut params: Vec<(String, Type)> = Vec::new();
         let mut sabits = Vec::new();
+        self.varsayilan_sirasi(&d.params)?;
         for p in &d.params {
             if params.iter().any(|(n, _)| *n == p.name) {
                 return err(p.span, format!("'{}' parametresi iki kez yazılmış.", p.name));

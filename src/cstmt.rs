@@ -1053,6 +1053,7 @@ impl Checker {
                     let tid = self.mods[mi].types[name];
                     // ortak değerler tanımın yerinde, `Tür.ad` adlı dosya değişkeni olarak oluşur
                     if let StmtKind::Tur(d) = &s.kind {
+                        self.yasak_tip = d.generics.iter().map(|g| g.0.clone()).collect();
                         for o in &d.ortak {
                             let mut o = o.clone();
                             if let StmtKind::Ata { name: n, .. } = &mut o.kind {
@@ -1061,6 +1062,7 @@ impl Checker {
                             let (ts, _) = self.stmt(&o)?;
                             out.extend(ts);
                         }
+                        self.yasak_tip.clear();
                     }
                     let snap = self.global_snapshot();
                     for (&(t, _), &fid) in &self.ortak_fonk {
@@ -1145,7 +1147,9 @@ impl Checker {
                 d
             });
         }
-        self.check_body_inner(fid)
+        let r = self.check_body_inner(fid);
+        self.yasak_tip.clear();
+        r
     }
 
     /// Fonksiyonun kaynaktaki yeri; REPL fonksiyon değerlerini hücreden hücreye bununla eşler. Generic
@@ -1168,6 +1172,7 @@ impl Checker {
         let snapshot = f.snapshot.clone().unwrap_or_default();
         let (module, owner, ret, params, sabits) = (f.module, f.owner, f.ret.clone(), f.params.clone(), f.param_sabit.clone());
         let ortak_tur = f.ortak_of;
+        self.yasak_tip = self.ortak_yasak(ortak_tur);
         self.cx = Ctx {
             module,
             scopes: vec![HashMap::new()],

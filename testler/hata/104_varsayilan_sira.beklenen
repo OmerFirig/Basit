@@ -1,0 +1,3 @@
+HATA (104_varsayilan_sira.kolay, satır 1): 'y' varsayılan değerli 'x' parametresinden sonra geliyor; varsayılan değerli parametreler sona yazılır.
+  1 | fonksiyon f(x: Tam(64) = 1, y: Tam(64)) { }
+    |                             ^

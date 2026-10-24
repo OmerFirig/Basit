@@ -1,0 +1,37 @@
+fonksiyon selam(ad: Yazı = "dünya", ünlem: Mantık = yanlış) {
+    eğer ünlem { yazdır(f"Merhaba {ad}!") } değilse { yazdır(f"Merhaba {ad}") }
+}
+selam()
+selam("Ali")
+selam(ünlem: doğru)
+
+tür Kişi(ad: Yazı, yaş: Tam(64) = 0) {
+    ata sabit kayıt = "yeni"
+    ata notlar: Liste<Tam(64)> = []
+    ata puan = 10
+    fonksiyon not_ekle(n: Tam(64)) { notlar.ekle(n); puan += n }
+}
+ata a = Kişi("Ali")
+ata b = Kişi("Ayşe", yaş: 20)
+a.not_ekle(90)
+yazdır(a, b)
+yazdır(a.puan, b.notlar)
+
+tür Öğrenci[Kişi](okul: Yazı = "Lise") {
+    ata sınıf = 9
+}
+yazdır(Öğrenci("Can"), Öğrenci("Ece", 15, "Kolej"))
+
+tür Kutu<T>(değer: T, adet: Tam(64) = 1) {
+    ata etiket = "kutu"
+}
+yazdır(Kutu(2.5), Kutu("x", adet: 3))
+fonksiyon tekrarla<T>(x: T, n: Tam(64) = 2) -> Liste<T> {
+    ata l: Liste<T>
+    n kere yap { l.ekle(x) }
+    döndür l
+}
+yazdır(tekrarla("a"), tekrarla(7, 3))
+fonksiyon şimdi() -> Tam(64) { döndür 42 }
+fonksiyon f(x: Tam(64) = şimdi() + 1, l: Liste<Yazı> = ["a"]) { yazdır(x, l) }
+f()
