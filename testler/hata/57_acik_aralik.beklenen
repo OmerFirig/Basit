@@ -1,0 +1,3 @@
+HATA (57_acik_aralik.kolay, satır 1): Aralık listesinin başlangıcı ve bitişi yazılmalı: 0..10. Sonu açık yazım (2.., ..5) sadece dilimde kullanılır: liste[2..]
+  1 | ata r = 5..
+    |         ^^^

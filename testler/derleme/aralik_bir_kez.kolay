@@ -3,5 +3,5 @@ ata sayac = 0
 fonksiyon f(x: Tam(64)) -> Tam(64) { sayac += 1; döndür x }
 ata r = f(1)..f(4)
 yazdır(r, sayac)
-ata r3 = (..f(3)).adım(1)
+ata r3 = (f(0)..f(3)).adım(f(2))
 yazdır(r3, sayac)

@@ -1,2 +1,5 @@
-ata n = -2
-(0..10).adım(n) içindeki her i için yap { }
+// Aralık listesi değer olarak çok büyükse hata (döngüde sorun yok)
+ata n = 0
+0..9223372036854775807 içindeki her i için yap { n += 1; eğer n == 3 { dur } }
+yazdır(n)
+ata r = 0..9223372036854775807

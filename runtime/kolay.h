@@ -50,7 +50,6 @@ enum {
     T_SECENEK = 10,
     T_ARAYUZ = 11,
     T_VEYA = 12,
-    T_ARALIK = 13,
     T_BUYUK = 14,  // büyük tam sayı nesnesi (sadece yığın nesnelerinin tipi olarak)
 };
 
@@ -110,9 +109,6 @@ typedef struct {
     uint32_t r[];     // küçük basamak önce
 } Buyuk;
 
-typedef struct {
-    int64_t start, end, step, bayrak; // bayrak: 1 = bitişi var, 2 = bitiş dahil
-} Aralik;
 
 extern const Tip kolay_yazi_tipi;
 extern const Tip kolay_buyuk_tipi;
@@ -165,6 +161,7 @@ _Bool sozluk_esit(void *a, void *b);
 void sozluk_yaz(Yazi **out, void *d, int ipucu);
 Liste *kolay_liste_yeni(const Tip *t, int64_t n);
 Liste *kolay_liste_ekle(Liste *l, void *deger);
+void kolay_liste_sirala(Liste *l);
 void *kolay_sozluk_yeni(const Tip *t);
 void *kolay_sozluk_yer(void *d, void *anahtar);
 

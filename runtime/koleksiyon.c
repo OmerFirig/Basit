@@ -175,32 +175,105 @@ int64_t kolay_liste_bul(Liste *l, void *deger) {
 
 static int64_t kirp_aralik(int64_t x, int64_t alt, int64_t ust) { return x < alt ? alt : x > ust ? ust : x; }
 
-/// a[bas..son] (bayrak: 1 bitişi var, 2 bitiş dahil). Yorumlayıcıdaki RangeV::slice_bounds ile aynı kural:
-/// eksi indeksler önce sondan sayılır; başlangıç bitişten büyükse dilim terstir (a[4..1] -> 4, 3, 2).
-/// Sınırlar listeye sığacak şekilde kırpılır.
-Liste *kolay_liste_dilim(Liste *l, const Tip *sonuc_tipi, int64_t bas, int64_t son, int64_t bayrak) {
-    int64_t len = l->uzunluk, eb = eleman_boy(l);
-    int64_t s = bas < 0 ? bas + len : bas;
+/// Dilimin indeksleri (yorumlayıcıdaki values::slice_bounds ile aynı kural). bayrak: 1 başlangıç var,
+/// 2 bitiş var, 4 bitiş dahil. Eksi indeksler önce sondan sayılır; iki sınır da yazılmışsa ve başlangıç
+/// bitişten büyükse dilim terstir. Dönüş: eleman sayısı; *ilk ilk indeks, *yon +1 ya da -1.
+static int64_t dilim_sinir(int64_t len, int64_t bas, int64_t son, int64_t bayrak, int64_t *ilk, int64_t *yon) {
+    int64_t s = (bayrak & 1) ? (bas < 0 ? bas + len : bas) : 0;
     int64_t e = son < 0 ? son + len : son;
-    int dahil = (bayrak & 2) != 0;
-    if ((bayrak & 1) && s > e) {
+    int dahil = (bayrak & 4) != 0;
+    if ((bayrak & 3) == 3 && s > e) {
         int64_t hi = s < len - 1 ? s : len - 1;
-        int64_t lo = dahil ? e : (e == INT64_MAX ? e : e + 1);
+        int64_t lo = dahil ? e : e + 1;
         if (lo < 0) lo = 0;
-        int64_t n = hi >= lo ? hi - lo + 1 : 0;
-        Liste *k = kolay_liste_yeni(sonuc_tipi, n);
-        for (int64_t i = 0; i < n; i++) {
-            memcpy(k->veri + i * eb, l->veri + (hi - i) * eb, (size_t)eb);
-            kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
-        }
-        return k;
+        *ilk = hi;
+        *yon = -1;
+        return hi >= lo ? hi - lo + 1 : 0;
     }
     int64_t a = kirp_aralik(s, 0, len), b = len;
-    if (bayrak & 1) b = kirp_aralik(dahil ? (e == INT64_MAX ? e : e + 1) : e, 0, len);
-    int64_t n = a < b ? b - a : 0;
+    if (bayrak & 2) b = kirp_aralik(dahil ? (e == INT64_MAX ? e : e + 1) : e, 0, len);
+    *ilk = a;
+    *yon = 1;
+    return a < b ? b - a : 0;
+}
+
+/// liste[bas..son]
+Liste *kolay_liste_dilim(Liste *l, const Tip *sonuc_tipi, int64_t bas, int64_t son, int64_t bayrak) {
+    int64_t eb = eleman_boy(l), ilk, yon;
+    int64_t n = dilim_sinir(l->uzunluk, bas, son, bayrak, &ilk, &yon);
     Liste *k = kolay_liste_yeni(sonuc_tipi, n);
-    memcpy(k->veri, l->veri + a * eb, (size_t)(n * eb));
+    if (yon > 0) {
+        memcpy(k->veri, l->veri + ilk * eb, (size_t)(n * eb));
+    } else {
+        for (int64_t i = 0; i < n; i++) memcpy(k->veri + i * eb, l->veri + (ilk - i) * eb, (size_t)eb);
+    }
     for (int64_t i = 0; i < n; i++) kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+    return k;
+}
+
+/// yazı[bas..son]: indeksler karakter (bayt değil) sayısıdır.
+Yazi *kolay_yazi_dilim(Yazi *y, int64_t bas, int64_t son, int64_t bayrak) {
+    // karakterlerin başladığı baytlar
+    int64_t *bas_bayt = bellek((size_t)(y->uzunluk + 1) * 8), n = 0;
+    for (int64_t i = 0; i < y->uzunluk; i++)
+        if (((unsigned char)y->d[i] & 0xC0) != 0x80) bas_bayt[n++] = i;
+    bas_bayt[n] = y->uzunluk;
+    int64_t ilk, yon;
+    int64_t adet = dilim_sinir(n, bas, son, bayrak, &ilk, &yon);
+    Yazi *o;
+    if (yon > 0) {
+        o = yazi_yap(y->d + bas_bayt[ilk], (size_t)(bas_bayt[ilk + adet] - bas_bayt[ilk]));
+    } else {
+        o = yazi_ayir(0);
+        for (int64_t i = 0; i < adet; i++) {
+            int64_t c = ilk - i;
+            yazi_ekle_c(&o, y->d + bas_bayt[c], (size_t)(bas_bayt[c + 1] - bas_bayt[c]));
+        }
+    }
+    free(bas_bayt);
+    return o;
+}
+
+/// a..b listesi (adım k) değer olarak kullanılınca oluşturulur (yorumlayıcıdaki values::range_plan ve
+/// interp::range_list ile aynı kural ve mesajlar).
+Liste *kolay_aralik_liste(int64_t s, int64_t e, _Bool dahil, int64_t k, const Tip *tip, const char *konum, const char *kod) {
+    if (k == 0) kolay_hata("Adım sıfır olamaz.", konum, kod);
+    int asagi = s > e;
+    int64_t yon = asagi ? -1 : 1;
+    uint64_t uzak = asagi ? (uint64_t)s - (uint64_t)e : (uint64_t)e - (uint64_t)s;
+    uint64_t uz = dahil ? (uzak == UINT64_MAX ? uzak : uzak + 1) : uzak;
+    uint64_t m = k < 0 ? -(uint64_t)k : (uint64_t)k;
+    uint64_t adet = uz == 0 ? 0 : (uz - 1) / m + 1;
+    if (adet > ((uint64_t)1 << 30)) {
+        char sv[40], gv[60], msg[300];
+        snprintf(sv, sizeof sv, "%llu", (unsigned long long)adet);
+        grupla(sv, gv);
+        snprintf(msg, sizeof msg, "Aralık çok büyük (%s eleman), liste olarak oluşturulamaz. Döngüde doğrudan kullanın: a..b içindeki her i için yap { }", gv);
+        kolay_hata(msg, konum, kod);
+    }
+    int64_t ilk = k > 0 ? s : (int64_t)((uint64_t)s + (uz - 1) * (uint64_t)yon);
+    uint64_t adim = (uint64_t)yon * (uint64_t)k;
+    Liste *l = kolay_liste_yeni(tip, (int64_t)adet);
+    int64_t *v = (int64_t *)l->veri;
+    for (uint64_t i = 0; i < adet; i++) v[i] = (int64_t)((uint64_t)ilk + i * adim);
+    return l;
+}
+
+/// liste.sıralı(): sıralanmış yeni liste
+Liste *kolay_liste_sirali(Liste *l) {
+    Liste *k = liste_kopya(l);
+    kolay_liste_sirala(k);
+    return k;
+}
+
+/// liste.tersi(): ters sıralı yeni liste
+Liste *kolay_liste_tersi(Liste *l) {
+    int64_t n = l->uzunluk, eb = eleman_boy(l);
+    Liste *k = kolay_liste_yeni(l->b.tip, n);
+    for (int64_t i = 0; i < n; i++) {
+        memcpy(k->veri + i * eb, l->veri + (n - 1 - i) * eb, (size_t)eb);
+        kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+    }
     return k;
 }
 

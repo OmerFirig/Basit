@@ -2,7 +2,7 @@
   "name": "kolay",
   "displayName": "Kolay",
   "description": "Kolay (Türkçe programlama dili): renklendirme, tamamlama, hata gösterme ve çalıştırma",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "publisher": "kolay",
   "engines": {
     "vscode": "^1.60.0"

@@ -1,0 +1,13 @@
+// Farklı türlerden liste: ortak ebeveyn (ya da arayüz) tipinde olur
+arayüz Ses { fonksiyon ses() -> Yazı }
+tür Hayvan[Ses](ad: Yazı) { fonksiyon ses() -> Yazı { döndür "..." } }
+tür Kedi[Hayvan]() { yeniden ses() -> Yazı { döndür "miyav" } }
+tür Köpek[Hayvan]() { yeniden ses() -> Yazı { döndür "hav" } }
+tür Robot[Ses]() { fonksiyon ses() -> Yazı { döndür "bip" } }
+ata l = [Kedi(ad: "a"), Köpek(ad: "b")]
+l.ekle(Hayvan(ad: "c"))
+l içindeki her h için yap { yazdır(h.ad, h.ses()) }
+ata m = [Kedi(ad: "x"), Robot()]
+m içindeki her s için yap { yazdır(s.ses()) }
+ata d = {"k": Kedi(ad: "k"), "r": Köpek(ad: "r")}
+yazdır(d["r"].ses())

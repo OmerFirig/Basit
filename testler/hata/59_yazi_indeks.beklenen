@@ -1,0 +1,3 @@
+HATA (59_yazi_indeks.kolay, satır 1): Yazıda tek karakter için karakter kullanın: yazı.karakter(0). Bir parça için dilim yazın: yazı[0..3]
+  1 | yazdır("abc"[1])
+    |        ^^^^^^^^

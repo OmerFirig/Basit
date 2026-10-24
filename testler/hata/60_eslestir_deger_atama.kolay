@@ -1,0 +1,2 @@
+ata v = 1
+ata a = eşleştir v { 1 -> v = 2, değilse -> 3 }

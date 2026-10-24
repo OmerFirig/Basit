@@ -1,4 +1,4 @@
-// Ters aralıklar ve negatif adım
+// Ters aralıklar ve adım (aralık bir listedir; adım listenin adım metoduyla aynı: eksi adım sondan başlar)
 ata t = ""
 5..0 içindeki her i için yap { t += f"{i} " }
 yazdır(t)
@@ -34,10 +34,10 @@ ata r = 9..2
 yazdır(r, (9..2).adım(-2), 2..9, (2..9).adım(2), (9..2).adım(-1))
 ata bb = 9223372036854775807
 t = ""
-(bb - 2..).adım(1) içindeki her i için yap { t += f"{i} " }
+(bb - 2..=bb).adım(1) içindeki her i için yap { t += f"{i} " }
 yazdır(t)
 t = ""
-(-9223372036854775807 - 1 + 2..).adım(-1) içindeki her i için yap { t += f"{i} " }
+(-9223372036854775807 - 1 + 2..=-9223372036854775807 - 1) içindeki her i için yap { t += f"{i} " }
 yazdır(t)
 t = ""
 (0..9223372036854775807).adım(4611686018427387904) içindeki her i için yap { t += f"{i} " }
@@ -45,4 +45,8 @@ yazdır(t)
 ata l = [1, 2, 3, 4, 5]
 yazdır(l[3..1], l[..-1], l[-2..])
 yazdır(r == 9..2, r == (9..2).adım(-1), r == (9..2).adım(-2))
-(3..0).adım(1) içindeki her i için yap { }
+// sınırların uç değerleri: taşma olmadan
+t = ""
+(9223372036854775807..=-9223372036854775807 - 1).adım(9223372036854775807) içindeki her i için yap { t += f"{i} " }
+yazdır(t)
+(3..0).adım(0) içindeki her i için yap { }

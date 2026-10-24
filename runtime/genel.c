@@ -69,8 +69,6 @@ _Bool kolay_esit(void *a, void *b, const Tip *t) {
         return kolay_yazi_esit(*(Yazi **)a, *(Yazi **)b);
     case T_HIC:
         return 1;
-    case T_ARALIK:
-        return memcmp(a, b, sizeof(Aralik)) == 0;
     case T_LISTE: {
         Liste *x = *(Liste **)a, *y = *(Liste **)b;
         if (x == y) return 1;
@@ -199,18 +197,6 @@ void deger_yaz(Yazi **out, const void *p, const Tip *t, int ust, int ipucu) {
     case T_HIC:
         cyaz(out, "Hiç");
         break;
-    case T_ARALIK: {
-        const Aralik *a = p;
-        const char *op = (a->bayrak & 2) ? "..=" : "..";
-        char son[32] = "";
-        if (a->bayrak & 1) snprintf(son, sizeof son, "%lld", (long long)a->end);
-        // aralığın kendi yönündeki adım (başlangıç > bitiş ise -1) yazılmaz
-        int64_t dogal = ((a->bayrak & 1) && a->start > a->end) ? -1 : 1;
-        if (a->step == dogal) snprintf(buf, sizeof buf, "%lld%s%s", (long long)a->start, op, son);
-        else snprintf(buf, sizeof buf, "(%lld%s%s).adım(%lld)", (long long)a->start, op, son, (long long)a->step);
-        cyaz(out, buf);
-        break;
-    }
     case T_LISTE: {
         const Liste *l = *(Liste *const *)p;
         const Tip *e = t->e1;

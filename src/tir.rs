@@ -78,10 +78,13 @@ pub enum BM {
     Icerir,
     Bul,
     Sirala,
-    Ters,
+    TersCevir,
     Temizle,
     /// liste.adım(n): her n. eleman (yeni liste)
     LAdim,
+    /// yeni liste döndürenler: sıralı(), tersi()
+    Sirali,
+    Tersi,
     // Sözlük
     DUzunluk,
     DIcerir,
@@ -103,8 +106,6 @@ pub enum BM {
     FTama,
     // Her tip
     Yaziya,
-    // Aralık
-    Adim,
 }
 
 #[derive(Clone, Debug)]
@@ -138,7 +139,8 @@ pub enum TK {
     Dict(Vec<(TExpr, TExpr)>),
     /// Tipin varsayılan değeri (sabit boyutlu listeler, boş liste/sözlük)
     Default,
-    Range { start: Option<Box<TExpr>>, end: Option<Box<TExpr>>, inclusive: bool },
+    /// `a..b`, `a..=b` ve `(a..b).adım(n)`: Liste<Tam(64)> değeri. Döngüde liste oluşturulmadan sayılır.
+    Range { start: Box<TExpr>, end: Box<TExpr>, inclusive: bool, step: Option<Box<TExpr>> },
     Neg(Box<TExpr>),
     Not(Box<TExpr>),
     /// İki taraf da ifadenin kendi tipine çevrilmiştir.
@@ -163,7 +165,8 @@ pub enum TK {
     Variant(TypeId, u32, Vec<TExpr>),
     Field(Box<TExpr>, u32),
     Index(Box<TExpr>, Box<TExpr>),
-    Slice(Box<TExpr>, Box<TExpr>),
+    /// Liste ya da yazı dilimi: `l[a..b]` (sınırlar boş olabilir: `l[2..]`, `l[..-1]`)
+    Slice { base: Box<TExpr>, start: Option<Box<TExpr>>, end: Option<Box<TExpr>>, inclusive: bool },
     Match(Box<TMatch>),
 }
 
@@ -315,18 +318,19 @@ pub fn is_pure(e: &TExpr) -> bool {
     match &e.kind {
         TK::Int(..) | TK::Float(_) | TK::Str(_) | TK::Bool(_) | TK::Hic | TK::Var(_) | TK::Bu | TK::Default => true,
         TK::Neg(x) | TK::Not(x) | TK::Convert(x) | TK::Olarak(x) | TK::Field(x, _) => is_pure(x),
-        TK::Arith(_, a, b) | TK::Concat(a, b) | TK::Cmp(_, a, b) | TK::And(a, b) | TK::Or(a, b) | TK::Index(a, b) | TK::Slice(a, b) => {
+        TK::Arith(_, a, b) | TK::Concat(a, b) | TK::Cmp(_, a, b) | TK::And(a, b) | TK::Or(a, b) | TK::Index(a, b) => {
             is_pure(a) && is_pure(b)
         }
+        TK::Slice { base, start, end, .. } => is_pure(base) && start.as_deref().is_none_or(is_pure) && end.as_deref().is_none_or(is_pure),
         TK::FStr(ps) => ps.iter().all(|p| match p {
             TFPart::Lit(_) => true,
             TFPart::Expr(x) => is_pure(x),
         }),
         TK::List(v) | TK::New(_, v) | TK::Variant(_, _, v) => v.iter().all(is_pure),
         TK::Dict(v) => v.iter().all(|(a, b)| is_pure(a) && is_pure(b)),
-        TK::Range { start, end, .. } => start.as_deref().is_none_or(is_pure) && end.as_deref().is_none_or(is_pure),
+        TK::Range { start, end, step, .. } => is_pure(start) && is_pure(end) && step.as_deref().is_none_or(is_pure),
         TK::BMethod { recv: Recv::Value(x), m, args } => {
-            !matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::Ters | BM::Temizle | BM::DSil | BM::DTemizle)
+            !matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::TersCevir | BM::Temizle | BM::DSil | BM::DTemizle)
                 && is_pure(x)
                 && args.iter().all(is_pure)
         }

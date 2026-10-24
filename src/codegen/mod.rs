@@ -10,7 +10,8 @@
 //
 // Değer biçimleri: Tam(N) -> iN (Tam(N, -) -> iN+1), esnek Tam -> etiketli i64 (bkz. runtime/sayilar.c),
 // Ondalık -> half/float/double, Mantık -> i1, Yazı/Liste/Sözlük/tür/seçenek/arayüz -> ptr (referans
-// sayımlı yığın nesnesi), 'veya' -> %veya {etiket, kelime, kelime}, aralık -> %aralik.
+// sayımlı yığın nesnesi), 'veya' -> %veya {etiket, kelime, kelime}. Aralık (a..b) bir listedir; döngüde
+// liste oluşturulmadan sayılır (komut.rs for_range).
 //
 // Sahiplik kuralları (sahip.rs):
 // - Bir ifadenin ürettiği yeni değer "sahipli" geçicidir; kullanıldıktan sonra bırakılır ya da bir
@@ -49,7 +50,6 @@ const DECLS: &str = "\
 %Tip = type { i64, i64, i64, i64, i64, i64, i64, ptr, ptr, ptr, i64, ptr, ptr, ptr, ptr, i64 }
 %Varyant = type { ptr, i64, ptr, ptr, ptr, ptr, i64 }
 %veya = type { i64, i64, i64 }
-%aralik = type { i64, i64, i64, i64 }
 @kolay_yazi_tipi = external constant %Tip
 declare void @kolay_calistir(ptr)
 declare void @kolay_hata(ptr, ptr, ptr) noreturn
@@ -60,7 +60,6 @@ declare void @kolay_sigmiyor_f(double, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_sigmiyor_esnek(i64, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_cevrilemez_f(double, ptr, ptr) noreturn
 declare void @kolay_kere_negatif(i128, i32, ptr, ptr) noreturn
-declare void @kolay_adim_hatasi(i64, i64, i64, i64, ptr, ptr) noreturn
 declare void @kolay_tur_degil(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_tur_degil_nesne(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_indeks_hatasi(i64, i64, ptr, ptr) noreturn
@@ -111,6 +110,10 @@ declare zeroext i1 @kolay_liste_icerir(ptr, ptr)
 declare i64 @kolay_liste_bul(ptr, ptr)
 declare ptr @kolay_liste_dilim(ptr, ptr, i64, i64, i64)
 declare ptr @kolay_liste_adim(ptr, i64, ptr, ptr, ptr)
+declare ptr @kolay_aralik_liste(i64, i64, i1 zeroext, i64, ptr, ptr, ptr)
+declare ptr @kolay_liste_sirali(ptr)
+declare ptr @kolay_liste_tersi(ptr)
+declare ptr @kolay_yazi_dilim(ptr, i64, i64, i64)
 declare ptr @kolay_sozluk_yeni(ptr)
 declare ptr @kolay_sozluk_al(ptr, ptr, ptr, ptr)
 declare ptr @kolay_sozluk_yer(ptr, ptr)
@@ -874,7 +877,15 @@ fn collect_slots_expr(e: &TExpr, out: &mut HashMap<u32, Type>, global: bool, pro
                 go(b);
             }
         }
-        TK::Range { start, end, .. } => {
+        TK::Range { start, end, step, .. } => {
+            go(start);
+            go(end);
+            if let Some(x) = step {
+                go(x);
+            }
+        }
+        TK::Slice { base, start, end, .. } => {
+            go(base);
             if let Some(x) = start {
                 go(x);
             }
@@ -883,7 +894,7 @@ fn collect_slots_expr(e: &TExpr, out: &mut HashMap<u32, Type>, global: bool, pro
             }
         }
         TK::Neg(x) | TK::Not(x) | TK::Convert(x) | TK::Olarak(x) | TK::Field(x, _) => go(x),
-        TK::Arith(_, a, b) | TK::Concat(a, b) | TK::Cmp(_, a, b) | TK::And(a, b) | TK::Or(a, b) | TK::Index(a, b) | TK::Slice(a, b) => {
+        TK::Arith(_, a, b) | TK::Concat(a, b) | TK::Cmp(_, a, b) | TK::And(a, b) | TK::Or(a, b) | TK::Index(a, b) => {
             go(a);
             go(b);
         }

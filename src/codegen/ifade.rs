@@ -146,31 +146,19 @@ impl<'p> Gen<'p> {
                 let v = self.load_mem(&a, &e.ty);
                 self.own(v, &e.ty)
             }
-            TK::Range { start, end, inclusive } => {
-                let s = match start {
+            TK::Range { start, end, inclusive, step } => {
+                // değer olarak kullanılan aralık listesi (döngüde liste oluşturulmaz, bkz. komut.rs)
+                let s = self.expr(start)?;
+                let en = self.expr(end)?;
+                let k = match step {
                     Some(x) => self.expr(x)?,
-                    None => "0".into(),
+                    None => "1".into(),
                 };
-                let (en, has) = match end {
-                    Some(x) => (self.expr(x)?, 1),
-                    None => ("0".into(), 0),
-                };
-                let flags = has | if *inclusive { 2 } else { 0 };
-                // başlangıç bitişten büyükse geri sayar: adım -1
-                let step = if has == 1 {
-                    let (gt, st) = (self.tmp(), self.tmp());
-                    self.emit(&format!("{gt} = icmp sgt i64 {s}, {en}"));
-                    self.emit(&format!("{st} = select i1 {gt}, i64 -1, i64 1"));
-                    st
-                } else {
-                    "1".into()
-                };
-                let (a, b, c, d) = (self.tmp(), self.tmp(), self.tmp(), self.tmp());
-                self.emit(&format!("{a} = insertvalue %aralik undef, i64 {s}, 0"));
-                self.emit(&format!("{b} = insertvalue %aralik {a}, i64 {en}, 1"));
-                self.emit(&format!("{c} = insertvalue %aralik {b}, i64 {step}, 2"));
-                self.emit(&format!("{d} = insertvalue %aralik {c}, i64 {flags}, 3"));
-                d
+                let tip = self.tip(&e.ty);
+                let (kn, kd) = self.where_(loc);
+                let t = self.tmp();
+                self.emit(&format!("{t} = call ptr @kolay_aralik_liste(i64 {s}, i64 {en}, i1 zeroext {inclusive}, i64 {k}, ptr {tip}, ptr {kn}, ptr {kd})"));
+                self.own(t, &e.ty)
             }
             TK::Neg(x) => {
                 let v = self.expr(x)?;
@@ -456,16 +444,25 @@ impl<'p> Gen<'p> {
                     _ => unreachable!(),
                 }
             }
-            TK::Slice(x, r) => {
-                let l = self.expr(x)?;
-                let rv = self.expr(r)?;
-                let (s, en, fl) = (self.tmp(), self.tmp(), self.tmp());
-                self.emit(&format!("{s} = extractvalue %aralik {rv}, 0"));
-                self.emit(&format!("{en} = extractvalue %aralik {rv}, 1"));
-                self.emit(&format!("{fl} = extractvalue %aralik {rv}, 3"));
-                let tip = self.tip(&e.ty);
+            TK::Slice { base, start, end, inclusive } => {
+                let l = self.expr(base)?;
+                let s = match start {
+                    Some(x) => self.expr(x)?,
+                    None => "0".into(),
+                };
+                let en = match end {
+                    Some(x) => self.expr(x)?,
+                    None => "0".into(),
+                };
+                // bayrak: 1 başlangıç var, 2 bitiş var, 4 bitiş dahil
+                let fl = start.is_some() as i64 | (end.is_some() as i64) << 1 | (*inclusive as i64) << 2;
                 let t = self.tmp();
-                self.emit(&format!("{t} = call ptr @kolay_liste_dilim(ptr {l}, ptr {tip}, i64 {s}, i64 {en}, i64 {fl})"));
+                if e.ty == Type::Str {
+                    self.emit(&format!("{t} = call ptr @kolay_yazi_dilim(ptr {l}, i64 {s}, i64 {en}, i64 {fl})"));
+                } else {
+                    let tip = self.tip(&e.ty);
+                    self.emit(&format!("{t} = call ptr @kolay_liste_dilim(ptr {l}, ptr {tip}, i64 {s}, i64 {en}, i64 {fl})"));
+                }
                 self.drop_temp(&l);
                 self.own(t, &e.ty)
             }
@@ -1163,7 +1160,7 @@ impl<'p> Gen<'p> {
             | (Type::Hic, Type::Hic)
             | (Type::List(..), Type::List(..))
             | (Type::Dict(..), Type::Dict(..))
-            | (Type::Range, Type::Range) => Uyum::Her,
+            => Uyum::Her,
             _ => Uyum::Yok,
         }
     }
@@ -1177,7 +1174,6 @@ impl<'p> Gen<'p> {
             Type::Hic | Type::Never => "Hiç",
             Type::List(..) => "Liste",
             Type::Dict(..) => "Sözlük",
-            Type::Range => "Aralık",
             _ => "?",
         }
     }

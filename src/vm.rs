@@ -65,9 +65,12 @@ pub(crate) enum Ins<'p> {
     Eval(u32, &'p TExpr, u32, u32),
     Exec(&'p TS, u32, u32),
     IterList(u32, u32, Slot, u32),
-    RangeInit(u32, u32),
-    IterRange(u32, u32, Slot, u32),
-    RangeStep(u32, u32, u32),
+    /// Aralık döngüsü: (taban, başlangıç, bitiş, adım, dahil mi). Taban yazmaçları: ilk değer, adım,
+    /// tur sayısı (işaretsiz), sayaç. Liste oluşturulmaz.
+    RangeInit(u32, A, A, A, bool),
+    /// sayaç < tur sayısı ise değişkene `ilk + sayaç * adım` yazılır, değilse çıkış
+    IterRange(u32, Slot, u32),
+    RangeStep(u32),
     KereCheck(A),
     Field(u32, A, u32),
     FieldBu(u32, u32),
@@ -83,7 +86,8 @@ pub(crate) enum Ins<'p> {
     Concat(u32, A, A),
     FStr(u32, u32),
     IntToFloat(u32, A, u32),
-    MkRange(u32, A, A, bool, bool),
+    /// Aralık listesi (değer olarak): hedef, başlangıç, bitiş, adım, dahil mi
+    MkRange(u32, A, A, A, bool),
     MkList(u32, u32, u32),
     LoadBu(u32),
     RunModule(usize),
@@ -169,7 +173,7 @@ impl<'p> Comp<'p> {
     fn patch(&mut self, at: usize, target: u32) {
         match &mut self.ch.code[at] {
             Ins::Jmp(t) | Ins::JmpF(_, t) | Ins::JmpT(_, t) | Ins::JmpIfNot64(_, _, _, t) | Ins::JmpIf64(_, _, _, t) => *t = target,
-            Ins::IterList(_, _, _, t) | Ins::IterRange(_, _, _, t) | Ins::RangeStep(_, _, t) => *t = target,
+            Ins::IterList(_, _, _, t) | Ins::IterRange(_, _, t) => *t = target,
             Ins::Exec(_, b, _) | Ins::Eval(_, _, b, _) => *b = target,
             _ => unreachable!(),
         }
@@ -391,18 +395,10 @@ impl<'p> Comp<'p> {
                 let base = self.args(args);
                 self.emit(Ins::Variant(d, *tid, *idx, base, args.len() as u32));
             }
-            TK::Range { start, end, inclusive } => {
-                // her sınır bir kez hesaplanır (başlangıç dosya değişkeniyse, bitiş onu değiştirebilir)
-                let (s, en, has) = match (start, end) {
-                    (Some(x), Some(y)) => {
-                        let v = self.exprs(&[x, y]);
-                        (v[0], v[1], true)
-                    }
-                    (Some(x), None) => (self.expr(x), self.konst(Value::int(0)), false),
-                    (None, Some(y)) => (self.konst(Value::int(0)), self.expr(y), true),
-                    (None, None) => (self.konst(Value::int(0)), self.konst(Value::int(0)), false),
-                };
-                self.emit(Ins::MkRange(d, s, en, has, *inclusive));
+            TK::Range { start, end, inclusive, step } => {
+                let (s, en, k) = self.range_args(start, end, step.as_deref());
+                self.loc = e.loc;
+                self.emit(Ins::MkRange(d, s, en, k, *inclusive));
             }
             TK::List(items) => {
                 let base = self.args(items);
@@ -625,6 +621,23 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::Jmp(top));
                 self.end_loop(j);
             }
+            TS::ForEach { iter, binds, body } if matches!(iter.kind, TK::Range { .. }) => {
+                let TK::Range { start, end, inclusive, step } = &iter.kind else { unreachable!() };
+                let (s, en, k) = self.range_args(start, end, step.as_deref());
+                let base = self.temps(4);
+                self.loc = iter.loc;
+                self.emit(Ins::RangeInit(base, s, en, k, *inclusive));
+                let top = self.pc();
+                let j = self.emit(Ins::IterRange(base, binds[0], 0));
+                self.loops.push((YOK, Vec::new()));
+                let body_start = self.ch.code.len();
+                self.block(body);
+                let step_pc = self.pc();
+                self.fix_continue(body_start, step_pc);
+                self.emit(Ins::RangeStep(base));
+                self.emit(Ins::Jmp(top));
+                self.end_loop(j);
+            }
             TS::ForEach { iter, binds, body } if matches!(iter.ty, Type::List(..)) => {
                 let l = self.temp();
                 self.expr_to(iter, l);
@@ -637,24 +650,6 @@ impl<'p> Comp<'p> {
                 self.loops.push((top, Vec::new()));
                 self.block(body);
                 self.emit(Ins::Jmp(top));
-                self.end_loop(j);
-            }
-            TS::ForEach { iter, binds, body } if iter.ty == Type::Range => {
-                let r = self.temp();
-                self.expr_to(iter, r);
-                let cur = self.temp();
-                self.emit(Ins::RangeInit(r, cur));
-                let top = self.pc();
-                let j = self.emit(Ins::IterRange(r, cur, binds[0], 0));
-                self.loops.push((YOK, Vec::new()));
-                let body_start = self.ch.code.len();
-                self.block(body);
-                let step_pc = self.pc();
-                self.fix_continue(body_start, step_pc);
-                let st = self.emit(Ins::RangeStep(r, cur, 0));
-                self.emit(Ins::Jmp(top));
-                let exit = self.pc();
-                self.patch(st, exit);
                 self.end_loop(j);
             }
             TS::Break => {
@@ -680,6 +675,21 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::RunModule(*m));
             }
             _ => self.exec_fallback(s),
+        }
+    }
+
+    /// Aralığın başlangıç, bitiş ve adımı (soldan sağa, her biri bir kez hesaplanır)
+    fn range_args(&mut self, start: &'p TExpr, end: &'p TExpr, step: Option<&'p TExpr>) -> (A, A, A) {
+        match step {
+            Some(k) => {
+                let v = self.exprs(&[start, end, k]);
+                (v[0], v[1], v[2])
+            }
+            None => {
+                let v = self.exprs(&[start, end]);
+                let one = self.konst(Value::int(1));
+                (v[0], v[1], one)
+            }
         }
     }
 
@@ -740,6 +750,15 @@ impl<'p> Interp<'p> {
             A::K(k) => ch.consts[k as usize].clone(),
             A::G(g) => self.globals[g as usize].clone(),
         }
+    }
+
+    /// Çağrı argümanları: çerçeve yuvaları da bu vektörde tutulacağı için havuzdan alınır.
+    fn call_args(&mut self, f: &mut Frame, base: u32, n: u32) -> Vec<Value> {
+        let mut v = self.pool.pop().unwrap_or_default();
+        for r in base..base + n {
+            v.push(std::mem::replace(&mut f.slots[r as usize], Value::Hic));
+        }
+        v
     }
 
     fn take_regs(f: &mut Frame, base: u32, n: u32) -> Vec<Value> {
@@ -950,24 +969,24 @@ impl<'p> Interp<'p> {
                     f.slots[*d as usize] = r;
                 }
                 Ins::CallM { d, recv, view, mid, name, args, n } => {
-                    let vals = Self::take_regs(f, *args, *n);
+                    let vals = self.call_args(f, *args, *n);
                     let r = self.call_on_place(recv, None, (*view, *mid, name), vals, f, ch.locs[pc - 1])?;
                     f.slots[*d as usize] = r;
                 }
                 Ins::CallMV { d, recv, view, mid, name, args, n } => {
-                    let vals = Self::take_regs(f, *args, *n);
+                    let vals = self.call_args(f, *args, *n);
                     let bu = std::mem::replace(&mut f.slots[*recv as usize], Value::Hic);
                     let fid = self.dispatch(&bu, *view, *mid, name, ch.locs[pc - 1])?;
                     let r = self.call(fid, vals, BuRef::Val(bu), ch.locs[pc - 1])?.0;
                     f.slots[*d as usize] = r;
                 }
                 Ins::CallD { d, func, recv, args, n } => {
-                    let vals = Self::take_regs(f, *args, *n);
+                    let vals = self.call_args(f, *args, *n);
                     let r = self.call_on_place(recv, Some(*func), (0, 0, ""), vals, f, ch.locs[pc - 1])?;
                     f.slots[*d as usize] = r;
                 }
                 Ins::CallDV { d, func, recv, args, n } => {
-                    let vals = Self::take_regs(f, *args, *n);
+                    let vals = self.call_args(f, *args, *n);
                     let bu = std::mem::replace(&mut f.slots[*recv as usize], Value::Hic);
                     let r = self.call(*func, vals, BuRef::Val(bu), ch.locs[pc - 1])?.0;
                     f.slots[*d as usize] = r;
@@ -1023,26 +1042,37 @@ impl<'p> Interp<'p> {
                         }
                     }
                 }
-                Ins::RangeInit(r, cur) => {
-                    let Value::Range(rv) = &f.slots[*r as usize] else { unreachable!() };
-                    let s = rv.start;
-                    f.slots[*cur as usize] = Value::int(s);
+                Ins::RangeInit(base, s, e, k, incl) => {
+                    let loc = ch.locs[pc - 1];
+                    let (s, e, k) = (self.gi(ch, f, *s), self.gi(ch, f, *e), self.gi(ch, f, *k));
+                    let (Some(s), Some(e), Some(k)) = (s, e, k) else { unreachable!("Tam(64) bekleniyordu") };
+                    let Some(p) = range_plan(s, e, *incl, k) else { return rt(loc, "Adım sıfır olamaz.") };
+                    let b = *base as usize;
+                    f.slots[b] = Value::int(p.first);
+                    f.slots[b + 1] = Value::int(p.step);
+                    f.slots[b + 2] = Value::int(p.count as i64);
+                    f.slots[b + 3] = Value::int(0);
                 }
-                Ins::IterRange(r, cur, bind, exit) => {
-                    let Value::Range(rv) = &f.slots[*r as usize] else { unreachable!() };
-                    let Value::Int(Int::S(i)) = f.slots[*cur as usize] else { unreachable!() };
-                    if rv.done(i) {
+                Ins::IterRange(base, bind, exit) => {
+                    let b = *base as usize;
+                    let (Value::Int(Int::S(first)), Value::Int(Int::S(step)), Value::Int(Int::S(count)), Value::Int(Int::S(k))) =
+                        (&f.slots[b], &f.slots[b + 1], &f.slots[b + 2], &f.slots[b + 3])
+                    else {
+                        unreachable!()
+                    };
+                    if (*k as u64) >= (*count as u64) {
                         pc = *exit as usize;
                     } else {
-                        self.set_slot(*bind, Value::int(i), f);
+                        let v = first.wrapping_add(k.wrapping_mul(*step));
+                        match bind {
+                            Slot::Local(i) => set_int(&mut f.slots[*i as usize], v),
+                            Slot::Global(g) => self.globals[*g as usize] = Value::int(v),
+                        }
                     }
                 }
-                Ins::RangeStep(r, cur, exit) => {
-                    let Value::Range(rv) = &f.slots[*r as usize] else { unreachable!() };
-                    let Value::Int(Int::S(i)) = f.slots[*cur as usize] else { unreachable!() };
-                    match i.checked_add(rv.step) {
-                        Some(x) => f.slots[*cur as usize] = Value::int(x),
-                        None => pc = *exit as usize,
+                Ins::RangeStep(base) => {
+                    if let Value::Int(Int::S(k)) = &mut f.slots[*base as usize + 3] {
+                        *k = k.wrapping_add(1);
                     }
                 }
                 Ins::KereCheck(a) => {
@@ -1185,11 +1215,12 @@ impl<'p> Interp<'p> {
                     let Value::Int(i) = self.gr(ch, f, *a) else { unreachable!() };
                     f.slots[*d as usize] = Value::Float(round_float(i.to_f64(), *bits));
                 }
-                Ins::MkRange(d, s, e, has, incl) => {
+                Ins::MkRange(d, s, e, k, incl) => {
                     let loc = ch.locs[pc - 1];
-                    let s = as_i64(self.gr(ch, f, *s), loc)?;
-                    let e = if *has { Some(as_i64(self.gr(ch, f, *e), loc)?) } else { None };
-                    f.slots[*d as usize] = Value::Range(Rc::new(RangeV::new(s, e, *incl)));
+                    let (s, e, k) = (self.gi(ch, f, *s), self.gi(ch, f, *e), self.gi(ch, f, *k));
+                    let (Some(s), Some(e), Some(k)) = (s, e, k) else { unreachable!("Tam(64) bekleniyordu") };
+                    let Some(p) = range_plan(s, e, *incl, k) else { return rt(loc, "Adım sıfır olamaz.") };
+                    f.slots[*d as usize] = crate::interp::range_list(p, loc)?;
                 }
                 Ins::MkList(d, base, n) => {
                     let items = Self::take_regs(f, *base, *n);
@@ -1202,13 +1233,6 @@ impl<'p> Interp<'p> {
                 Ins::RunModule(m) => self.run_module(*m)?,
             }
         }
-    }
-}
-
-fn as_i64(v: &Value, loc: Loc) -> R<i64> {
-    match v {
-        Value::Int(i) => i.as_i64().map_or_else(|| rt(loc, "Sayı çok büyük."), Ok),
-        _ => unreachable!(),
     }
 }
 

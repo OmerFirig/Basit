@@ -23,8 +23,10 @@ const METHODS = {
     ["uzunluk", "", "Eleman sayısı"],
     ["içerir", "değer", "Eleman listede var mı?"],
     ["bul", "değer", "Elemanın konumu, yoksa Hiç"],
-    ["sırala", "", "Küçükten büyüğe sıralar"],
-    ["ters", "", "Sırayı ters çevirir"],
+    ["sırala", "", "Küçükten büyüğe sıralar (listeyi değiştirir)"],
+    ["sıralı", "", "Sıralanmış yeni liste"],
+    ["ters_çevir", "", "Sırayı ters çevirir (listeyi değiştirir)"],
+    ["tersi", "", "Ters sıralı yeni liste"],
     ["temizle", "", "Tüm elemanları siler"],
     ["adım", "n", "Her n. eleman (yeni liste); eksi n sondan başlar"],
     ["yazıya", "", "Yazıya çevirir"],
@@ -55,7 +57,6 @@ const METHODS = {
     ["yazıya", "", "Yazıya çevirir"],
   ],
   tam: [["yazıya", "", "Yazıya çevirir"]],
-  aralık: [["adım", "n", "Adım büyüklüğü"]],
 };
 
 // us klavye modu: Türkçe harfler İngilizce karşılıklarına
@@ -209,12 +210,11 @@ function members(info, name, seen = new Set()) {
 function kindOf(hint, info) {
   if (!hint) return null;
   const h = hint.trim();
-  if (/^Liste\s*</.test(h) || /^\[/.test(h)) return "liste";
+  if (/^Liste\s*</.test(h) || /^\[/.test(h) || /^-?\d[\d_]*\s*\.\.=?/.test(h)) return "liste";
   if (/^Sözlük\s*</.test(h) || /^\{/.test(h)) return "sözlük";
   if (/^(Yazı|f?")/.test(h) || /^oku\s*\(/.test(h)) return "yazı";
   if (/^Ondalık/.test(h) || /^-?\d[\d_]*\.\d/.test(h)) return "ondalık";
   if (/^Tam/.test(h) || /^-?(0x)?\d/.test(h)) return "tam";
-  if (/^-?\d[\d_]*\.\.=?/.test(h)) return "aralık";
   const m = h.match(new RegExp(`^(${ID})`, "u"));
   if (m && (info.types.has(m[1]) || info.enums.has(m[1]))) return m[1];
   return null;

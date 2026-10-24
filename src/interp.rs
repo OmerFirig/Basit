@@ -70,6 +70,8 @@ pub struct Interp<'p> {
     pub(crate) out: std::io::BufWriter<std::io::Stdout>,
     pub(crate) depth: u32,
     pub(crate) pool: Vec<Vec<Value>>,
+    /// yer adımları için tekrar kullanılan listeler (resolve_place)
+    pub(crate) step_pool: Vec<Vec<Step>>,
     /// Fonksiyonların ve dosyaların bytecode'u (vm.rs)
     pub(crate) chunks: Vec<crate::vm::Chunk<'p>>,
     pub(crate) mchunks: Vec<crate::vm::Chunk<'p>>,
@@ -180,6 +182,7 @@ impl<'p> Interp<'p> {
             out: std::io::BufWriter::new(std::io::stdout()),
             depth: 0,
             pool: Vec::new(),
+            step_pool: Vec::new(),
             chunks: prog.funcs.iter().map(|f| crate::vm::compile_func(prog, f)).collect(),
             mchunks: prog.modules.iter().map(|m| crate::vm::compile_module(prog, m)).collect(),
             dis: Vec::new(),
@@ -311,14 +314,15 @@ impl<'p> Interp<'p> {
         }
         let rp = self.resolve_place(place, f)?;
         let cur = self.take_resolved(&rp, f, loc)?;
-        match self.compound_value(op, cur, rhs, ty, loc) {
-            Ok(new) => self.write_resolved(&rp, new, f, loc)?,
+        let r = match self.compound_value(op, cur, rhs, ty, loc) {
+            Ok(new) => self.write_resolved(&rp, new, f, loc),
             Err((e, keep)) => {
                 self.write_resolved(&rp, keep, f, loc)?;
-                return Err(e);
+                Err(e)
             }
-        }
-        Ok(())
+        };
+        self.recycle(rp.1);
+        r
     }
 
     #[inline(never)]
@@ -348,6 +352,17 @@ impl<'p> Interp<'p> {
                 }
             }
             TS::ForEach { iter, binds, body } => {
+                if let TK::Range { start, end, inclusive, step } = &iter.kind {
+                    // aralık listesi oluşturulmadan sayılır
+                    let plan = self.range_plan(start, end, *inclusive, step.as_deref(), iter.loc, f)?;
+                    for i in 0..plan.count {
+                        self.set_slot(binds[0], Value::int(plan.get(i)), f);
+                        if let Some(c) = self.loop_ctl(body, f)? {
+                            return Ok(c);
+                        }
+                    }
+                    return Ok(Ctl::Normal);
+                }
                 let v = self.eval(iter, f)?;
                 match v {
                     Value::List(l) => {
@@ -356,22 +371,6 @@ impl<'p> Interp<'p> {
                             if let Some(c) = self.loop_ctl(body, f)? {
                                 return Ok(c);
                             }
-                        }
-                    }
-                    Value::Range(r) => {
-                        let mut i = r.start;
-                        loop {
-                            if r.done(i) {
-                                break;
-                            }
-                            self.set_slot(binds[0], Value::int(i), f);
-                            if let Some(c) = self.loop_ctl(body, f)? {
-                                return Ok(c);
-                            }
-                            i = match i.checked_add(r.step) {
-                                Some(x) => x,
-                                None => break,
-                            };
                         }
                     }
                     Value::Dict(d) => {
@@ -441,31 +440,49 @@ impl<'p> Interp<'p> {
 
     // ------------------------------------------------------------ yerler (atama hedefleri)
 
+    /// Yerin kökü ve adımları. Adım listesi havuzdan alınır (her metot çağrısında bellek ayrılmasın);
+    /// işi biten liste `recycle` ile geri verilir.
     pub(crate) fn resolve_place(&mut self, p: &TPlace, f: &mut Frame) -> R<(Root, Vec<Step>)> {
+        let mut steps = self.step_pool.pop().unwrap_or_default();
+        let r = self.resolve_into(p, f, &mut steps)?;
+        Ok((r, steps))
+    }
+
+    pub(crate) fn recycle(&mut self, mut steps: Vec<Step>) {
+        if self.step_pool.len() < 64 {
+            steps.clear();
+            self.step_pool.push(steps);
+        }
+    }
+
+    fn resolve_into(&mut self, p: &TPlace, f: &mut Frame, s: &mut Vec<Step>) -> R<Root> {
         match p {
-            TPlace::Var(Slot::Local(i)) => Ok((Root::Local(*i), vec![])),
-            TPlace::Var(Slot::Global(i)) => Ok((Root::Global(*i), vec![])),
+            TPlace::Var(Slot::Local(i)) => Ok(Root::Local(*i)),
+            TPlace::Var(Slot::Global(i)) => Ok(Root::Global(*i)),
             TPlace::Bu => Ok(match &f.bu {
-                BuRef::Val(_) => (Root::Bu, vec![]),
-                BuRef::Alias(g, steps) => (Root::Global(*g), steps.clone()),
+                BuRef::Val(_) => Root::Bu,
+                BuRef::Alias(g, steps) => {
+                    s.extend_from_slice(steps);
+                    Root::Global(*g)
+                }
             }),
             TPlace::Field(b, n) => {
-                let (r, mut s) = self.resolve_place(b, f)?;
+                let r = self.resolve_into(b, f, s)?;
                 s.push(Step::Field(*n));
-                Ok((r, s))
+                Ok(r)
             }
             TPlace::ListIndex(b, i) => {
-                let (r, mut s) = self.resolve_place(b, f)?;
+                let r = self.resolve_into(b, f, s)?;
                 let Value::Int(iv) = self.eval(i, f)? else { unreachable!() };
                 let Some(ix) = iv.as_i64() else { return rt(i.loc, "İndeks çok büyük.") };
                 s.push(Step::Idx(ix));
-                Ok((r, s))
+                Ok(r)
             }
             TPlace::DictKey(b, k) => {
-                let (r, mut s) = self.resolve_place(b, f)?;
+                let r = self.resolve_into(b, f, s)?;
                 let kv = self.eval(k, f)?;
                 s.push(Step::Key(key_of(&kv, k.loc)?, kv));
-                Ok((r, s))
+                Ok(r)
             }
         }
     }
@@ -508,7 +525,9 @@ impl<'p> Interp<'p> {
 
     pub(crate) fn assign_place(&mut self, p: &TPlace, v: Value, f: &mut Frame, loc: Loc) -> R<()> {
         let rp = self.resolve_place(p, f)?;
-        self.write_resolved(&rp, v, f, loc)
+        let r = self.write_resolved(&rp, v, f, loc);
+        self.recycle(rp.1);
+        r
     }
 
     pub(crate) fn take_resolved(&mut self, rp: &(Root, Vec<Step>), f: &mut Frame, loc: Loc) -> R<Value> {
@@ -654,16 +673,9 @@ impl<'p> Interp<'p> {
                 Value::Dict(Rc::new(d))
             }
             TK::Default => default_value(&e.ty),
-            TK::Range { start, end, inclusive } => {
-                let s = match start {
-                    Some(x) => self.eval_i64(x, f)?,
-                    None => 0,
-                };
-                let en = match end {
-                    Some(x) => Some(self.eval_i64(x, f)?),
-                    None => None,
-                };
-                Value::Range(Rc::new(RangeV::new(s, en, *inclusive)))
+            TK::Range { start, end, inclusive, step } => {
+                let plan = self.range_plan(start, end, *inclusive, step.as_deref(), e.loc, f)?;
+                range_list(plan, e.loc)?
             }
             TK::Neg(x) => {
                 let v = self.eval(x, f)?;
@@ -747,7 +759,9 @@ impl<'p> Interp<'p> {
                         let rp = self.resolve_place(p, f)?;
                         let root = Self::root_mut(&mut self.globals, f, rp.0, e.loc)?;
                         let target = walk_mut(root, &rp.1, false, e.loc, prog)?;
-                        bm_mut(*m, target, vals, e.loc, prog)?
+                        let r = bm_mut(*m, target, vals, e.loc, prog)?;
+                        self.recycle(rp.1);
+                        r
                     }
                     Recv::Value(r) => {
                         let mut v = self.eval(r, f)?;
@@ -783,16 +797,28 @@ impl<'p> Interp<'p> {
                     _ => unreachable!(),
                 }
             }
-            TK::Slice(x, r) => {
-                let v = self.eval(x, f)?;
-                let Value::Range(r) = self.eval(r, f)? else { unreachable!() };
-                let Value::List(l) = v else { unreachable!() };
-                let items = match r.slice_bounds(l.items.len()) {
-                    None => vec![],
-                    Some((a, b, false)) => l.items[a..b].to_vec(),
-                    Some((hi, lo, true)) => l.items[lo..=hi].iter().rev().cloned().collect(),
+            TK::Slice { base, start, end, inclusive } => {
+                let v = self.eval(base, f)?;
+                let s = match start {
+                    Some(x) => Some(self.eval_i64(x, f)?),
+                    None => None,
                 };
-                Value::List(Rc::new(ListV { items }))
+                let en = match end {
+                    Some(x) => Some(self.eval_i64(x, f)?),
+                    None => None,
+                };
+                match v {
+                    Value::List(l) => {
+                        let b = slice_bounds(l.items.len(), s, en, *inclusive);
+                        Value::List(Rc::new(ListV { items: apply_slice(&l.items, b) }))
+                    }
+                    Value::Str(t) => {
+                        let cs: Vec<char> = t.chars().collect();
+                        let b = slice_bounds(cs.len(), s, en, *inclusive);
+                        Value::string(apply_slice(&cs, b).into_iter().collect())
+                    }
+                    _ => unreachable!(),
+                }
             }
             TK::Match(m) => match self.choose_arm(m, f)? {
                 Some(i) => match &m.arms[i].body {
@@ -833,7 +859,11 @@ impl<'p> Interp<'p> {
                 }
             };
             let (_, steps) = rp;
-            return Ok(self.call(fid, vals, BuRef::Alias(g, steps), loc)?.0);
+            let (ret, bu) = self.call(fid, vals, BuRef::Alias(g, steps), loc)?;
+            if let BuRef::Alias(_, steps) = bu {
+                self.recycle(steps);
+            }
+            return Ok(ret);
         }
         let bu = self.take_resolved(&rp, f, loc)?;
         let fid = match direct {
@@ -849,10 +879,25 @@ impl<'p> Interp<'p> {
         match self.call(fid, vals, BuRef::Val(bu), loc) {
             Ok((ret, BuRef::Val(bu))) => {
                 self.write_resolved(&rp, bu, f, loc)?;
+                self.recycle(rp.1);
                 Ok(ret)
             }
             Ok((ret, BuRef::Alias(..))) => Ok(ret),
             Err(e) => Err(e),
+        }
+    }
+
+    /// Aralığın sınırlarını (başlangıç, bitiş, adım sırasıyla) hesaplar.
+    pub(crate) fn range_plan(&mut self, start: &TExpr, end: &TExpr, inclusive: bool, step: Option<&TExpr>, loc: Loc, f: &mut Frame) -> R<RangePlan> {
+        let s = self.eval_i64(start, f)?;
+        let e = self.eval_i64(end, f)?;
+        let n = match step {
+            Some(x) => self.eval_i64(x, f)?,
+            None => 1,
+        };
+        match range_plan(s, e, inclusive, n) {
+            Some(p) => Ok(p),
+            None => rt(loc, "Adım sıfır olamaz."),
         }
     }
 
@@ -1198,7 +1243,6 @@ pub fn value_matches(v: &Value, ty: &Type, prog: &Program) -> bool {
         (Value::Hic, Type::Hic) => true,
         (Value::List(_), Type::List(..)) => true,
         (Value::Dict(_), Type::Dict(..)) => true,
-        (Value::Range(_), Type::Range) => true,
         (Value::Obj(o), Type::Named(t)) => prog.is_subtype(o.ty, *t),
         (Value::Var(x), Type::Named(t)) => prog.is_subtype(x.ty, *t),
         _ => false,
@@ -1227,7 +1271,7 @@ pub fn default_value(t: &Type) -> Value {
 }
 
 pub(crate) fn is_mutating(m: BM) -> bool {
-    matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::Ters | BM::Temizle | BM::DSil | BM::DTemizle)
+    matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::TersCevir | BM::Temizle | BM::DSil | BM::DTemizle)
 }
 
 pub(crate) fn arg_i64(v: &Value, loc: Loc) -> R<i64> {
@@ -1277,7 +1321,7 @@ pub(crate) fn bm_mut(m: BM, target: &mut Value, args: Vec<Value>, loc: Loc, prog
                     };
                 }
                 BM::Sirala => sort_values(&mut l.items),
-                BM::Ters => l.items.reverse(),
+                BM::TersCevir => l.items.reverse(),
                 BM::Temizle => l.items.clear(),
                 _ => unreachable!(),
             }
@@ -1364,31 +1408,38 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
             }
             Value::int(x.trunc() as i64)
         }
-        (BM::Adim, Value::Range(r)) => {
-            let n = arg_i64(&args[0], loc)?;
-            if let Some(msg) = adim_hatasi(r, n) {
-                return rt(loc, msg);
-            }
-            Value::Range(Rc::new(RangeV { step: n, ..**r }))
+        (BM::Sirali, Value::List(l)) => {
+            let mut items = l.items.clone();
+            sort_values(&mut items);
+            Value::List(Rc::new(ListV { items }))
         }
+        (BM::Tersi, Value::List(l)) => Value::List(Rc::new(ListV { items: l.items.iter().rev().cloned().collect() })),
         _ => unreachable!("yerleşik metot {m:?}"),
     })
 }
 
-/// `(a..b).adım(n)`: adım sıfır olamaz ve aralığın yönüyle aynı işarette olmalı.
-/// Mesaj, derlenmiş programdaki (runtime/cekirdek.c, kolay_adim_hatasi) ile aynı.
-pub(crate) fn adim_hatasi(r: &RangeV, n: i64) -> Option<String> {
-    if n == 0 {
-        return Some("Adım sıfır olamaz.".into());
+/// Aralık listesi değer olarak kullanılınca oluşturulur (döngüde oluşturulmaz).
+/// Mesajlar derlenmiş programdakiyle (runtime/koleksiyon.c kolay_aralik_liste) aynı.
+pub(crate) fn range_list(plan: RangePlan, loc: Loc) -> R<Value> {
+    if plan.count > MAX_ARALIK {
+        return rt(loc, aralik_buyuk_mesaj(plan.count));
     }
-    let e = r.end?;
-    if r.start < e && n < 0 {
-        Some(format!("Aralık artıyor ({}); adım pozitif olmalı, ama {n} verildi.", r.text()))
-    } else if r.start > e && n > 0 {
-        Some(format!("Aralık azalıyor ({}); adım negatif olmalı, ama {n} verildi.", r.text()))
-    } else {
-        None
+    let mut items = Vec::new();
+    if items.try_reserve_exact(plan.count as usize).is_err() {
+        return rt(loc, "Bellek yetmedi.");
     }
+    items.extend((0..plan.count).map(|i| Value::int(plan.get(i))));
+    Ok(Value::List(Rc::new(ListV { items })))
+}
+
+/// Değer olarak oluşturulabilecek en büyük aralık listesi (2^30 eleman, 8 GB)
+pub(crate) const MAX_ARALIK: u64 = 1 << 30;
+
+pub(crate) fn aralik_buyuk_mesaj(n: u64) -> String {
+    format!(
+        "Aralık çok büyük ({} eleman), liste olarak oluşturulamaz. Döngüde doğrudan kullanın: a..b içindeki her i için yap {{ }}",
+        group_digits(&n.to_string())
+    )
 }
 
 /// Yazıyı ondalık sayıya çevirir. Virgül de ondalık ayırıcı kabul edilir ("3,5").

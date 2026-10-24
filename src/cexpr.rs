@@ -336,24 +336,16 @@ impl Checker {
             }
             ExprKind::Binary(op, l, r) => self.binary(*op, l, r, span, expected)?,
             ExprKind::Range { start, end, inclusive } => {
-                let bound = |x: &Option<Box<Expr>>, me: &mut Self| -> CResult<Option<Box<TExpr>>> {
-                    match x {
-                        None => Ok(None),
-                        Some(x) => {
-                            let t = me.expr(x, Some(&TAM64))?;
-                            if !t.ty.is_int() {
-                                return err(x.span, format!("Aralık sınırları tam sayı olmalı, ama {} verildi.", me.type_name(&t.ty)));
-                            }
-                            if !me.assignable(&t.ty, &TAM64) {
-                                return err(x.span, "Aralık sınırları Tam(64)'e sığmalı.");
-                            }
-                            Ok(Some(Box::new(me.coerce(t, &TAM64, x.span)?)))
-                        }
-                    }
+                let (Some(st), Some(en)) = (start, end) else {
+                    let op = if *inclusive { "..=" } else { ".." };
+                    return err(
+                        span,
+                        format!("Aralık listesinin başlangıcı ve bitişi yazılmalı: 0{op}10. Sonu açık yazım (2.., ..5) sadece dilimde kullanılır: liste[2..]"),
+                    );
                 };
-                let s = bound(start, self)?;
-                let en = bound(end, self)?;
-                self.mk(TK::Range { start: s, end: en, inclusive: *inclusive }, Type::Range, span)
+                let s = self.range_bound(st)?;
+                let e = self.range_bound(en)?;
+                self.mk(TK::Range { start: Box::new(s), end: Box::new(e), inclusive: *inclusive, step: None }, Type::list(TAM64), span)
             }
             ExprKind::Call { callee, args } => self.call_expr(callee, args, span)?,
             ExprKind::Field(base, name, nspan) => self.field_expr(base, name, *nspan, span)?,
@@ -364,6 +356,18 @@ impl Checker {
                 self.mk(TK::Match(Box::new(tm)), ty, span)
             }
         })
+    }
+
+    /// Aralık ya da dilim sınırı: Tam(64)'e sığan tam sayı
+    fn range_bound(&mut self, x: &Expr) -> CResult<TExpr> {
+        let t = self.expr(x, Some(&TAM64))?;
+        if !t.ty.is_int() {
+            return err(x.span, format!("Aralık sınırları tam sayı olmalı, ama {} verildi.", self.type_name(&t.ty)));
+        }
+        if !self.assignable(&t.ty, &TAM64) {
+            return err(x.span, "Aralık sınırları Tam(64)'e sığmalı.");
+        }
+        self.coerce(t, &TAM64, x.span)
     }
 
     pub(crate) fn bool_cond(&self, t: TExpr, span: Span, what: &str) -> CResult<TExpr> {
@@ -494,6 +498,17 @@ impl Checker {
         }
         if let Some(t) = ts.iter().find(|cand| ts.iter().all(|x| self.assignable(x, cand))) {
             return Ok(t.clone());
+        }
+        // farklı türler: ortak ebeveyn ya da arayüz ([Kedi(..), Köpek(..)] -> Liste<Hayvan>)
+        if let Type::Named(f) = first {
+            let mut cands: Vec<TypeId> = Vec::new();
+            if let TypeDefKind::Tur { ancestors, .. } = &self.types[f].kind {
+                cands.extend(ancestors);
+            }
+            cands.extend(&self.types[f].interfaces);
+            if let Some(c) = cands.into_iter().find(|&c| ts.iter().all(|x| matches!(x, Type::Named(t) if self.is_subtype(*t, c)))) {
+                return Ok(Type::Named(c));
+            }
         }
         let mut names: Vec<String> = Vec::new();
         for t in ts {
@@ -985,6 +1000,17 @@ impl Checker {
     }
 
     fn method_call(&mut self, base: &Expr, name: &str, nspan: Span, args: &[Arg], span: Span) -> CResult<TExpr> {
+        // (a..b).adım(n): sonuç `(a..b)` listesinin adım(n)'i ile aynı; döngüde liste oluşturulmadan sayılsın
+        // diye aralığın kendisine yazılır.
+        if let (ExprKind::Range { start: Some(_), end: Some(_), .. }, "adım", [a]) = (&base.kind, name, args) {
+            if a.name.as_ref().is_none_or(|(n, _)| n == "adım") {
+                let r = self.expr(base, None)?;
+                let n = self.expr(&a.value, Some(&TAM64))?;
+                let n = self.coerce(n, &TAM64, a.value.span)?;
+                let TK::Range { start, end, inclusive, step: None } = r.kind else { unreachable!() };
+                return Ok(self.mk(TK::Range { start, end, inclusive, step: Some(Box::new(n)) }, r.ty, span));
+            }
+        }
         // Alıcı ifade sadece bir kez denetlenir (zincirleme çağrılarda süre üstel büyümesin).
         let mut pi = self.place_of(base)?;
         let mut value: Option<TExpr> = None;
@@ -1037,7 +1063,26 @@ impl Checker {
                 return Ok(self.mk(TK::Method { recv, view: tid, name: name.into(), mid, args: vals }, ret, span));
             }
         }
+        if recv_ty == Type::Str && name == "tersi" {
+            if !args.is_empty() {
+                return err(span, "'tersi' değer almaz: yazı.tersi()");
+            }
+            // yazı.tersi() = yazı[-1..=0]
+            let b = match pi.take() {
+                Some(p) => p.expr,
+                None => value.take().expect("alıcı"),
+            };
+            let k = |me: &Self, v: i64| Box::new(me.mk(TK::Int(v.into(), Some(v)), TAM64, span));
+            let (s, e) = (k(self, -1), k(self, 0));
+            return Ok(self.mk(TK::Slice { base: Box::new(b), start: Some(s), end: Some(e), inclusive: true }, Type::Str, span));
+        }
         let Some(bi) = self.builtin_method(&recv_ty, name) else {
+            if name == "ters" && matches!(recv_ty, Type::List(..)) {
+                return err(
+                    nspan,
+                    format!("'ters' yerine '{}()' (listeyi değiştirir) ya da 'tersi()' (yeni liste verir) yazın.", self.shown("ters_çevir")),
+                );
+            }
             let tn = self.type_name(&recv_ty);
             if let Type::Union(ms) = &recv_ty {
                 let rest = make_union(ms.iter().filter(|m| **m != Type::Hic).cloned().collect());
@@ -1080,7 +1125,7 @@ impl Checker {
                 }
             }
         }
-        if bi.bm == BM::Sirala {
+        if matches!(bi.bm, BM::Sirala | BM::Sirali) {
             if let Type::List(elem, _) = &recv_ty {
                 if !(elem.is_num() || **elem == Type::Str) {
                     return err(span, format!("Sadece sayı ve yazı listeleri sıralanabilir, ama {} verildi.", self.type_name(&recv_ty)));
@@ -1098,11 +1143,10 @@ impl Checker {
 
     fn builtin_method_names(&self, t: &Type) -> Vec<&'static str> {
         match t {
-            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "ters", "temizle", "adım", "yazıya"],
+            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "yazıya"],
             Type::Dict(..) => vec!["uzunluk", "içerir", "sil", "anahtarlar", "değerler", "temizle", "yazıya"],
-            Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "tama", "ondalığa", "yazıya"],
+            Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "tama", "ondalığa", "tersi", "yazıya"],
             Type::Float(_) => vec!["tama", "yazıya"],
-            Type::Range => vec!["adım"],
             _ => vec!["yazıya"],
         }
     }
@@ -1110,7 +1154,7 @@ impl Checker {
     pub(crate) fn builtin_method(&self, t: &Type, name: &str) -> Option<BInfo> {
         let p = |n: &str, t: Type| (n.to_string(), t);
         let mk = |bm, params, ret, mutating, resizes| Some(BInfo { bm, params, ret, mutating, resizes });
-        if name == "yazıya" && *t != Type::Range {
+        if name == "yazıya" {
             return mk(BM::Yaziya, vec![], Type::Str, false, false);
         }
         match t {
@@ -1125,7 +1169,9 @@ impl Checker {
                     "içerir" => mk(BM::Icerir, vec![p("değer", e)], Type::Bool, false, false),
                     "bul" => mk(BM::Bul, vec![p("değer", e)], Type::Union(vec![TAM64, Type::Hic]), false, false),
                     "sırala" => mk(BM::Sirala, vec![], Type::Hic, true, false),
-                    "ters" => mk(BM::Ters, vec![], Type::Hic, true, false),
+                    "sıralı" => mk(BM::Sirali, vec![], Type::List(Box::new(e.clone()), None), false, false),
+                    "ters_çevir" => mk(BM::TersCevir, vec![], Type::Hic, true, false),
+                    "tersi" => mk(BM::Tersi, vec![], Type::List(Box::new(e.clone()), None), false, false),
                     "temizle" => mk(BM::Temizle, vec![], Type::Hic, true, true),
                     "adım" => mk(BM::LAdim, vec![p("adım", TAM64)], Type::List(Box::new(e), None), false, false),
                     _ => None,
@@ -1157,10 +1203,6 @@ impl Checker {
             },
             Type::Float(_) => match name {
                 "tama" => mk(BM::FTama, vec![], TAM64, false, false),
-                _ => None,
-            },
-            Type::Range => match name {
-                "adım" => mk(BM::Adim, vec![p("adım", TAM64)], Type::Range, false, false),
                 _ => None,
             },
             _ => None,
@@ -1219,9 +1261,8 @@ impl Checker {
         let b = self.expr(base, None)?;
         match b.ty.clone() {
             Type::List(elem, _) => {
-                if matches!(idx.kind, ExprKind::Range { .. }) {
-                    let r = self.expr(idx, None)?;
-                    return Ok(self.mk(TK::Slice(Box::new(b), Box::new(r)), Type::List(elem, None), span));
+                if let ExprKind::Range { .. } = &idx.kind {
+                    return self.slice(b, idx, Type::List(elem, None), span);
                 }
                 let i = self.index_value(idx)?;
                 Ok(self.mk(TK::Index(Box::new(b), Box::new(i)), *elem, span))
@@ -1231,9 +1272,27 @@ impl Checker {
                 let kt = self.coerce(kt, &k, idx.span)?;
                 Ok(self.mk(TK::Index(Box::new(b), Box::new(kt)), *v, span))
             }
-            Type::Str => err(span, format!("Yazıda karakter erişimi için {} kullanın: yazı.karakter(0)", self.shown("karakter"))),
+            Type::Str if matches!(idx.kind, ExprKind::Range { .. }) => self.slice(b, idx, Type::Str, span),
+            Type::Str => err(
+                span,
+                format!("Yazıda tek karakter için {} kullanın: yazı.karakter(0). Bir parça için dilim yazın: yazı[0..3]", self.shown("karakter")),
+            ),
             t => err(span, format!("{} tipinde köşeli parantezle erişim yapılamaz.", self.type_name(&t))),
         }
+    }
+
+    /// `l[a..b]`, `yazı[a..b]`: köşeli parantez içindeki aralık liste değil, dilimdir.
+    fn slice(&mut self, b: TExpr, idx: &Expr, ty: Type, span: Span) -> CResult<TExpr> {
+        let ExprKind::Range { start, end, inclusive } = &idx.kind else { unreachable!() };
+        let s = match start {
+            Some(x) => Some(Box::new(self.range_bound(x)?)),
+            None => None,
+        };
+        let e = match end {
+            Some(x) => Some(Box::new(self.range_bound(x)?)),
+            None => None,
+        };
+        Ok(self.mk(TK::Slice { base: Box::new(b), start: s, end: e, inclusive: *inclusive }, ty, span))
     }
 
     fn olarak(&mut self, x: &Expr, te: &TypeExpr, span: Span) -> CResult<TExpr> {

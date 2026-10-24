@@ -24,7 +24,6 @@ pub enum Type {
     Dict(Box<Type>, Box<Type>),
     Union(Vec<Type>),
     Named(TypeId),
-    Range,
     /// Hiçbir zaman değer üretmeyen ifadeler (dur, döndür...)
     Never,
 }

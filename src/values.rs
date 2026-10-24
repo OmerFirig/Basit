@@ -115,62 +115,71 @@ pub struct VarV {
     pub fields: Vec<Value>,
 }
 
+/// `a..b` / `a..=b` / `(a..b).adım(n)` listesinin elemanları: ilk, ilk + adım, ... (`adet` tane).
+/// Liste oluşturmadan saymak için (döngü) ve listeyi oluşturmak için aynı hesap kullanılır;
+/// derleyicideki (codegen/komut.rs range_plan) ile aynı kural.
 #[derive(Clone, Copy, Debug)]
-pub struct RangeV {
-    pub start: i64,
-    pub end: Option<i64>,
-    pub inclusive: bool,
+pub struct RangePlan {
+    pub first: i64,
     pub step: i64,
+    pub count: u64,
 }
 
-impl RangeV {
-    /// Aralığın kendi yönündeki adım: başlangıç bitişten büyükse geri sayar (10..0 -> 10, 9, ... 1).
-    pub fn default_step(start: i64, end: Option<i64>) -> i64 {
-        if end.is_some_and(|e| start > e) { -1 } else { 1 }
+/// `n`: `.adım(n)` (yoksa 1). Başlangıç bitişten büyükse liste geri sayar (5..0 -> 5, 4, 3, 2, 1).
+/// Eksi adım listenin sonundan başlar (liste.adım ile aynı). Adım 0 ise None.
+pub fn range_plan(s: i64, e: i64, inclusive: bool, n: i64) -> Option<RangePlan> {
+    if n == 0 {
+        return None;
     }
+    let up = s <= e;
+    let dir: i64 = if up { 1 } else { -1 };
+    let dist = if up { (e as u64).wrapping_sub(s as u64) } else { (s as u64).wrapping_sub(e as u64) };
+    let len = if inclusive { dist.saturating_add(1) } else { dist };
+    let k = n.unsigned_abs();
+    let count = if len == 0 { 0 } else { (len - 1) / k + 1 };
+    // elemanların gerçek değeri her zaman Tam(64)'e sığar; ara hesap sarmalı (wrapping) yapılabilir
+    let first = if n > 0 { s } else { s.wrapping_add(((len.wrapping_sub(1)) as i64).wrapping_mul(dir)) };
+    Some(RangePlan { first, step: dir.wrapping_mul(n), count })
+}
 
-    pub fn new(start: i64, end: Option<i64>, inclusive: bool) -> RangeV {
-        RangeV { start, end, inclusive, step: Self::default_step(start, end) }
+impl RangePlan {
+    pub fn get(&self, i: u64) -> i64 {
+        self.first.wrapping_add((i as i64).wrapping_mul(self.step))
     }
+}
 
-    /// `i` aralığın sonuna ulaştı mı? (adımın yönüne göre)
-    pub fn done(&self, i: i64) -> bool {
-        match self.end {
-            Some(e) if self.step > 0 => if self.inclusive { i > e } else { i >= e },
-            Some(e) => if self.inclusive { i < e } else { i <= e },
-            None => false,
+/// Liste ya da yazı diliminin indeksleri (runtime/koleksiyon.c kolay_liste_dilim ile aynı kural).
+/// Eksi indeksler önce sondan sayılır; iki sınır da yazılmışsa ve başlangıç bitişten büyükse dilim
+/// terstir (l[4..1] -> 4, 3, 2). Sınırlar kırpılır. Dönüş: (ilk, son, ters mi); düzde ilk..son,
+/// tersde ilk'ten son'a doğru (ikisi de dahil).
+pub fn slice_bounds(len: usize, start: Option<i64>, end: Option<i64>, inclusive: bool) -> Option<(usize, usize, bool)> {
+    let n = len as i64;
+    let norm = |i: i64| if i < 0 { i.saturating_add(n) } else { i };
+    let s = norm(start.unwrap_or(0));
+    let e = end.map(norm);
+    match e {
+        Some(e) if start.is_some() && s > e => {
+            let hi = s.min(n - 1);
+            let lo = (if inclusive { e } else { e.saturating_add(1) }).max(0);
+            (hi >= lo).then_some((hi as usize, lo as usize, true))
+        }
+        _ => {
+            let a = s.clamp(0, n);
+            let b = match e {
+                Some(e) => (if inclusive { e.saturating_add(1) } else { e }).clamp(0, n),
+                None => n,
+            };
+            (a < b).then_some((a as usize, b as usize, false))
         }
     }
+}
 
-    /// Dilimin indeksleri (runtime/koleksiyon.c kolay_liste_dilim ile aynı kural). Eksi indeksler önce
-    /// sondan sayılır; başlangıç bitişten büyükse dilim terstir (l[4..1] -> 4, 3, 2). Sınırlar listeye
-    /// sığacak şekilde kırpılır. Dönüş: (ilk, son, ters mi); düzde ilk..son, tersde ilk'ten son'a (dahil).
-    pub fn slice_bounds(&self, len: usize) -> Option<(usize, usize, bool)> {
-        let n = len as i64;
-        let norm = |i: i64| if i < 0 { i.saturating_add(n) } else { i };
-        let s = norm(self.start);
-        let e = self.end.map(norm);
-        match e {
-            Some(e) if s > e => {
-                let hi = s.min(n - 1);
-                let lo = (if self.inclusive { e } else { e.saturating_add(1) }).max(0);
-                (hi >= lo).then_some((hi as usize, lo as usize, true))
-            }
-            _ => {
-                let a = s.clamp(0, n);
-                let b = match e {
-                    Some(e) => (if self.inclusive { e.saturating_add(1) } else { e }).clamp(0, n),
-                    None => n,
-                };
-                (a < b).then_some((a as usize, b as usize, false))
-            }
-        }
-    }
-
-    pub fn text(&self) -> String {
-        let op = if self.inclusive { "..=" } else { ".." };
-        let end = self.end.map(|e| e.to_string()).unwrap_or_default();
-        format!("{}{op}{end}", self.start)
+/// Dilimi uygular (liste elemanları ya da yazının karakterleri).
+pub fn apply_slice<T: Clone>(items: &[T], b: Option<(usize, usize, bool)>) -> Vec<T> {
+    match b {
+        None => vec![],
+        Some((a, b, false)) => items[a..b].to_vec(),
+        Some((hi, lo, true)) => items[lo..=hi].iter().rev().cloned().collect(),
     }
 }
 
@@ -185,7 +194,6 @@ pub enum Value {
     Dict(Rc<DictV>),
     Obj(Rc<ObjV>),
     Var(Rc<VarV>),
-    Range(Rc<RangeV>),
     Uninit,
 }
 
@@ -395,9 +403,6 @@ pub fn values_eq(a: &Value, b: &Value) -> bool {
         (Value::Var(x), Value::Var(y)) => {
             x.ty == y.ty && x.idx == y.idx && x.fields.iter().zip(&y.fields).all(|(a, b)| values_eq(a, b))
         }
-        (Value::Range(x), Value::Range(y)) => {
-            x.start == y.start && x.end == y.end && x.inclusive == y.inclusive && x.step == y.step
-        }
         _ => false,
     }
 }
@@ -461,7 +466,6 @@ pub fn type_display(t: &Type, prog: &Program) -> String {
         Type::Str => "Yazı".into(),
         Type::Bool => "Mantık".into(),
         Type::Hic | Type::Never => "Hiç".into(),
-        Type::Range => "Aralık".into(),
         Type::List(e, Some(n)) => format!("Liste<{}>[{n}]", type_display(e, prog)),
         Type::List(e, None) => format!("Liste<{}>", type_display(e, prog)),
         Type::Dict(k, v) => format!("Sözlük<{}, {}>", type_display(k, prog), type_display(v, prog)),
@@ -481,7 +485,6 @@ pub fn kind_name(v: &Value, prog: &Program) -> String {
         Value::Dict(_) => "Sözlük".into(),
         Value::Obj(o) => prog.types[o.ty].name.clone(),
         Value::Var(v) => prog.types[v.ty].name.clone(),
-        Value::Range(_) => "Aralık".into(),
         Value::Uninit => "belirsiz".into(),
     }
 }
@@ -602,13 +605,6 @@ pub fn write_value(out: &mut String, v: &Value, ty: Option<&Type>, prog: &Progra
                     write_value(s, v, Some(t), prog, false);
                 });
                 out.push(')');
-            }
-        }
-        Value::Range(r) => {
-            if r.step == RangeV::default_step(r.start, r.end) {
-                out.push_str(&r.text());
-            } else {
-                let _ = write!(out, "({}).adım({})", r.text(), r.step);
             }
         }
         Value::Uninit => out.push_str("<belirsiz>"),

@@ -1,2 +1,3 @@
-ÇALIŞMA HATASI (k_adim_h2.kolay, satır 2): Aralık artıyor (0..10); adım pozitif olmalı, ama -2 verildi.
-  2 | (0..10).adım(n) içindeki her i için yap { }
+3
+ÇALIŞMA HATASI (k_adim_h2.kolay, satır 5): Aralık çok büyük (9.223.372.036.854.775.807 eleman), liste olarak oluşturulamaz. Döngüde doğrudan kullanın: a..b içindeki her i için yap { }
+  5 | ata r = 0..9223372036854775807

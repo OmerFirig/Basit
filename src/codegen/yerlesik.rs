@@ -46,7 +46,7 @@ impl<'p> Gen<'p> {
     }
 
     fn is_mutating(m: BM) -> bool {
-        matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::Ters | BM::Temizle | BM::DSil | BM::DTemizle)
+        matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::TersCevir | BM::Temizle | BM::DSil | BM::DTemizle)
     }
 
     pub(super) fn bmethod(&mut self, m: BM, recv: &Recv, args: &[TExpr], ret: &Type, loc: Loc) -> CResult<String> {
@@ -148,7 +148,7 @@ impl<'p> Gen<'p> {
                 result = self.own(v, &e);
             }
             BM::Sirala => self.emit(&format!("call void @kolay_liste_sirala(ptr {c})")),
-            BM::Ters => self.emit(&format!("call void @kolay_liste_ters(ptr {c})")),
+            BM::TersCevir => self.emit(&format!("call void @kolay_liste_ters(ptr {c})")),
             BM::Temizle => self.emit(&format!("call void @kolay_liste_temizle(ptr {c})")),
             BM::DSil => {
                 let p = self.spill(&a[0], &args[0].ty);
@@ -259,36 +259,10 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{t} = call double @kolay_yazi_ondaliga(ptr {v}, ptr {k}, ptr {kd})"));
                 t
             }
-            BM::Adim => {
-                // adım sıfır olamaz ve aralığın yönüyle aynı işarette olmalı (bkz. interp::adim_hatasi)
-                let n = &a[0];
-                let (s, e, fl) = (self.tmp(), self.tmp(), self.tmp());
-                self.emit(&format!("{s} = extractvalue %aralik {v}, 0"));
-                self.emit(&format!("{e} = extractvalue %aralik {v}, 1"));
-                self.emit(&format!("{fl} = extractvalue %aralik {v}, 3"));
-                let (zero, h0, has, up, down, nneg, npos) =
-                    (self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp());
-                self.emit(&format!("{zero} = icmp eq i64 {n}, 0"));
-                self.emit(&format!("{h0} = and i64 {fl}, 1"));
-                self.emit(&format!("{has} = icmp ne i64 {h0}, 0"));
-                self.emit(&format!("{up} = icmp slt i64 {s}, {e}"));
-                self.emit(&format!("{down} = icmp sgt i64 {s}, {e}"));
-                self.emit(&format!("{nneg} = icmp slt i64 {n}, 0"));
-                self.emit(&format!("{npos} = icmp sgt i64 {n}, 0"));
-                let (b1, b2, b3, b4, bad) = (self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp());
-                self.emit(&format!("{b1} = and i1 {up}, {nneg}"));
-                self.emit(&format!("{b2} = and i1 {down}, {npos}"));
-                self.emit(&format!("{b3} = or i1 {b1}, {b2}"));
-                self.emit(&format!("{b4} = and i1 {has}, {b3}"));
-                self.emit(&format!("{bad} = or i1 {zero}, {b4}"));
-                let (badl, ok) = (self.new_label(), self.new_label());
-                self.br_cold(&bad, &badl, &ok);
-                self.block(&badl);
-                self.emit(&format!("call void @kolay_adim_hatasi(i64 {s}, i64 {e}, i64 {fl}, i64 {n}, ptr {k}, ptr {kd})"));
-                self.term("unreachable");
-                self.block(&ok);
-                self.emit(&format!("{t} = insertvalue %aralik {v}, i64 {n}, 2"));
-                t
+            BM::Sirali | BM::Tersi => {
+                let f = if m == BM::Sirali { "kolay_liste_sirali" } else { "kolay_liste_tersi" };
+                self.emit(&format!("{t} = call ptr @{f}(ptr {v})"));
+                self.own(t, ret)
             }
             _ => unreachable!("yerleşik metot {m:?}"),
         })

@@ -223,12 +223,6 @@ impl Checker {
                         }
                         vec![(**elem).clone()]
                     }
-                    Type::Range => {
-                        if pat.len() != 1 {
-                            return err(pat[1].1, "Aralık üzerinde dönerken tek değişken yazılır.");
-                        }
-                        vec![TAM64]
-                    }
                     Type::Str => {
                         if pat.len() != 1 {
                             return err(pat[1].1, "Yazı üzerinde dönerken tek değişken yazılır.");
@@ -577,7 +571,7 @@ impl Checker {
                     }
                     ArmBody::Block(b) => {
                         if as_expr {
-                            return err(arm.span, "Değer döndüren eşleştir'de dallar bir değer olmalı, '{ }' bloğu kullanılamaz.");
+                            return err(arm.span, "Değer döndüren eşleştir'de dallar bir değer olmalı; '{ }' bloğu ya da atama kullanılamaz.");
                         }
                         let (ts, d) = self.block(b)?;
                         (TArmBody::Block(ts), Type::Hic, d)
@@ -694,7 +688,16 @@ impl Checker {
             Pattern::Wild => TPat::Wild,
             Pattern::Range(a, b, incl, s) => {
                 need(self, self.contains_kind(sty, Type::is_int).is_some(), "bir sayı aralığı", *s)?;
-                TPat::Range(a.clone(), b.clone(), *incl)
+                // Desen, aralık listesindeki değerlerden birine uyar; sıra önemli değil:
+                // 5..=1 -> 1..=5, 5..1 (5, 4, 3, 2) -> 2..=5. Hep 'dahil' biçimine çevrilir.
+                let one = num_bigint::BigInt::from(1);
+                let (lo, hi) = match (a <= b, *incl) {
+                    (true, true) => (a.clone(), b.clone()),
+                    (true, false) => (a.clone(), b - &one),
+                    (false, true) => (b.clone(), a.clone()),
+                    (false, false) => (b + &one, a.clone()),
+                };
+                TPat::Range(lo, hi, true)
             }
             Pattern::Path { path, binds, span } => {
                 // 1) seçenek deseni

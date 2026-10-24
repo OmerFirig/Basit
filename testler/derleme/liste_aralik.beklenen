@@ -1,0 +1,11 @@
+[1, 2, 3, 4, 5, 6] [5, 4, 3, 2, 1] [1, 2, 3] [] [3] [0, 2, 4, 6, 8] [10, 8, 6, 4, 2] [1, 3, 5, 7, 9] [10, 7, 4, 1]
+doğru 5 [1, 2] [4, 3, 2, 1, 0]
+333332333333
+10 7 4 1 
+mer abahrem ğaç aç  
+[1, 2, 3] [2, 1, 3] [3, 1, 2]
+[2, 1, 3]
+ters dahil ters dahil başka başka ters hariç ters hariç başka
+["Can", "çiğdem", "Ömer"] ["çiğdem", "Ömer"]
+ÇALIŞMA HATASI (liste_aralik.kolay, satır 26): Adım sıfır olamaz.
+  26 | yazdır((x..1).adım(x - 4))

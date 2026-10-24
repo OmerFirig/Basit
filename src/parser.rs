@@ -1060,7 +1060,14 @@ impl Parser {
             } else if self.at_kw(Kw::Dur) || self.at_kw(Kw::Devam) || self.at_kw(Kw::Dondur) {
                 ArmBody::Stmt(Box::new(self.stmt()?))
             } else {
-                ArmBody::Expr(self.expr()?)
+                let start = self.span();
+                let e = self.expr()?;
+                // atama da yazılabilir: `Kırmızı -> sayaç += 1` (tek komutluk blok gibi)
+                if matches!(self.peek(), Tok::Assign | Tok::PlusEq | Tok::MinusEq | Tok::StarEq | Tok::SlashEq) {
+                    ArmBody::Block(vec![self.finish_simple(e, start)?])
+                } else {
+                    ArmBody::Expr(e)
+                }
             };
             arms.push(Arm { pats, guard, body, span: arm_start.to(self.prev_span()) });
             if !self.at(&Tok::Comma) {

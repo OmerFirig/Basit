@@ -24,17 +24,6 @@ _Noreturn void kolay_hata_sayi(const char *once, int64_t n, const char *sonra, c
     kolay_hata(msg, konum, kod);
 }
 
-/// (a..b).adım(n) hatası (yorumlayıcıdaki interp::adim_hatasi ile aynı mesajlar).
-/// bayrak: 1 bitişi var, 2 bitiş dahil
-_Noreturn void kolay_adim_hatasi(int64_t bas, int64_t son, int64_t bayrak, int64_t n, const char *konum, const char *kod) {
-    char msg[300];
-    if (n == 0) kolay_hata("Adım sıfır olamaz.", konum, kod);
-    const char *op = (bayrak & 2) ? "..=" : "..";
-    snprintf(msg, sizeof msg, "Aralık %s (%lld%s%lld); adım %s olmalı, ama %lld verildi.", bas < son ? "artıyor" : "azalıyor",
-             (long long)bas, op, (long long)son, bas < son ? "pozitif" : "negatif", (long long)n);
-    kolay_hata(msg, konum, kod);
-}
-
 // ------------------------------------------------------------ referans sayımı
 
 const Tip kolay_buyuk_tipi = {.tur = T_BUYUK, .boyut = 8, .hiza = 8, .ad = "Tam"};

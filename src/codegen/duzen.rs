@@ -19,7 +19,6 @@ const T_TUR: i64 = 9;
 const T_SECENEK: i64 = 10;
 const T_ARAYUZ: i64 = 11;
 const T_VEYA: i64 = 12;
-const T_ARALIK: i64 = 13;
 
 /// Depolama biçimi: LLVM tipi, boyut, hizalama
 pub(super) struct Stor {
@@ -75,7 +74,6 @@ impl<'p> Gen<'p> {
             Type::Bool => "i1".into(),
             Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => "ptr".into(),
             Type::Union(_) => "%veya".into(),
-            Type::Range => "%aralik".into(),
             Type::Hic | Type::Never => "void".into(),
         }
     }
@@ -95,7 +93,6 @@ impl<'p> Gen<'p> {
             Type::Bool => s("i8", 1, 1),
             Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => s("ptr", 8, 8),
             Type::Union(_) => s("%veya", 24, 8),
-            Type::Range => s("%aralik", 32, 8),
             Type::Hic | Type::Never => s("i8", 1, 1),
         }
     }
@@ -105,7 +102,7 @@ impl<'p> Gen<'p> {
             Type::Float(_) => "0.0".into(),
             Type::Bool => "false".into(),
             Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => "null".into(),
-            Type::Union(_) | Type::Range => "zeroinitializer".into(),
+            Type::Union(_) => "zeroinitializer".into(),
             _ => "0".into(),
         }
     }
@@ -519,7 +516,6 @@ impl<'p> Gen<'p> {
             Type::Float(b) => self.emit_tip(&name, T_ONDALIK, 0, &st, *b as i64, 0, -1, "null", "null", &ad, 0, "null", "null", "null", "null", 0),
             Type::Bool => self.emit_tip(&name, T_MANTIK, 0, &st, 0, 0, -1, "null", "null", &ad, 0, "null", "null", "null", "null", 0),
             Type::Hic | Type::Never => self.emit_tip(&name, T_HIC, 0, &st, 0, 0, -1, "null", "null", &ad, 0, "null", "null", "null", "null", 0),
-            Type::Range => self.emit_tip(&name, T_ARALIK, 0, &st, 0, 0, -1, "null", "null", &ad, 0, "null", "null", "null", "null", 0),
             Type::List(e, size) => {
                 let e1 = self.tip(e);
                 let sabit = size.map(|n| n as i64).unwrap_or(-1);

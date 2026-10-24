@@ -436,7 +436,6 @@ impl Checker {
             Type::Str => "Yazı".into(),
             Type::Bool => "Mantık".into(),
             Type::Hic | Type::Never => "Hiç".into(),
-            Type::Range => "Aralık".into(),
             Type::List(..) => {
                 let mut dims = Vec::new();
                 let mut cur = t;

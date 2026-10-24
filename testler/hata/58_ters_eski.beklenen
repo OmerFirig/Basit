@@ -1,0 +1,3 @@
+HATA (58_ters_eski.kolay, satır 2): 'ters' yerine 'ters_çevir()' (listeyi değiştirir) ya da 'tersi()' (yeni liste verir) yazın.
+  2 | l.ters()
+    |   ^^^^

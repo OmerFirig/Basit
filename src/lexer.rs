@@ -93,6 +93,8 @@ pub const BUILTIN_NAMES: &[(&str, &str)] = &[
     ("çıkar", "cikar"),
     ("içerir", "icerir"),
     ("sırala", "sirala"),
+    ("sıralı", "sirali"),
+    ("ters_çevir", "ters_cevir"),
     ("büyük_harf", "buyuk_harf"),
     ("küçük_harf", "kucuk_harf"),
     ("böl", "bol"),
