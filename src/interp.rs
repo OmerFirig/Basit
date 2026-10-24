@@ -787,14 +787,11 @@ impl<'p> Interp<'p> {
                 let v = self.eval(x, f)?;
                 let Value::Range(r) = self.eval(r, f)? else { unreachable!() };
                 let Value::List(l) = v else { unreachable!() };
-                let len = l.items.len() as i64;
-                let norm = |i: i64| -> i64 { (if i < 0 { i.saturating_add(len) } else { i }).clamp(0, len) };
-                let s = norm(r.start);
-                let en = match r.end {
-                    Some(e) => norm(if r.inclusive { e.saturating_add(1) } else { e }),
-                    None => len,
+                let items = match r.slice_bounds(l.items.len()) {
+                    None => vec![],
+                    Some((a, b, false)) => l.items[a..b].to_vec(),
+                    Some((hi, lo, true)) => l.items[lo..=hi].iter().rev().cloned().collect(),
                 };
-                let items = if s < en { l.items[s as usize..en as usize].to_vec() } else { vec![] };
                 Value::List(Rc::new(ListV { items }))
             }
             TK::Match(m) => match self.choose_arm(m, f)? {
@@ -940,7 +937,7 @@ impl<'p> Interp<'p> {
                     Int::B(b) => Int::from_big(-(**b).clone()),
                 };
                 if !fits_int(&r, *bits, *sign) {
-                    return rt(loc, format!("{} taştı: -({i}) = {r}, ama {} sınırları {}.", self.tn(ty), self.tn(ty), bounds_text(*bits, *sign)));
+                    return rt(loc, format!("{} taştı: -({}) = {}, ama {} sınırları {}.", self.tn(ty), group_digits(&i.to_string()), group_digits(&r.to_string()), self.tn(ty), bounds_text(*bits, *sign)));
                 }
                 Value::Int(r)
             }
@@ -1313,6 +1310,16 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
             Some(i) => Value::int(i as i64),
             None => Value::Hic,
         },
+        (BM::LAdim, Value::List(l)) => {
+            let n = arg_i64(&args[0], loc)?;
+            if n == 0 {
+                return rt(loc, "Adım sıfır olamaz.");
+            }
+            let m = n.unsigned_abs() as usize;
+            let items: Vec<Value> =
+                if n > 0 { l.items.iter().step_by(m).cloned().collect() } else { l.items.iter().rev().step_by(m).cloned().collect() };
+            Value::List(Rc::new(ListV { items }))
+        }
         (BM::DUzunluk, Value::Dict(d)) => Value::int(d.map.len() as i64),
         (BM::DIcerir, Value::Dict(d)) => Value::Bool(d.map.contains_key(&key_of(&args[0], loc)?)),
         (BM::Anahtarlar, Value::Dict(d)) => Value::List(Rc::new(ListV { items: d.map.values().map(|(k, _)| k.clone()).collect() })),

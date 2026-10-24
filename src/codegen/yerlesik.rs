@@ -205,6 +205,11 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{z} = insertvalue %veya {y}, i64 0, 2"));
                 z
             }
+            BM::LAdim => {
+                let tip = self.tip(ret);
+                self.emit(&format!("{t} = call ptr @kolay_liste_adim(ptr {v}, i64 {}, ptr {tip}, ptr {k}, ptr {kd})", a[0]));
+                self.own(t, ret)
+            }
             BM::DUzunluk => {
                 self.emit(&format!("{t} = call i64 @kolay_sozluk_uzunluk(ptr {v})"));
                 t

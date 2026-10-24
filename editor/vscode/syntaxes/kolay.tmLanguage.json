@@ -60,7 +60,7 @@
           }
         },
         {
-          "match": "(?<=\\.)(ekle|araya_ekle|çıkar|cikar|sil|temizle|içerir|icerir|bul|konum|sırala|sirala|ters|uzunluk|parça|karakter|böl|bol|kırp|kirp|büyük_harf|buyuk_harf|küçük_harf|kucuk_harf|ondalığa|ondaliga|yazıya|yaziya|tama|anahtarlar|değerler|degerler)(?=\\s*\\()",
+          "match": "(?<=\\.)(ekle|araya_ekle|çıkar|cikar|sil|temizle|içerir|icerir|bul|konum|sırala|sirala|ters|uzunluk|parça|karakter|böl|bol|kırp|kirp|büyük_harf|buyuk_harf|küçük_harf|kucuk_harf|ondalığa|ondaliga|yazıya|yaziya|tama|anahtarlar|değerler|degerler|adım|adim)(?=\\s*\\()",
           "captures": {
             "1": {
               "name": "support.function.method.kolay"

@@ -42,7 +42,7 @@ Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kald�
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.3.1.vsix
+code --install-extension editor/vscode/kolay-0.3.2.vsix
 ```
 
 ## Örnekler
@@ -105,6 +105,7 @@ ata ad = eşleştir renk {
 
 ata tablo: Liste<Tam veya Yazı>[4][]
 ata notlar: Sözlük<Yazı, Tam> = {"Ali": 90}
+liste[4..1]  liste[-1..=0]  liste.adım(2)   // ters dilim, her 2. eleman
 
 dahil et("./yardımcı.kolay")
 m adıyla dahil et("./matematik.kolay")

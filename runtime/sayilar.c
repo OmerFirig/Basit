@@ -213,7 +213,7 @@ _Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbi
     grupla(sr, gr);
     int buyuk = !r.neg && !sayi_sifir(&r);
     if (op[0] == 0)
-        snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, sb, sr, tip, sinir);
+        snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, gb, gr, tip, sinir);
     else if (buyuk)
         snprintf(msg, sizeof msg, "%s taştı. %s %s %s = %s, ama %s en fazla %s tutabilir.", tip, ga, op, gb, gr, tip, ust);
     else if (pozitif)
@@ -585,15 +585,15 @@ static void esnek_isaret(int64_t r, int64_t isaret, int64_t a, int64_t b, const 
     esnek_metin(a, sa, sizeof sa);
     esnek_metin(b, sb, sizeof sb);
     esnek_metin(r, sr, sizeof sr);
-    if (op[0] == 0) {
-        char sinir[40];
-        bounds_metni(isaret, sinir);
-        snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, sb, sr, tip, sinir);
-        kolay_hata(msg, konum, kod);
-    }
     grupla(sa, ga);
     grupla(sb, gb);
     grupla(sr, gr);
+    if (op[0] == 0) {
+        char sinir[40];
+        bounds_metni(isaret, sinir);
+        snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, gb, gr, tip, sinir);
+        kolay_hata(msg, konum, kod);
+    }
     if (isaret == 2)
         snprintf(msg, sizeof msg, "%s taştı. %s %s %s = %s, ama %s en fazla 0 tutabilir.", tip, ga, op, gb, gr, tip);
     else

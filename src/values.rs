@@ -142,6 +142,31 @@ impl RangeV {
         }
     }
 
+    /// Dilimin indeksleri (runtime/koleksiyon.c kolay_liste_dilim ile aynı kural). Eksi indeksler önce
+    /// sondan sayılır; başlangıç bitişten büyükse dilim terstir (l[4..1] -> 4, 3, 2). Sınırlar listeye
+    /// sığacak şekilde kırpılır. Dönüş: (ilk, son, ters mi); düzde ilk..son, tersde ilk'ten son'a (dahil).
+    pub fn slice_bounds(&self, len: usize) -> Option<(usize, usize, bool)> {
+        let n = len as i64;
+        let norm = |i: i64| if i < 0 { i.saturating_add(n) } else { i };
+        let s = norm(self.start);
+        let e = self.end.map(norm);
+        match e {
+            Some(e) if s > e => {
+                let hi = s.min(n - 1);
+                let lo = (if self.inclusive { e } else { e.saturating_add(1) }).max(0);
+                (hi >= lo).then_some((hi as usize, lo as usize, true))
+            }
+            _ => {
+                let a = s.clamp(0, n);
+                let b = match e {
+                    Some(e) => (if self.inclusive { e.saturating_add(1) } else { e }).clamp(0, n),
+                    None => n,
+                };
+                (a < b).then_some((a as usize, b as usize, false))
+            }
+        }
+    }
+
     pub fn text(&self) -> String {
         let op = if self.inclusive { "..=" } else { ".." };
         let end = self.end.map(|e| e.to_string()).unwrap_or_default();
@@ -492,6 +517,18 @@ fn join_into<T>(out: &mut String, items: impl IntoIterator<Item = T>, mut f: imp
 
 pub fn write_value(out: &mut String, v: &Value, ty: Option<&Type>, prog: &Program, top: bool) {
     use std::fmt::Write as _;
+    // 'veya' tipinde değerin kendi üyesinin tipi kullanılır (Ondalık(32) üye 0.1 diye yazılsın).
+    // Bir 'veya' tipinde en fazla bir ondalık üye olabilir; iki liste üyesi varsa (Liste<Tam> veya
+    // Liste<Yazı>) ilki kullanılır, bu da sadece ondalık elemanların yazılışını etkiler.
+    if let Some(Type::Union(ms)) = ty {
+        let m = ms.iter().find(|m| match (v, m) {
+            (Value::Float(_), Type::Float(_)) | (Value::List(_), Type::List(..)) | (Value::Dict(_), Type::Dict(..)) => true,
+            _ => false,
+        });
+        if let Some(m) = m {
+            return write_value(out, v, Some(m), prog, top);
+        }
+    }
     match v {
         Value::Int(i) => {
             let _ = write!(out, "{i}");

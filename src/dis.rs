@@ -12,6 +12,7 @@ use std::ffi::{c_char, c_int, c_uint, c_void, CStr, CString};
 unsafe extern "C" {
     fn dlopen(name: *const c_char, flags: c_int) -> *mut c_void;
     fn dlsym(h: *mut c_void, name: *const c_char) -> *mut c_void;
+    fn fflush(f: *mut c_void) -> c_int;
 }
 
 const RTLD_NOW: c_int = 2;
@@ -198,6 +199,9 @@ pub fn call(addr: usize, params: &[Type], ret: &Type, args: &[Value], loc: Loc) 
             return rt(loc, "C fonksiyonu çağrılamadı (imza hazırlanamadı).");
         }
         ffi_call(&mut cif, addr as *mut c_void, rv.as_mut_ptr() as *mut c_void, avalues.as_mut_ptr());
+        // C fonksiyonunun yazdıkları C'nin kendi tamponunda kalır: Kolay'ın sonraki çıktısından önce
+        // yazılsın diye boşaltılır (derlenmiş programda ikisi aynı tamponu kullanır).
+        fflush(std::ptr::null_mut());
     }
     drop(cstrs);
     Ok(match ret {

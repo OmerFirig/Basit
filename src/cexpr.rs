@@ -439,7 +439,20 @@ impl Checker {
         Err(self.unknown_name(name, span))
     }
 
+    /// Beklenen tip 'veya' ise içindeki tek liste (ya da sözlük) üyesi beklenir: `Liste<Ondalık(32)> veya Yazı = [0.1]`
+    fn union_member(expected: Option<&Type>, pred: fn(&Type) -> bool) -> Option<Type> {
+        let Some(Type::Union(ms)) = expected else { return None };
+        let mut it = ms.iter().filter(|m| pred(m));
+        match (it.next(), it.next()) {
+            (Some(m), None) => Some(m.clone()),
+            _ => None,
+        }
+    }
+
     fn list_lit(&mut self, items: &[Expr], expected: Option<&Type>, span: Span) -> CResult<TExpr> {
+        if let Some(m) = Self::union_member(expected, |t| matches!(t, Type::List(..))) {
+            return self.list_lit(items, Some(&m), span);
+        }
         if let Some(Type::List(elem, size)) = expected {
             if let Some(n) = size {
                 if items.len() != *n {
@@ -500,6 +513,9 @@ impl Checker {
     }
 
     fn dict_lit(&mut self, items: &[(Expr, Expr)], expected: Option<&Type>, span: Span) -> CResult<TExpr> {
+        if let Some(m) = Self::union_member(expected, |t| matches!(t, Type::Dict(..))) {
+            return self.dict_lit(items, Some(&m), span);
+        }
         if let Some(Type::Dict(k, v)) = expected {
             let mut vals = Vec::new();
             for (ke, ve) in items {
@@ -1082,7 +1098,7 @@ impl Checker {
 
     fn builtin_method_names(&self, t: &Type) -> Vec<&'static str> {
         match t {
-            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "ters", "temizle", "yazıya"],
+            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "ters", "temizle", "adım", "yazıya"],
             Type::Dict(..) => vec!["uzunluk", "içerir", "sil", "anahtarlar", "değerler", "temizle", "yazıya"],
             Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "tama", "ondalığa", "yazıya"],
             Type::Float(_) => vec!["tama", "yazıya"],
@@ -1111,6 +1127,7 @@ impl Checker {
                     "sırala" => mk(BM::Sirala, vec![], Type::Hic, true, false),
                     "ters" => mk(BM::Ters, vec![], Type::Hic, true, false),
                     "temizle" => mk(BM::Temizle, vec![], Type::Hic, true, true),
+                    "adım" => mk(BM::LAdim, vec![p("adım", TAM64)], Type::List(Box::new(e), None), false, false),
                     _ => None,
                 }
             }

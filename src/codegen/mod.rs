@@ -110,6 +110,7 @@ declare void @kolay_liste_sirala(ptr)
 declare zeroext i1 @kolay_liste_icerir(ptr, ptr)
 declare i64 @kolay_liste_bul(ptr, ptr)
 declare ptr @kolay_liste_dilim(ptr, ptr, i64, i64, i64)
+declare ptr @kolay_liste_adim(ptr, i64, ptr, ptr, ptr)
 declare ptr @kolay_sozluk_yeni(ptr)
 declare ptr @kolay_sozluk_al(ptr, ptr, ptr, ptr)
 declare ptr @kolay_sozluk_yer(ptr, ptr)
@@ -743,7 +744,7 @@ fn llescape(s: &str) -> String {
 // ------------------------------------------------------------ değişken yuvalarının tipleri
 
 /// Komutlardaki tüm değişken yuvalarını (desenlerde tanımlananlar dahil) tipleriyle toplar.
-fn collect_slots_stmts(stmts: &[TS], out: &mut HashMap<u32, Type>, global: bool, prog: &Program) {
+pub(crate) fn collect_slots_stmts(stmts: &[TS], out: &mut HashMap<u32, Type>, global: bool, prog: &Program) {
     for s in stmts {
         collect_slots_stmt(s, out, global, prog);
     }

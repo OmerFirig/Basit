@@ -26,6 +26,7 @@ const METHODS = {
     ["sırala", "", "Küçükten büyüğe sıralar"],
     ["ters", "", "Sırayı ters çevirir"],
     ["temizle", "", "Tüm elemanları siler"],
+    ["adım", "n", "Her n. eleman (yeni liste); eksi n sondan başlar"],
     ["yazıya", "", "Yazıya çevirir"],
   ],
   sözlük: [

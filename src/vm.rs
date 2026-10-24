@@ -106,23 +106,29 @@ struct Comp<'p> {
     /// döngüler: (devam hedefi, dur için yamalanacak komutlar)
     loops: Vec<(u32, Vec<usize>)>,
     loc: Loc,
+    /// Bu dosyanın kendi değişkenleri (dosya kodu derleniyorsa). Bunların atanmış olduğu derleme anında
+    /// akış analiziyle kontrol edildiği için okunurken CheckG gerekmez (derleyicideki gibi).
+    own_globals: std::collections::HashSet<u32>,
 }
 
 pub(crate) fn compile_func<'p>(prog: &'p Program, f: &'p TFunc) -> Chunk<'p> {
-    compile_body(prog, &f.body, f.nslots)
+    compile_body(prog, &f.body, f.nslots, Default::default())
 }
 
 pub(crate) fn compile_module<'p>(prog: &'p Program, stmts: &'p [TS]) -> Chunk<'p> {
-    compile_body(prog, stmts, 0)
+    let mut own = std::collections::HashMap::new();
+    crate::codegen::collect_slots_stmts(stmts, &mut own, true, prog);
+    compile_body(prog, stmts, 0, own.into_keys().collect())
 }
 
-fn compile_body<'p>(prog: &'p Program, body: &'p [TS], nslots: u32) -> Chunk<'p> {
+fn compile_body<'p>(prog: &'p Program, body: &'p [TS], nslots: u32, own_globals: std::collections::HashSet<u32>) -> Chunk<'p> {
     let _ = prog;
     let mut c = Comp {
         ch: Chunk { code: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
         next: nslots,
         loops: Vec::new(),
         loc: Loc::default(),
+        own_globals,
     };
     for s in body {
         c.stmt(s);
@@ -210,7 +216,9 @@ impl<'p> Comp<'p> {
             TK::Var(Slot::Local(i)) => return A::R(*i),
             TK::Var(Slot::Global(g)) => {
                 self.loc = e.loc;
-                self.emit(Ins::CheckG(*g));
+                if !self.own_globals.contains(g) {
+                    self.emit(Ins::CheckG(*g));
+                }
                 return A::G(*g);
             }
             TK::Int(n, small) => {
@@ -545,7 +553,7 @@ impl<'p> Comp<'p> {
             TS::Compound(TPlace::Var(Slot::Global(g)), op, e, ty, loc) if *ty == TAM64 => {
                 let b = self.expr(e);
                 self.loc = *loc;
-                self.emit(Ins::CheckG(*g));
+                // atanmamış değişken ArithG64'ün yavaş yolunda (compound_place) yakalanır
                 self.emit(Ins::ArithG64(*op, *g, b));
             }
             TS::Compound(TPlace::Field(bp, fid), op, e, ty, loc) if matches!(**bp, TPlace::Bu) && *ty != Type::Str => {

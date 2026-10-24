@@ -1,0 +1,8 @@
+// C fonksiyonunun yazdıkları ile Kolay çıktısının sırası korunur
+#Güvensiz
+"c" kütüphanesindeki fonksiyon puts(s: Yazı) -> Tam(32)
+yazdır("1")
+puts("2 (C)")
+yazdır("3")
+puts("4 (C)")
+yazdır("5")

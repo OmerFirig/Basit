@@ -80,6 +80,8 @@ pub enum BM {
     Sirala,
     Ters,
     Temizle,
+    /// liste.adım(n): her n. eleman (yeni liste)
+    LAdim,
     // Sözlük
     DUzunluk,
     DIcerir,

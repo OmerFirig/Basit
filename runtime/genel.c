@@ -169,7 +169,7 @@ static void tirnakla(Yazi **out, const Yazi *s) {
 static void cyaz(Yazi **out, const char *s) { yazi_ekle_c(out, s, strlen(s)); }
 
 /// ust: en dış değer mi (yazılar tırnaksız yazılır); ipucu: Ondalık boyutu tipten alınsın mı
-/// (yorumlayıcıda 'veya' içindeki değerler için ipucu yoktur, Ondalık 64 bit gibi yazılır).
+/// (sadece sözlükte olmayan anahtarın hata mesajında yoktur, yorumlayıcıdaki gibi).
 void deger_yaz(Yazi **out, const void *p, const Tip *t, int ust, int ipucu) {
     char buf[400];
     switch (t->tur) {
@@ -256,7 +256,7 @@ void deger_yaz(Yazi **out, const void *p, const Tip *t, int ust, int ipucu) {
         break;
     }
     case T_VEYA:
-        deger_yaz(out, (const char *)p + 8, t->tipler[*(const int64_t *)p], ust, 0);
+        deger_yaz(out, (const char *)p + 8, t->tipler[*(const int64_t *)p], ust, ipucu);
         break;
     default:
         break;

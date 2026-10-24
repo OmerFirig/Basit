@@ -173,21 +173,50 @@ int64_t kolay_liste_bul(Liste *l, void *deger) {
     return -1;
 }
 
-/// a[bas..son] (bayrak: 1 bitişi var, 2 bitiş dahil); sınırlar listeye sığacak şekilde kırpılır.
+static int64_t kirp_aralik(int64_t x, int64_t alt, int64_t ust) { return x < alt ? alt : x > ust ? ust : x; }
+
+/// a[bas..son] (bayrak: 1 bitişi var, 2 bitiş dahil). Yorumlayıcıdaki RangeV::slice_bounds ile aynı kural:
+/// eksi indeksler önce sondan sayılır; başlangıç bitişten büyükse dilim terstir (a[4..1] -> 4, 3, 2).
+/// Sınırlar listeye sığacak şekilde kırpılır.
 Liste *kolay_liste_dilim(Liste *l, const Tip *sonuc_tipi, int64_t bas, int64_t son, int64_t bayrak) {
-    int64_t len = l->uzunluk;
-#define NORM(i) ((i) < 0 ? (((i) + len) < 0 ? 0 : ((i) + len)) : ((i) > len ? len : (i)))
-    int64_t s = NORM(bas);
-    int64_t e = len;
-    if (bayrak & 1) {
-        int64_t x = (bayrak & 2) ? (son == INT64_MAX ? son : son + 1) : son;
-        e = NORM(x);
+    int64_t len = l->uzunluk, eb = eleman_boy(l);
+    int64_t s = bas < 0 ? bas + len : bas;
+    int64_t e = son < 0 ? son + len : son;
+    int dahil = (bayrak & 2) != 0;
+    if ((bayrak & 1) && s > e) {
+        int64_t hi = s < len - 1 ? s : len - 1;
+        int64_t lo = dahil ? e : (e == INT64_MAX ? e : e + 1);
+        if (lo < 0) lo = 0;
+        int64_t n = hi >= lo ? hi - lo + 1 : 0;
+        Liste *k = kolay_liste_yeni(sonuc_tipi, n);
+        for (int64_t i = 0; i < n; i++) {
+            memcpy(k->veri + i * eb, l->veri + (hi - i) * eb, (size_t)eb);
+            kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+        }
+        return k;
     }
-#undef NORM
-    int64_t n = s < e ? e - s : 0, eb = eleman_boy(l);
+    int64_t a = kirp_aralik(s, 0, len), b = len;
+    if (bayrak & 1) b = kirp_aralik(dahil ? (e == INT64_MAX ? e : e + 1) : e, 0, len);
+    int64_t n = a < b ? b - a : 0;
     Liste *k = kolay_liste_yeni(sonuc_tipi, n);
-    memcpy(k->veri, l->veri + s * eb, (size_t)(n * eb));
+    memcpy(k->veri, l->veri + a * eb, (size_t)(n * eb));
     for (int64_t i = 0; i < n; i++) kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+    return k;
+}
+
+/// liste.adım(n): her n. eleman; n < 0 ise sondan başlayarak (l.adım(-1) listenin tersi).
+Liste *kolay_liste_adim(Liste *l, int64_t n, const Tip *sonuc_tipi, const char *konum, const char *kod) {
+    if (n == 0) kolay_hata("Adım sıfır olamaz.", konum, kod);
+    int64_t len = l->uzunluk, eb = eleman_boy(l);
+    // adımın büyüklüğü işaretsiz (en küçük sayıda da doğru)
+    uint64_t m = n < 0 ? -(uint64_t)n : (uint64_t)n;
+    int64_t adet = len == 0 ? 0 : (int64_t)(((uint64_t)len - 1) / m + 1);
+    Liste *k = kolay_liste_yeni(sonuc_tipi, adet);
+    for (int64_t i = 0; i < adet; i++) {
+        int64_t j = n > 0 ? (int64_t)((uint64_t)i * m) : len - 1 - (int64_t)((uint64_t)i * m);
+        memcpy(k->veri + i * eb, l->veri + j * eb, (size_t)eb);
+        kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+    }
     return k;
 }
 

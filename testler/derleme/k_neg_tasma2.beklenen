@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_neg_tasma2.kolay, satır 2): Tam(+) taştı: -(12.345.678) = -12.345.678, ama Tam(+) sınırları 0 .. sonsuz.
+  2 | yazdır(-e)
