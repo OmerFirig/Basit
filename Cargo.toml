@@ -2,6 +2,9 @@
 name = "kolay"
 version = "0.6.0"
 edition = "2024"
+description = "Kolay: Türkçe, tip güvenli ve hızlı bir programlama dili"
+authors = ["Ömer Faruk Yılmaz <ofy.omer.yilmaz@gmail.com>"]
+license-file = "LICENSE"
 
 [dependencies]
 half = "2.7.1"

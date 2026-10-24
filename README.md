@@ -225,3 +225,15 @@ Derlenmiş programlarda:
 - `testler/moduller/`: dahil et
 - `testler/derleme/`: yorumlayıcı ile derleyicinin aynı çıktıyı (hata mesajları dahil) verdiği programlar
 - `testler/repl/`: etkileşimli kip (`.girdi` borudan verilir)
+
+## Lisans
+
+Copyright 2026 Ömer Faruk Yılmaz ([OmerFirig](https://github.com/OmerFirig)).
+
+- **Kod** (dil, derleyici, yorumlayıcı, VS Code eklentisi): [PolyForm Noncommercial 1.0.0](LICENSE). Ticari olmayan
+  kullanım, değiştirme ve paylaşım ücretsizdir; ticari kullanım için izin gerekir.
+- **Kurs** ([belgeler/Kolay.md](belgeler/Kolay.md)): [CC BY-NC-SA 4.0](belgeler/LICENSE).
+- **Eğitim:** Okullarda, üniversitelerde ve kişisel öğrenmede eğitim amaçlı kullanım ve yayın ücretsizdir. Ücretli
+  kurs, eğitim ya da ürün satışı ticari kullanımdır ve ayrı izin gerektirir (bkz. [NOTICE](NOTICE)).
+
+Ticari izin ve sorular için: ofy.omer.yilmaz@gmail.com

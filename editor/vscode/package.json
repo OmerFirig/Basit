@@ -82,7 +82,7 @@
       }
     }
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "https://example.invalid/kolay"
@@ -90,5 +90,9 @@
   "main": "./extension.js",
   "activationEvents": [
     "onLanguage:kolay"
-  ]
+  ],
+  "author": {
+    "name": "Ömer Faruk Yılmaz",
+    "email": "ofy.omer.yilmaz@gmail.com"
+  }
 }

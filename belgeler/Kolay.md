@@ -5508,3 +5508,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 ---
 
 Tebrikler, kursu bitirdiniz! Artık değişkenlerle, koşullarla, döngülerle, fonksiyonlarla, listelerle, sözlüklerle, lambdalarla, kendi türlerinizle, generic kodla ve hata yönetimiyle program yazabiliyorsunuz. Bunlar bütün programlama dillerinin temelidir. Bir sonraki adım için 27. bölümdeki proje fikirlerinden birini seçip baştan sona kendiniz yazmayı deneyin.
+
+---
+
+© 2026 Ömer Faruk Yılmaz. Bu kurs [Creative Commons Atıf-GayriTicari-AynıLisanslaPaylaş 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.tr) (CC BY-NC-SA 4.0) ile lisanslıdır. Okullarda, üniversitelerde ve kişisel öğrenmede eğitim amaçlı kullanım ve yayın ücretsizdir; ücretli kurs, eğitim ya da ürün satışı ticari kullanımdır ve ayrı izin gerektirir. İletişim: ofy.omer.yilmaz@gmail.com
