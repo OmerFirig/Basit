@@ -1,0 +1,3 @@
+HATA (75_yakala_degisken.kolay, satır 1): 'yakala' sonrasında önce bir değişken adı yazılır: yakala h: Hata.Dönüşüm { }
+  1 | dene { } yakala Hata.Dönüşüm { }
+    |                 ^^^^^^^^^^^^

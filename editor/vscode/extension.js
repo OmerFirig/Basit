@@ -7,9 +7,9 @@ const KEYWORDS = [
   "ata", "sabit", "fonksiyon", "döndür", "eğer", "değilse", "yap", "içindeki", "her", "için",
   "sürece", "kere", "dur", "devam", "doğru", "yanlış", "tür", "yeniden", "bu", "arayüz",
   "seçenek", "eşleştir", "veya", "ve", "değil", "dahil et", "olarak", "Hiç", "adıyla",
-  "dış kütüphane", "kütüphanesindeki",
+  "dış kütüphane", "kütüphanesindeki", "dene", "yakala", "fırlat",
 ];
-const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Fonksiyon"];
+const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Fonksiyon", "Hata"];
 const FUNCS = [
   ["yazdır", "yazdır(${1})", "Ekrana yazar"],
   ["oku", "oku(\"${1:Soru: }\")", "Klavyeden bir satır okur (Yazı)"],
@@ -261,6 +261,10 @@ function complete(doc, pos) {
         out.push(item(n, K.Method, `${n}(${args})`, d, us));
       }
     };
+    if (recv === "Hata") {
+      for (const h of ["SıfıraBölme", "İndeks", "Anahtar", "Taşma", "Dönüşüm"]) out.push(item(h, K.Class, null, "hazır hata türü", us));
+      return out;
+    }
     if (info.enums.has(recv)) {
       for (const v of info.enums.get(recv)) out.push(item(v, K.EnumMember, null, recv, false));
       return out;

@@ -6,7 +6,7 @@ yazdır("Bir", "iki", 3, doğru, Hiç)
 ata s = "istanbul"
 yazdır(s.büyük_harf(), "IŞIK".küçük_harf(), s.uzunluk(), "çğış".uzunluk())
 yazdır(s.karakter(0), s.karakter(-1), "  boşluk  ".kırp(), s.içerir("tan"))
-yazdır("42".tama() + 1, "3,5".ondalığa() * 2, 12.yazıya() + "!", 2.5.tama())
+dene { yazdır("42".tama() + 1, "3,5".ondalığa() * 2, 12.yazıya() + "!", 2.5.tama()) } yakala h { yazdır(h) }
 yazdır("abc" < "abd", "c" < "ç", "ç" < "d", "ı" < "i", "Ali" == "Ali", "a" != "b")
 ata t = "x"
 t += "yz"

@@ -1,1 +1,2 @@
+dene { yazdır("12a".tama()) } yakala h: Hata.Dönüşüm { yazdır(h.mesaj) }
 yazdır("12a".tama())

@@ -179,7 +179,7 @@ impl Checker {
         }
         let m = &self.mods[self.cx.module];
         v.extend(m.funcs.keys().cloned());
-        v.extend(m.types.keys().cloned());
+        v.extend(m.types.keys().filter(|k| !k.contains('.')).cloned());
         v.extend(BUILTIN_FUNCS.iter().map(|s| s.to_string()));
         if let Some(o) = self.cx.owner {
             v.extend(self.fields_of(o).iter().map(|f| f.name.to_string()));
@@ -299,8 +299,39 @@ impl Checker {
         }
     }
 
+    /// Tipin üyelerinden biri Hata (ya da alt türü) mü?
+    pub(crate) fn hata_kabul(&self, t: &Type) -> bool {
+        t.members().iter().any(|m| self.is_hata(m))
+    }
+
+    /// 'veya' tipinden Hata üyeleri çıkarılmış hali
+    pub(crate) fn hatasiz(&self, t: &Type) -> Type {
+        make_union(t.members().into_iter().filter(|m| !self.is_hata(m)).collect())
+    }
+
+    /// `T veya Hata` değeri T gibi kullanıldıysa yol gösterici mesaj
+    pub(crate) fn hata_olabilir(&self, ty: &Type, span: Span) -> Option<Diag> {
+        if !matches!(ty, Type::Union(_)) || !self.hata_kabul(ty) || self.hatasiz(ty) == Type::Never {
+            return None;
+        }
+        let f = self.type_name(ty);
+        let text = self.texts.get(span.file as usize).and_then(|t| t.get(span.start as usize..span.end as usize)).unwrap_or("").trim_end();
+        Some(Diag::new(
+            span,
+            match cagri_adi(text) {
+                Some(ad) => format!("'{ad}' hata verebilir ({f}). Bir 'dene {{ }} yakala' bloğu içinde kullanın ya da eşleştir ile kontrol edin."),
+                None => format!("Bu değer bir hata olabilir ({f}). Kullanmadan önce eşleştir ile kontrol edin."),
+            },
+        ))
+    }
+
     pub(crate) fn mismatch(&self, e: &TExpr, to: &Type, span: Span) -> Diag {
         let from = &e.ty;
+        if let Some(d) = self.hata_olabilir(from, span) {
+            if self.assignable(&self.hatasiz(from), to) {
+                return d;
+            }
+        }
         let x = self.written(span);
         let (f, t) = (self.type_name(from), self.type_name(to));
         let msg = match (from, to) {
@@ -430,7 +461,21 @@ impl Checker {
                 let e = self.range_bound(en)?;
                 self.mk(TK::Range { start: Box::new(s), end: Box::new(e), inclusive: *inclusive, step: None }, Type::list(TAM64), span)
             }
-            ExprKind::Call { callee, args } => self.call_expr(callee, args, span)?,
+            ExprKind::Call { callee, args } => {
+                let t = self.call_expr(callee, args, span)?;
+                // `dene` içinde `T veya Hata` döndüren çağrı: Hata dönerse fırlatılır, sonuç T olur
+                // (beklenen tip Hata'yı da kabul ediyorsa değer olduğu gibi kalır)
+                if self.cx.dene_depth > 0
+                    && matches!(t.ty, Type::Union(_))
+                    && self.hata_kabul(&t.ty)
+                    && !expected.is_some_and(|e| self.hata_kabul(e))
+                {
+                    let rest = self.hatasiz(&t.ty);
+                    self.mk(TK::Unwrap(Box::new(t)), rest, span)
+                } else {
+                    t
+                }
+            }
             ExprKind::Field(base, name, nspan) => self.field_expr(base, name, *nspan, span)?,
             ExprKind::Index(base, idx) => self.index_expr(base, idx, span)?,
             ExprKind::Olarak(x, te) => self.olarak(x, te, span)?,
@@ -497,11 +542,11 @@ impl Checker {
     }
 
     /// İki geçişli denetim için: lambdanın ilk denetiminde eklenenler geri alınır.
-    fn geri_nokta(&self) -> (usize, usize, usize, usize, usize) {
+    pub(crate) fn geri_nokta(&self) -> (usize, usize, usize, usize, usize) {
         (self.funcs.len(), self.warnings.len(), self.mut_edges.len(), self.mut_direct.len(), self.pending_mut.len())
     }
 
-    fn geri_al(&mut self, g: (usize, usize, usize, usize, usize)) {
+    pub(crate) fn geri_al(&mut self, g: (usize, usize, usize, usize, usize)) {
         self.funcs.truncate(g.0);
         self.mutates.truncate(g.0);
         self.warnings.truncate(g.1);
@@ -1019,6 +1064,9 @@ impl Checker {
                 }
                 for (t, e) in [(&lt, l), (&rt, r)] {
                     if !t.ty.is_num() {
+                        if let Some(d) = self.hata_olabilir(&t.ty, e.span) {
+                            return Err(d);
+                        }
                         if t.ty == Type::Hic && !matches!(t.kind, TK::Hic) {
                             return Err(self.mismatch(t, &TAM64, e.span));
                         }
@@ -1068,6 +1116,11 @@ impl Checker {
                 if lt.ty == Type::Str && rt.ty == Type::Str {
                     return Ok(self.mk(TK::Cmp(op, Box::new(lt), Box::new(rt)), Type::Bool, span));
                 }
+                for (t, e) in [(&lt, l), (&rt, r)] {
+                    if let Some(d) = self.hata_olabilir(&t.ty, e.span) {
+                        return Err(d);
+                    }
+                }
                 err(
                     span,
                     format!(
@@ -1096,6 +1149,9 @@ impl Checker {
                 m.types.get(n).map(|&t| PathRes::Type(t))
             }
             ExprKind::Field(b, n, _) => match self.static_path(b)? {
+                PathRes::Type(t) if t == self.hata_turleri[0] => {
+                    self.mods[self.cx.module].types.get(&format!("Hata.{n}")).map(|&x| PathRes::Type(x))
+                }
                 PathRes::Module(mi) => {
                     let m = &self.mods[mi];
                     if let Some(&x) = m.namespaces.get(n) {
@@ -1206,7 +1262,12 @@ impl Checker {
                 }
             }
             ExprKind::Field(base, name, nspan) => {
+                // Hata.SıfıraBölme(mesaj: "...")
+                if let Some(PathRes::Type(t)) = self.static_path(callee) {
+                    return self.construct(t, args, span);
+                }
                 match self.static_path(base) {
+                    Some(PathRes::Type(t)) if t == self.hata_turleri[0] => return err(*nspan, hata_turu_yok(name)),
                     Some(PathRes::Module(mi)) => {
                         if let Some(&fid) = self.mods[mi].funcs.get(name) {
                             return self.call_func(fid, args, span);
@@ -1516,6 +1577,9 @@ impl Checker {
                 );
             }
             let tn = self.type_name(&recv_ty);
+            if let Some(d) = self.hata_olabilir(&recv_ty, base.span) {
+                return Err(d);
+            }
             if let Type::Union(ms) = &recv_ty {
                 let rest = make_union(ms.iter().filter(|m| **m != Type::Hic).cloned().collect());
                 if ms.contains(&Type::Hic) && (self.builtin_method(&rest, name).is_some() || matches!(rest, Type::Named(_))) {
@@ -1629,8 +1693,9 @@ impl Checker {
                 "içerir" => mk(BM::SIcerir, vec![p("parça", Type::Str)], Type::Bool, false, false),
                 "böl" => mk(BM::Bol, vec![p("ayraç", Type::Str)], Type::list(Type::Str), false, false),
                 "kırp" => mk(BM::Kirp, vec![], Type::Str, false, false),
-                "tama" => mk(BM::Tama, vec![], TAM64, false, false),
-                "ondalığa" => mk(BM::Ondaliga, vec![], Type::Float(64), false, false),
+                // yazıdan sayıya çevirme başarısız olabilir: değer ya da Hata.Dönüşüm
+                "tama" => mk(BM::Tama, vec![], Type::Union(vec![TAM64, Type::Named(self.hata_turleri[hata_turu::DONUSUM as usize])]), false, false),
+                "ondalığa" => mk(BM::Ondaliga, vec![], Type::Union(vec![Type::Float(64), Type::Named(self.hata_turleri[hata_turu::DONUSUM as usize])]), false, false),
                 _ => None,
             },
             Type::Float(_) => match name {
@@ -1655,6 +1720,12 @@ impl Checker {
             Some(PathRes::Type(tid)) => {
                 if matches!(self.types[tid].kind, TypeDefKind::Secenek { .. }) {
                     return self.variant(tid, name, nspan, None, span);
+                }
+                if tid == self.hata_turleri[0] {
+                    if self.mods[self.cx.module].types.contains_key(&format!("Hata.{name}")) {
+                        return err(span, format!("'Hata.{name}' bir tür; nesne oluşturmak için Hata.{name}(mesaj: \"...\") yazın."));
+                    }
+                    return err(nspan, hata_turu_yok(name));
                 }
                 let tn = self.types[tid].name.clone();
                 return err(span, format!("'{tn}.{name}' şeklinde kullanılamaz. Ebeveyn fonksiyonunu çağırmak için {tn}.{name}() yazın."));
@@ -1761,4 +1832,30 @@ impl Checker {
             _ => false,
         }
     }
+}
+
+/// Çağrı yazısından fonksiyonun adı: `böl(100, x)` -> `böl()`, `"42".tama()` -> `tama()`. Çağrı değilse None.
+fn cagri_adi(text: &str) -> Option<String> {
+    if !text.ends_with(')') {
+        return None;
+    }
+    let b = text.as_bytes();
+    let mut depth = 0i32;
+    let mut open = None;
+    for i in (0..b.len()).rev() {
+        match b[i] {
+            b')' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth == 0 {
+                    open = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let head = &text[..open?];
+    let name = head.rsplit('.').next()?.trim();
+    (!name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_')).then(|| format!("{name}()"))
 }

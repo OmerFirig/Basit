@@ -5,7 +5,6 @@ use super::Gen;
 use crate::ast::BinOp;
 use crate::diag::CResult;
 use crate::tir::*;
-use crate::tir::is_pure;
 use crate::types::{bounds_text, group_digits, int_bounds, int_subset, Sign, Type, TypeId};
 use crate::values::type_display;
 use num_bigint::BigInt;
@@ -493,6 +492,7 @@ impl<'p> Gen<'p> {
                 self.own(o, &e.ty)
             }
             TK::FuncRef(fid) => self.func_ref(*fid, &e.ty),
+            TK::Unwrap(x) => self.unwrap(x, &e.ty, loc)?,
             TK::CallValue(fe, args) => {
                 let Type::Func(ps, ret) = &fe.ty else { unreachable!() };
                 let (ps, ret) = (ps.clone(), (**ret).clone());
@@ -531,6 +531,51 @@ impl<'p> Gen<'p> {
                 self.own(t, &e.ty)
             }
         })
+    }
+
+    /// `dene` içinde `T veya Hata` değeri: Hata üyesiyse fırlatılır, değilse T'ye çevrilir. Sonuç sahiplidir.
+    fn unwrap(&mut self, x: &TExpr, rest: &Type, loc: Loc) -> CResult<String> {
+        let v = self.expr(x)?;
+        let Type::Union(ms) = &x.ty else { unreachable!("'veya' bekleniyordu") };
+        let sahipli = self.f.owned.contains(&v);
+        let lt = self.llty(rest);
+        let res = if lt == "void" { None } else { Some(self.alloca(&lt)) };
+        let tag = self.union_tag(&v);
+        let (end, def) = (self.new_label(), self.new_label());
+        let labels: Vec<String> = ms.iter().map(|_| self.new_label()).collect();
+        let cases: Vec<String> = labels.iter().enumerate().map(|(i, l)| format!("i64 {i}, label %{l}")).collect();
+        self.term(&format!("switch i64 {tag}, label %{def} [ {} ]", cases.join(" ")));
+        for (m, l) in ms.iter().zip(&labels) {
+            self.block(l);
+            let mv = self.union_unpack(&v, m);
+            if self.prog.is_hata(m) {
+                // değerin sahipliği fırlatmaya geçer
+                if !sahipli {
+                    self.retain(&mv, m);
+                }
+                let p = self.spill(&mv, m);
+                let t = self.tip(m);
+                let (k, kd) = self.where_(loc);
+                self.emit(&format!("call void @kolay_firlat(ptr {t}, ptr {p}, ptr {k}, ptr {kd})"));
+                self.term("unreachable");
+                continue;
+            }
+            let c = self.convert(&mv, m, rest, loc)?;
+            self.ensure_owned(&c, rest);
+            self.disown(&c);
+            if let Some(r) = &res {
+                self.emit(&format!("store {lt} {c}, ptr {r}"));
+            }
+            self.term(&format!("br label %{end}"));
+        }
+        self.block(&def);
+        self.term("unreachable");
+        self.block(&end);
+        self.drop_temp(&v);
+        let Some(r) = res else { return Ok(String::new()) };
+        let t = self.tmp();
+        self.emit(&format!("{t} = load {lt}, ptr {r}"));
+        Ok(self.own(t, rest))
     }
 
     // ------------------------------------------------------------ çağrılar
@@ -822,7 +867,7 @@ impl<'p> Gen<'p> {
                 let (zl, ok) = (self.new_label(), self.new_label());
                 self.br_cold(&z, &zl, &ok);
                 self.block(&zl);
-                self.error_call("Sıfıra bölme hatası.", loc);
+                self.error_call_tur(hata_turu::SIFIRA_BOLME, "Sıfıra bölme hatası.", loc);
                 self.block(&ok);
                 let mut divisor = b.to_string();
                 if s != Sign::Pos {

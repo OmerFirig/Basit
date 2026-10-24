@@ -1,0 +1,12 @@
+// Yakalanmayan değer: mesajı ve tipi yazılır; uymayan dal hatayı dışarı bırakır
+fonksiyon dene_bunu(n: Tam(64)) {
+    dene {
+        eğer n > 0 { fırlat n }
+        fırlat "yazı"
+    } yakala s: Tam(64) {
+        yazdır("sayı yakalandı:", s)
+    }
+}
+dene_bunu(5)
+dene_bunu(0)
+yazdır("buraya gelmez")

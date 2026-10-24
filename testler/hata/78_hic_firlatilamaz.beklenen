@@ -1,0 +1,3 @@
+HATA (78_hic_firlatilamaz.kolay, satır 1): Hiç fırlatılamaz. Bir değer ya da hata fırlatın: fırlat Hata(mesaj: "...")
+  1 | fırlat Hiç
+    |        ^^^

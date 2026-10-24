@@ -1,6 +1,6 @@
 KOLAY — YAPILACAKLAR
 ====================
-Son güncelleme: 2026-10-24 (sürüm 0.5.0)
+Son güncelleme: 2026-10-24 (sürüm 0.6.0: hata yönetimi)
 
 Tasarım kararlarının tamamı: ../Notes_Claude.md (bölüm 4.8: generic, hata yönetimi, lambda, REPL).
 Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılacaklarını tutar.
@@ -42,8 +42,8 @@ Kurallar (kullanıcı kararı):
         HATA (dosya.kolay, satır 4): deneme içinde: Yazı ile Tam(64) toplanamaz.
         (çağrı: satır 12, T = Yazı, Z = Tam(64))
 [ ] Tip parametreleri büyük harfle başlar; tek harf (T) ya da Türkçe ad (Eleman) serbest.
-[ ] Tip, argümanlardan çıkarılır: en_büyük([1, 2]) -> T = Tam(64). Çıkarılamazsa açıkça:
-    en_büyük<Tam(8)>(l)  (bu yazımın gerekip gerekmediği uygulanırken kullanıcıya sorulabilir)
+[ ] Tip, argümanlardan çıkarılır: en_büyük([1, 2]) -> T = Tam(64). Açıkça yazma (<Tam(8)>) yok
+    (kullanıcı kararı). Çıkarılamazsa hata, çözüm önerilir (argümana tip vermek: [] olarak Liste<Tam(8)>).
 [ ] Karşılaştırma kuralı: türde
         fonksiyon karşılaştır(diğer: Tür) -> Tam(8)     // -1, 0, 1
     varsa <, >, <=, >=, sırala(), sıralı(), en_büyük(), en_küçük() o türde de çalışır.
@@ -56,12 +56,27 @@ Uygulama notları:
 [ ] REPL: fonksiyon anahtarına (TFunc.key) tip ataması da eklenmeli (yoksa hücreler arasında
     yanlış kopyaya eşlenir).
 
-[?] GENERIC LAMBDA — SİSTEMİN NASIL OLACAĞI KULLANICIYA SORULACAK
-    Bağlamı olmayan lambda generic olmalı:
-        ata iki_kat = her x için x * 2
-        yazdır(iki_kat(5), iki_kat(2.5))      // 10  5.0
-    Şu an parametre tipi yazılmak zorunda: her (x: Tam(64)) için x * 2
-    Uygulamaya başlamadan önce kullanıcıya sorulacak sorular:
+[ ] GENERIC LAMBDA — yazım kararı verildi (kullanıcı, 2026-10-24): tip parametresi açıkça yazılır
+        ata iki_kat = her<T> x: T için x * 2      // generic: her çağrıda somutlaşır
+        yazdır(iki_kat(5), iki_kat(2.5))          // 10  5.0
+        ata artır = her x: Tam için x + 1          // tipi belli lambda
+        ata topla = her<T> (a: T, b: T) için a + b
+    - Bağlamı olmayan tipsiz lambda (ata f = her x için x * 2) hata vermeye devam eder; mesaj iki
+      yazımı da önerir. Kendiliğinden (gizli) generic lambda yok.
+    - Tek parametrede parantezsiz tip yazımı da geçerli: her x: Tam için ... (şu an parantez zorunlu).
+    - Tipi ekranda (yazdır, :tip): Fonksiyon<T>(T) -> T
+    - Fonksiyonlar başka fonksiyonlara verilebilir, generic olsalar da (kullanıcı kararı):
+        A) Somut tip bekleyen yere verilince orada somutlaşır: uygula(iki_kat, 5)  -> T = Tam(64)
+           Alan fonksiyon da generic olabilir: fonksiyon uygula<T>(f: Fonksiyon(T) -> T, x: T) -> T
+        B) Parametre generic fonksiyon olabilir, içeride farklı tiplerle çağrılır:
+             fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) { yazdır(f(5), f(2.5)) }
+             ikisine(iki_kat)    // 10 5.0
+           Uygulama: ikisine her verilen fonksiyon için ayrı derlenir (monomorfizasyon). Kısıt: generic
+           fonksiyon değeri çalışma anında seçilemez (eğer ile değişkene farklı fonksiyon atayıp verme);
+           derleyici hangi fonksiyonun geleceğini derleme anında bilmeli, bilmiyorsa yol gösterici hata.
+    - Tipi elle yazma (en_büyük<Tam(8)>(l), iki_kat<Tam(8)>(5)) YOK (kullanıcı kararı): tip hep
+      argümanlardan çıkarılır; somut tip gerekiyorsa normal fonksiyon ya da tipli lambda yazılır.
+    Eski sorular (yukarıdaki kararlarla cevaplandı):
       - Generic lambda bir değişkende saklanınca tipi ne olur? (yazdırılınca, :tip ile ne görünür)
       - Generic lambda bir listeye konabilir mi, başka bir fonksiyona verilebilir mi?
         (Somut tip istenen yere verilince orada somutlaşması önerilebilir.)
@@ -70,7 +85,7 @@ Uygulama notları:
 
 
 ------------------------------------------------------------------------------
-2. HATA YÖNETİMİ  (kullanıcının tasarımı, uygulanmadı)
+2. HATA YÖNETİMİ  (kullanıcının tasarımı; UYGULANDI 2026-10-24, yorumlayıcı + derleyici)
 ------------------------------------------------------------------------------
     fonksiyon böl(a: Tam(64), b: Tam(64)) -> Tam(64) veya Hata {
         eğer b == 0 { döndür Hata.SıfıraBölme(mesaj: "Bölen sıfır olamaz.") }
@@ -91,42 +106,66 @@ Uygulama notları:
     fırlat 42                         // herhangi bir değer fırlatılır
 
 Kurallar (kullanıcı kararı, hepsi kabul edildi):
-[ ] 1. Tek başına dene { } hatayı yok sayar; blok hatanın olduğu yerde durur, program
+[x] 1. Tek başına dene { } hatayı yok sayar; blok hatanın olduğu yerde durur, program
        bloğun sonrasından devam eder; derleyici uyarır:
        "Uyarı: 'dene' bloğundaki hatalar yok sayılıyor (satır 3: deneme() hata verebilir)."
-[ ] 2. yakala ad: Tip yazımı. eşleştir'de de "n: Tam ->" yazımı geçerli olur (eski Tam(n) da kalır).
-[ ] 3. fırlat değer: HER değer fırlatılabilir ve tipine göre yakalanır. Tipsiz "yakala ad"
+[x] 2. yakala ad: Tip yazımı. eşleştir'de de "n: Tam ->" yazımı geçerli olur (eski Tam(n) da kalır).
+[x] 3. fırlat değer: HER değer fırlatılabilir ve tipine göre yakalanır. Tipsiz "yakala ad"
        geri kalan her şeyi yakalar; tipi, o blokta fırlatılabilen tiplerin 'veya'sıdır
        (derleyici tüm programı gördüğü için çıkarır). Hiç fırlatılamayan tip için uyarı:
        "Uyarı: bu blokta Ondalık fırlatılamaz, 'yakala o: Ondalık' dalı hiç çalışmaz."
        (Lambda ve C fonksiyonlarında derleyici "her şey fırlatılabilir" varsayar.)
-[ ] 4. Hazır hatalar Hata.X nesneleridir ve yakalanabilir:
+[x] 4. Hazır hatalar Hata.X nesneleridir ve yakalanabilir:
          Hata.SıfıraBölme   x / 0
          Hata.İndeks        liste sınırı aşıldı
          Hata.Anahtar       sözlükte anahtar yok
          Hata.Taşma         Tam(8) taştı
          Hata.Dönüşüm       "abc".tama(), olarak sığmadı
-         Hata.Dosya         (dosya işlemleri gelince)
+[ ]      Hata.Dosya         (dosya işlemleri gelince)
        Her hatanın "mesaj" alanı vardır, satır bilgisi kendiliğinden gelir.
        Kendi hatalar: tür GeçersizYaş[Hata](yaş: Tam)  -> yakala h: GeçersizYaş { h.yaş }
        Yakala dalları özelden genele; ters sırada uyarı:
        "Uyarı: 'yakala z: Hata' önce geldiği için 'Hata.SıfıraBölme' dalı hiç çalışmaz."
        "Çok derin özyineleme" derlenmiş programda yakalanamaz (yığın taşmış olur).
-[ ] 5. "-> T veya Hata" döndüren çağrı dene içinde kullanılırsa dönen Hata kendiliğinden
+[x] 5. "-> T veya Hata" döndüren çağrı dene içinde kullanılırsa dönen Hata kendiliğinden
        fırlatılır; dene dışında eşleştir ile değer olarak ele alınır. dene dışında T gibi
        kullanılırsa derleme hatası:
        "'deneme()' hata verebilir (Tam(64) veya Hata). Bir 'dene { } yakala' bloğu içinde
         kullanın ya da eşleştir ile kontrol edin."
-[ ] 6. Yakalanmayan değer: "ÇALIŞMA HATASI: Yakalanmamış değer fırlatıldı: -5 (Tam(64))."
-[ ] Hazır metotlar: tama(), ondalığa(), oku() vb. "T veya Hata" döndürür (önceki K1 kararı).
-    Mevcut testler buna göre güncellenmeli. Liste boşken en_büyük()/en_küçük() da
-    Hata fırlatmalı (şu an çalışma hatası).
-Uygulama notları:
-[ ] Yorumlayıcı: RtErr yerine fırlatılan değer (Value) taşıyan Unwind; dene blokları onu yakalar.
-[ ] Derleyici: dene girişinde atlama noktası (setjmp benzeri); kolay_hata ve fırlat oraya
-    atlar. Maliyet sadece dene bloğuna girişte. Atlanan geçici nesnelerin belleği geri
-    verilmeyebilir (sadece hata anında, küçük sızıntı).
-[ ] Hata türü hazır bir 'tür' olarak (mesaj: Yazı) ve alt türleri program başında tanımlı.
+[x] 6. Yakalanmayan değer: "ÇALIŞMA HATASI: Yakalanmamış değer fırlatıldı: -5 (Tam(64))."
+[x] Hazır metotlar: yazı.tama() ve yazı.ondalığa() "T veya Hata.Dönüşüm" döndürür. Testler
+    güncellendi. Liste boşken en_büyük()/en_küçük() Hata.İndeks fırlatır.
+[?] oku(): şu an Yazı döndürüyor (değişmedi). "Yazı veya Hata" olması için hangi durumun hata
+    sayılacağı sorulacak (girdi bitti mi? ileride Hata.Dosya ile mi?).
+[?] "Satır bilgisi kendiliğinden gelir": şu an satır sadece yakalanmayan hatanın mesajında. Hata
+    nesnesinde ayrıca h.satır alanı istenip istenmediği sorulacak.
+Uygulama (yapıldı):
+[x] Yorumlayıcı: RtErr fırlatılan değeri (Value + statik tip) ya da çalışma hatasının türünü taşır;
+    yakala_sec (interp.rs) dalı seçer. Bytecode'da DeneGir/DeneCik komutları ve çerçeve başına bir
+    yakalayıcı yığını (vm.rs run_chunk) var; dene içindeki döngüler de hızlı kalır.
+[x] Derleyici: dene girişinde _setjmp, çerçeve zinciri runtime/cekirdek.c (DeneCerceve). Hata
+    olunca longjmp. Dene bloğu olan fonksiyonlarda yerel değişkenler kolay_kacir ile belleğe
+    zorlanır (yoksa LLVM yazmaçta tutar, yakala dalı eski değeri görürdü). Atlanan geçici
+    nesnelerin belleği geri verilmez (sadece hata anında küçük sızıntı).
+[x] Hata ve alt türleri hazır 'tür' olarak (mesaj: Yazı) her dosyada tanımlı (check.rs).
+[x] Fırlatma analizi (src/firlat.rs): fonksiyonların fırlatabildikleri, yakala dallarının
+    kaynakları, tipsiz dalın tipi ve uyarılar. Tipsiz dal varsa program birkaç geçişte denetlenir.
+Uygularken Claude'un verdiği küçük kararlar (💡 onay bekliyor, ayrıntı: Notes_Claude.md 4.8):
+    - Çalışma hatalarının türleri: SıfıraBölme (/ ve %), İndeks (liste/yazı sınırı, boş listeden
+      çıkar/en_büyük), Anahtar, Taşma (Tam taşması, büyük üs/kaydırma), Dönüşüm (olarak, tama,
+      ondalığa, sabit boyutlu listeye uymayan liste, "Bu değer X değil"). Diğerleri ("Adım sıfır
+      olamaz", "Aralık çok büyük", negatif kere/kaydırma/üs) genel Hata.
+    - Yakalanamayanlar: çok derin özyineleme (iki tarafta da), Ctrl+C, bellek yetmedi, belirsiz
+      değişken (fonksiyon, değişken tanımlanmadan çağrıldı: programın yapısındaki hata).
+    - dene içinde beklenen tip Hata'yı kabul ediyorsa çağrı açılmaz:
+      ata r: Tam veya Hata = böl(1, 0)    // r bir Hata değeri olur, fırlatılmaz
+    - Tipsiz yakala tipinde Hata'nın alt türleri tek 'Hata' üyesinde birleşir: Yazı veya Hata.
+    - Ondalık.tama() değişmedi (TanımsızSayı vb. Hata.Dönüşüm olarak fırlatılır).
+    - dene içindeki bir lambdanın gövdesi dene içinde sayılmaz (lambda sonra çağrılabilir).
+    - C fonksiyonları Kolay değeri fırlatamaz (hiçbir şey fırlatmaz sayılır).
+    - "yakala _ { }": değişkensiz dal.
+
+
 
 
 ------------------------------------------------------------------------------

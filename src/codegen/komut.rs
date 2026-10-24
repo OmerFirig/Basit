@@ -314,7 +314,7 @@ impl<'p> Gen<'p> {
         let (bad, ok) = (self.new_label(), self.new_label());
         self.br_cold(&c, &bad, &ok);
         self.block(&bad);
-        self.error_call("İndeks çok büyük.", loc);
+        self.error_call_tur(hata_turu::INDEKS, "İndeks çok büyük.", loc);
         self.block(&ok);
         let r = self.tmp();
         self.emit(&format!("{r} = trunc i{big} {x} to i64"));
@@ -373,7 +373,7 @@ impl<'p> Gen<'p> {
                 let cv = self.expr(c)?;
                 self.term(&format!("br i1 {cv}, label %{bodyl}, label %{exit}"));
                 self.block(&bodyl);
-                self.f.loops.push((cond.clone(), exit.clone()));
+                self.f.loops.push((cond.clone(), exit.clone(), self.f.deneler.len()));
                 self.stmts(body)?;
                 self.f.loops.pop();
                 if !self.f.terminated {
@@ -388,7 +388,7 @@ impl<'p> Gen<'p> {
                 let cv = self.expr(c)?;
                 self.term(&format!("br i1 {cv}, label %{bodyl}, label %{exit}"));
                 self.block(&bodyl);
-                self.f.loops.push((stepl.clone(), exit.clone()));
+                self.f.loops.push((stepl.clone(), exit.clone(), self.f.deneler.len()));
                 self.stmts(body)?;
                 self.f.loops.pop();
                 self.block(&stepl);
@@ -399,11 +399,13 @@ impl<'p> Gen<'p> {
                 self.block(&exit);
             }
             TS::Break => {
-                let (_, b) = self.f.loops.last().cloned().expect("döngü");
+                let (_, b, d) = self.f.loops.last().cloned().expect("döngü");
+                self.dene_kes(d);
                 self.term(&format!("br label %{b}"));
             }
             TS::Continue => {
-                let (c, _) = self.f.loops.last().cloned().expect("döngü");
+                let (c, _, d) = self.f.loops.last().cloned().expect("döngü");
+                self.dene_kes(d);
                 self.term(&format!("br label %{c}"));
             }
             TS::Return(e) => match e {
@@ -414,10 +416,12 @@ impl<'p> Gen<'p> {
                     if self.is_rc(&ret) {
                         self.keep_ref(&v, &ret);
                     }
+                    self.dene_kes(0);
                     self.release_rc_slots();
                     self.term(&format!("ret {lt} {v}"));
                 }
                 None => {
+                    self.dene_kes(0);
                     self.release_rc_slots();
                     self.term("ret void");
                 }
@@ -426,7 +430,103 @@ impl<'p> Gen<'p> {
                 self.match_code(m, None)?;
             }
             TS::RunModule(m) => self.emit(&format!("call void @m{m}()")),
+            TS::Throw(e) => {
+                // değerin sahipliği fırlatmaya geçer
+                let v = self.expr(e)?;
+                self.keep_ref(&v, &e.ty);
+                let p = self.spill(&v, &e.ty);
+                let t = self.tip(&e.ty);
+                let (k, kd) = self.where_(e.loc);
+                self.emit(&format!("call void @kolay_firlat(ptr {t}, ptr {p}, ptr {k}, ptr {kd})"));
+                self.term("unreachable");
+            }
+            TS::Dene { body, catches } => self.dene(body, catches)?,
         }
+        Ok(())
+    }
+
+    /// dur/devam/döndür ile dene bloklarından çıkılırken çerçeveler zincirden çıkarılır
+    /// (`d`: hedefin içinde olduğu dene sayısı).
+    fn dene_kes(&mut self, d: usize) {
+        if let Some(fr) = self.f.deneler.get(d).cloned() {
+            self.emit(&format!("call void @kolay_dene_cik(ptr {fr})"));
+        }
+    }
+
+    /// `dene { } yakala ...`: çerçeve zincire eklenir ve setjmp yapılır. Hata olunca (longjmp) setjmp
+    /// ikinci kez, sıfırdan farklı döner: fırlatılan değerin tipine göre yakala dalı seçilir.
+    fn dene(&mut self, body: &[TS], catches: &[TCatch]) -> CResult<()> {
+        let fr = self.alloca("[1024 x i8]");
+        self.emit(&format!("call void @kolay_dene_gir(ptr {fr})"));
+        let (r, z) = (self.tmp(), self.tmp());
+        self.emit(&format!("{r} = call i32 @_setjmp(ptr {fr}) returns_twice"));
+        self.emit(&format!("{z} = icmp eq i32 {r}, 0"));
+        let (govde, yakala, son) = (self.new_label(), self.new_label(), self.new_label());
+        self.term(&format!("br i1 {z}, label %{govde}, label %{yakala}"));
+        self.block(&govde);
+        self.f.deneler.push(fr.clone());
+        let res = self.stmts(body);
+        self.f.deneler.pop();
+        res?;
+        if !self.f.terminated {
+            self.emit(&format!("call void @kolay_dene_cik(ptr {fr})"));
+            self.term(&format!("br label %{son}"));
+        }
+        self.block(&yakala);
+        if catches.is_empty() {
+            // dal yok: hata yok sayılır
+            self.emit(&format!("call void @kolay_dene_birak(ptr {fr})"));
+            self.term(&format!("br label %{son}"));
+            self.block(&son);
+            return Ok(());
+        }
+        let (tip, p) = (self.tmp(), self.tmp());
+        self.emit(&format!("{tip} = call ptr @kolay_dene_tip(ptr {fr})"));
+        self.emit(&format!("{p} = call ptr @kolay_dene_deger(ptr {fr})"));
+        let dallar: Vec<String> = catches.iter().map(|_| self.new_label()).collect();
+        for (c, dal) in catches.iter().zip(&dallar) {
+            for (st, dinamik) in &c.kaynak {
+                let t = self.tip(st);
+                let eq = self.tmp();
+                self.emit(&format!("{eq} = icmp eq ptr {tip}, {t}"));
+                let (evet, hayir) = (self.new_label(), self.new_label());
+                self.term(&format!("br i1 {eq}, label %{evet}, label %{hayir}"));
+                self.block(&evet);
+                if *dinamik {
+                    // Hata tipinde fırlatılan değer Hata.Dönüşüm dalına uyabilir: nesnenin gerçek türüne bakılır
+                    let Some(Type::Named(hedef)) = &c.ty else { unreachable!() };
+                    let o = self.tmp();
+                    self.emit(&format!("{o} = load ptr, ptr {p}"));
+                    let ok = self.dyn_is_subtype(&o, *hedef);
+                    let uyar = self.new_label();
+                    self.term(&format!("br i1 {ok}, label %{uyar}, label %{hayir}"));
+                    self.block(&uyar);
+                }
+                match c.bind {
+                    Some(slot) => {
+                        let v = self.load_mem(&p, st);
+                        let v = self.own(v, st);
+                        let cv = self.convert(&v, st, &c.bind_ty, Loc::default())?;
+                        self.store_slot(slot, &cv, &c.bind_ty);
+                        self.emit(&format!("call void @kolay_dene_bitti(ptr {fr})"));
+                    }
+                    None => self.emit(&format!("call void @kolay_dene_birak(ptr {fr})")),
+                }
+                self.term(&format!("br label %{dal}"));
+                self.block(&hayir);
+            }
+        }
+        // hiçbir dal uymadı: değer dıştaki bloğa gider
+        self.emit(&format!("call void @kolay_dene_yeniden(ptr {fr})"));
+        self.term("unreachable");
+        for (c, dal) in catches.iter().zip(&dallar) {
+            self.block(dal);
+            self.stmts(&c.body)?;
+            if !self.f.terminated {
+                self.term(&format!("br label %{son}"));
+            }
+        }
+        self.block(&son);
         Ok(())
     }
 
@@ -507,7 +607,7 @@ impl<'p> Gen<'p> {
         self.emit(&format!("{cmp} = icmp {cmp_op} {lt} {cur}, {n}"));
         self.term(&format!("br i1 {cmp}, label %{bodyl}, label %{exit}"));
         self.block(&bodyl);
-        self.f.loops.push((step.clone(), exit.clone()));
+        self.f.loops.push((step.clone(), exit.clone(), self.f.deneler.len()));
         self.stmts(body)?;
         self.f.loops.pop();
         self.block(&step);
@@ -593,7 +693,7 @@ impl<'p> Gen<'p> {
                 self.block(&bodyl);
                 self.own(c.clone(), &Type::Str);
                 self.store_slot(binds[0], &c, &Type::Str);
-                self.f.loops.push((cond.clone(), exit.clone()));
+                self.f.loops.push((cond.clone(), exit.clone(), self.f.deneler.len()));
                 self.stmts(body)?;
                 self.f.loops.pop();
                 if !self.f.terminated {
@@ -623,7 +723,7 @@ impl<'p> Gen<'p> {
         self.emit(&format!("{c} = icmp slt i64 {i}, {n}"));
         self.term(&format!("br i1 {c}, label %{bodyl}, label %{exit}"));
         self.block(&bodyl);
-        self.f.loops.push((step.clone(), exit.clone()));
+        self.f.loops.push((step.clone(), exit.clone(), self.f.deneler.len()));
         head(self, &i)?;
         self.stmts(body)?;
         self.f.loops.pop();
@@ -663,7 +763,7 @@ impl<'p> Gen<'p> {
         self.emit(&format!("{m} = mul i64 {i}, {st}"));
         self.emit(&format!("{cur} = add i64 {first}, {m}"));
         self.store_slot(bind, &cur, &TAM64);
-        self.f.loops.push((stepl.clone(), exit.clone()));
+        self.f.loops.push((stepl.clone(), exit.clone(), self.f.deneler.len()));
         self.stmts(body)?;
         self.f.loops.pop();
         self.block(&stepl);
@@ -1019,4 +1119,16 @@ impl<'p> Gen<'p> {
         self.emit(&format!("{t3} = and i1 {t1}, {t2}"));
         t3
     }
+}
+
+/// Komutlarda (iç içe olanlar dahil) dene bloğu var mı?
+pub(super) fn dene_var(stmts: &[TS]) -> bool {
+    stmts.iter().any(|s| match s {
+        TS::Dene { .. } => true,
+        TS::If(bs, el) => bs.iter().any(|(_, b)| dene_var(b)) || el.as_deref().is_some_and(dene_var),
+        TS::Kere(_, b) | TS::While(_, b) | TS::ForEach { body: b, .. } => dene_var(b),
+        TS::CFor(_, _, _, b) => dene_var(b),
+        TS::Match(m) => m.arms.iter().any(|a| matches!(&a.body, TArmBody::Block(b) if dene_var(b))),
+        _ => false,
+    })
 }

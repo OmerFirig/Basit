@@ -15,13 +15,13 @@ s.art()
 s.iki_kez()
 
 // Yerel nesneler ve değer semantiği
-fonksiyon dene() {
+fonksiyon deneme() {
     ata a = Sayaç(n: 10)
     ata b = a
     b.n = 99
     yazdır(a.n, b.n)
 }
-dene()
+deneme()
 
 // Alan erişimi: çoklu kalıtımda alanların yeri farklı olsa da doğru alan okunur
 tür Kişi(ad: Yazı) { fonksiyon kim() -> Yazı { döndür ad } }

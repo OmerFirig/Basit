@@ -39,7 +39,7 @@ static Liste *liste_yer_ac(Liste *l, int64_t gerek) {
     int64_t kap = l->kapasite * 2;
     if (kap < gerek) kap = gerek;
     Liste *n = realloc(l, sizeof(Liste) + (size_t)(kap * eleman_boy(l)));
-    if (!n) kolay_hata("Bellek yetmedi.", "?", "");
+    if (!n) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
     n->kapasite = kap;
     return n;
 }
@@ -60,14 +60,14 @@ _Noreturn void kolay_indeks_hatasi(int64_t i, int64_t len, const char *konum, co
     else
         snprintf(msg, sizeof msg, "Listenin %lld. indeksine erişilmek istendi, ama liste %lld elemanlı (0 .. %lld).",
                  (long long)i, (long long)len, (long long)(len - 1));
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_INDEKS, msg, konum, kod);
 }
 
 _Noreturn void kolay_liste_boyut_hatasi(const char *tip, int64_t n, int64_t len, const char *konum, const char *kod) {
     char msg[400];
     snprintf(msg, sizeof msg, "%s tam %lld eleman almalı, ama %lld elemanlı bir liste verildi.", tip, (long long)n,
              (long long)len);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 static int64_t gercek_indeks(int64_t i, int64_t len, const char *konum, const char *kod) {
@@ -83,7 +83,7 @@ Liste *kolay_liste_araya(Liste *l, int64_t i, void *deger, const char *konum, co
         char msg[300];
         snprintf(msg, sizeof msg, "%lld. konuma eklenemez; liste %lld elemanlı (0 .. %lld arası olmalı).", (long long)i,
                  (long long)len, (long long)len);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_INDEKS, msg, konum, kod);
     }
     l = liste_yer_ac(l, len + 1);
     memmove(l->veri + (r + 1) * eb, l->veri + r * eb, (size_t)((len - r) * eb));
@@ -101,7 +101,7 @@ void kolay_liste_sil(Liste *l, int64_t i, const char *konum, const char *kod) {
 
 /// Son elemanı çıkarıp *cikti'ya taşır (sahiplik çağırana geçer).
 void kolay_liste_cikar(Liste *l, void *cikti, const char *konum, const char *kod) {
-    if (l->uzunluk == 0) kolay_hata("Liste boş, eleman çıkarılamaz.", konum, kod);
+    if (l->uzunluk == 0) kolay_hata_tur(HT_INDEKS, "Liste boş, eleman çıkarılamaz.", konum, kod);
     int64_t eb = eleman_boy(l);
     l->uzunluk--;
     memcpy(cikti, l->veri + l->uzunluk * eb, (size_t)eb);
@@ -419,7 +419,7 @@ static _Noreturn void anahtar_yok(Sozluk *d, void *anahtar, const char *konum, c
     Yazi *y = yazi_ayir(0);
     deger_yaz(&y, anahtar, d->b.tip->e1, 0, 0);
     yazi_ekle_c(&y, " anahtarı sözlükte yok.", strlen(" anahtarı sözlükte yok."));
-    kolay_hata(y->d, konum, kod);
+    kolay_hata_tur(HT_ANAHTAR, y->d, konum, kod);
 }
 
 void *kolay_sozluk_al(void *dp, void *anahtar, const char *konum, const char *kod) {
@@ -450,7 +450,7 @@ void *kolay_sozluk_yer(void *dp, void *anahtar) {
     if (d->kullanilan == d->kapasite) {
         d->kapasite = d->kapasite ? d->kapasite * 2 : 8;
         d->girdiler = realloc(d->girdiler, (size_t)(d->kapasite * eb));
-        if (!d->girdiler) kolay_hata("Bellek yetmedi.", "?", "");
+        if (!d->girdiler) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
     }
     char *g = GIRDI(d, d->kullanilan, eb);
     memset(g, 0, (size_t)eb);

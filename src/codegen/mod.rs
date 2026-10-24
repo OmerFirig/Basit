@@ -53,6 +53,17 @@ const DECLS: &str = "\
 @kolay_yazi_tipi = external constant %Tip
 declare void @kolay_calistir(ptr)
 declare void @kolay_hata(ptr, ptr, ptr) noreturn
+declare void @kolay_hata_tur(i32, ptr, ptr, ptr) noreturn
+declare void @kolay_firlat(ptr, ptr, ptr, ptr) noreturn
+declare void @kolay_dene_gir(ptr)
+declare void @kolay_dene_cik(ptr)
+declare ptr @kolay_dene_tip(ptr)
+declare ptr @kolay_dene_deger(ptr)
+declare void @kolay_dene_birak(ptr)
+declare void @kolay_dene_bitti(ptr)
+declare void @kolay_dene_yeniden(ptr) noreturn
+declare void @kolay_kacir(ptr)
+declare i32 @_setjmp(ptr) returns_twice
 declare void @kolay_hata_sayi(ptr, i64, ptr, ptr, ptr) noreturn
 declare void @kolay_tasma(ptr, ptr, i128, i128, i32, ptr, ptr, ptr, i32, ptr, ptr) noreturn
 declare void @kolay_sigmiyor(i128, i32, ptr, ptr, ptr, ptr) noreturn
@@ -93,8 +104,8 @@ declare ptr @kolay_kucuk_harf(ptr)
 declare ptr @kolay_kirp(ptr)
 declare zeroext i1 @kolay_icerir(ptr, ptr)
 declare ptr @kolay_karakter(ptr, i64, ptr, ptr)
-declare i64 @kolay_yazi_tama(ptr, ptr, ptr)
-declare double @kolay_yazi_ondaliga(ptr, ptr, ptr)
+declare void @kolay_yazi_tama(ptr, ptr, ptr)
+declare void @kolay_yazi_ondaliga(ptr, ptr, ptr)
 declare ptr @kolay_yazi_bol(ptr, ptr, ptr)
 declare ptr @kolay_yazi_sonraki(ptr, ptr)
 declare zeroext i1 @kolay_esit(ptr, ptr, ptr)
@@ -280,7 +291,14 @@ pub(super) struct FnState {
     terminated: bool,
     /// Şu an yazılan bloğun etiketi (phi için)
     cur: String,
-    loops: Vec<(String, String)>,
+    /// döngüler: (devam etiketi, dur etiketi, döngünün içinde olduğu dene sayısı)
+    loops: Vec<(String, String, usize)>,
+    /// İçinde bulunulan dene bloklarının çerçeveleri (dıştan içe)
+    deneler: Vec<String>,
+    /// Fonksiyonda dene bloğu var mı (varsa yerel değişkenler belleğe zorlanır, bkz. finish_fn)
+    has_dene: bool,
+    /// Yerel değişkenlerin ve alloca'ların adları
+    adlar: Vec<String>,
     ret: Type,
     local_tys: HashMap<u32, Type>,
     /// Bırakılması gereken (sahipli) geçici değerler
@@ -365,6 +383,9 @@ impl<'p> Gen<'p> {
             terminated: false,
             cur: "L0".into(),
             loops: Vec::new(),
+            deneler: Vec::new(),
+            has_dene: false,
+            adlar: Vec::new(),
             ret,
             local_tys: HashMap::new(),
             owned: HashSet::new(),
@@ -461,6 +482,7 @@ impl<'p> Gen<'p> {
         self.f.tmp += 1;
         let name = format!("%a{}", self.f.tmp);
         let _ = writeln!(self.f.allocas, "  {name} = alloca {ty}, align 16");
+        self.f.adlar.push(name.clone());
         name
     }
 
@@ -483,9 +505,14 @@ impl<'p> Gen<'p> {
     }
 
     fn error_call(&mut self, msg: &str, loc: Loc) {
+        self.error_call_tur(hata_turu::GENEL, msg, loc);
+    }
+
+    /// Türü belli çalışma hatası (dene içindeyse Hata.X olarak yakalanabilir)
+    fn error_call_tur(&mut self, tur: u8, msg: &str, loc: Loc) {
         let m = self.cstr(msg);
         let (k, c) = self.where_(loc);
-        self.emit(&format!("call void @kolay_hata(ptr {m}, ptr {k}, ptr {c})"));
+        self.emit(&format!("call void @kolay_hata_tur(i32 {tur}, ptr {m}, ptr {k}, ptr {c})"));
         self.term("unreachable");
     }
 
@@ -519,7 +546,7 @@ impl<'p> Gen<'p> {
         let (bad, ok) = (self.new_label(), self.new_label());
         self.term(&format!("br i1 {h}, label %{ok}, label %{bad}, !prof !0"));
         self.block(&bad);
-        self.error_call(BELIRSIZ, loc);
+        self.error_call_tur(hata_turu::YAKALANAMAZ, BELIRSIZ, loc);
         self.block(&ok);
     }
 
@@ -564,6 +591,9 @@ impl<'p> Gen<'p> {
             self.fn_table.join(", ")
         );
         self.subtype_table(&mut globals_ir);
+        let ht: Vec<String> = prog.hata_turleri.iter().map(|t| format!("ptr @tur.{t}")).collect();
+        let _ = writeln!(globals_ir, "@kolay_hata_tipleri = constant [6 x ptr] [{}]", ht.join(", "));
+        let _ = writeln!(globals_ir, "@kolay_tur_sayisi = constant i64 {}", prog.types.len());
         let mut out = String::new();
         let _ = writeln!(out, "; Kolay derleyicisinin ürettiği LLVM IR\n");
         out.push_str(DECLS);
@@ -597,6 +627,11 @@ impl<'p> Gen<'p> {
         let _ = writeln!(s, "{header} {{");
         s.push_str("entry:\n");
         s.push_str(&self.f.allocas);
+        if self.f.has_dene {
+            for a in &self.f.adlar {
+                let _ = writeln!(s, "  call void @kolay_kacir(ptr {a})");
+            }
+        }
         s.push_str("  br label %L0\nL0:\n");
         s.push_str(&self.f.body);
         s.push_str("}\n\n");
@@ -686,9 +721,11 @@ impl<'p> Gen<'p> {
         let mut locals: Vec<(u32, Type)> = self.f.local_tys.iter().map(|(k, v)| (*k, v.clone())).collect();
         locals.sort_by_key(|l| l.0);
         let nparams = func.params.len() as u32;
+        self.f.has_dene = komut::dene_var(&func.body);
         for (i, t) in &locals {
             let ty = self.llty(t);
             let _ = writeln!(self.f.allocas, "  %s{i} = alloca {ty}, align 16");
+            self.f.adlar.push(format!("%s{i}"));
             if self.is_rc(t) {
                 self.f.rc_slots.push((format!("%s{i}"), t.clone()));
                 if *i >= nparams {
@@ -808,6 +845,7 @@ impl<'p> Gen<'p> {
 
     fn module_fn(&mut self, mi: usize, code: &[TS]) -> CResult<String> {
         self.f = Self::fresh_fn(Type::Hic, false, mi, None);
+        self.f.has_dene = komut::dene_var(code);
         self.label = 0;
         let ran = self.tmp();
         self.emit(&format!("{ran} = load i1, ptr @m{mi}_ran"));
@@ -909,8 +947,17 @@ fn collect_slots_stmt(s: &TS, out: &mut HashMap<u32, Type>, global: bool, prog: 
             collect_slots_stmt(st, out, global, prog);
             collect_slots_stmts(b, out, global, prog);
         }
-        TS::Return(Some(e)) => ex(e, out),
+        TS::Return(Some(e)) | TS::Throw(e) => ex(e, out),
         TS::Match(m) => collect_slots_match(m, out, global, prog),
+        TS::Dene { body, catches } => {
+            collect_slots_stmts(body, out, global, prog);
+            for c in catches {
+                if let Some(s) = &c.bind {
+                    put_slot(s, &c.bind_ty, out, global);
+                }
+                collect_slots_stmts(&c.body, out, global, prog);
+            }
+        }
         _ => {}
     }
 }
@@ -1022,6 +1069,7 @@ fn collect_slots_expr(e: &TExpr, out: &mut HashMap<u32, Type>, global: bool, pro
                 collect_slots_expr(x, out, global, prog);
             }
         }
+        TK::Unwrap(x) => go(x),
         _ => {}
     }
 }

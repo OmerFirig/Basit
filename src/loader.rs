@@ -7,6 +7,7 @@ use crate::parser::parse_file;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone)]
 pub struct ParsedModule {
     pub file: u32,
     pub mode: Mode,

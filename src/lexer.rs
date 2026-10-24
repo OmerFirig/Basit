@@ -48,6 +48,9 @@ pub enum Kw {
     Dahil,
     Olarak,
     Hic,
+    Dene,
+    Yakala,
+    Firlat,
 }
 
 /// (anahtar kelime, tr yazımı, us yazımı)
@@ -80,6 +83,9 @@ pub const KEYWORDS: &[(Kw, &str, &str)] = &[
     (Kw::Dahil, "dahil", "dahil"),
     (Kw::Olarak, "olarak", "olarak"),
     (Kw::Hic, "Hiç", "Hic"),
+    (Kw::Dene, "dene", "dene"),
+    (Kw::Yakala, "yakala", "yakala"),
+    (Kw::Firlat, "fırlat", "firlat"),
 ];
 
 /// Dilin hazır isimleri (tipler, fonksiyonlar, metotlar): (tr yazımı, us yazımı).
@@ -112,6 +118,11 @@ pub const BUILTIN_NAMES: &[(&str, &str)] = &[
     ("kütüphane", "kutuphane"),
     ("kütüphanesindeki", "kutuphanesindeki"),
     ("Güvensiz", "Guvensiz"),
+    // hazır hata türleri (Hata.SıfıraBölme ...)
+    ("SıfıraBölme", "SifiraBolme"),
+    ("İndeks", "Indeks"),
+    ("Taşma", "Tasma"),
+    ("Dönüşüm", "Donusum"),
 ];
 
 pub fn kw_text(kw: Kw, mode: Mode) -> &'static str {

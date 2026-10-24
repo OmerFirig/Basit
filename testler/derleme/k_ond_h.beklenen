@@ -1,2 +1,1 @@
-ÇALIŞMA HATASI (k_ond_h.kolay, satır 1): "0x10" bir ondalık sayıya çevrilemez.
-  1 | yazdır("0x10".ondalığa())
+Hata.Dönüşüm(mesaj: "\"0x10\" bir ondalık sayıya çevrilemez.")

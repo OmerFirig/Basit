@@ -235,7 +235,7 @@ _Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbi
     // üs ve sola kaydırmada sonuç çok büyük olabilir: yazılmaz (yorumlayıcıdaki big_result_msg gibi)
     if (!strcmp(op, "**") || !strcmp(op, "<<")) {
         snprintf(msg, sizeof msg, "%s taştı: %s %s %s sonucu %s sınırlarını aşıyor (%s).", tip, ga, op, gb, tip, sinir);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_TASMA, msg, konum, kod);
     }
     sayi_yazi(r, sr);
     grupla(sr, gr);
@@ -248,7 +248,7 @@ _Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbi
         snprintf(msg, sizeof msg, "%s negatif olamaz: %s %s %s = %s.", tip, ga, op, gb, gr);
     else
         snprintf(msg, sizeof msg, "%s taştı. %s %s %s = %s, ama %s en az %s tutabilir.", tip, ga, op, gb, gr, tip, alt);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_TASMA, msg, konum, kod);
 }
 
 _Noreturn void kolay_sigmiyor(i128 bits, int32_t bicim, const char *tip, const char *sinir, const char *konum, const char *kod) {
@@ -256,21 +256,21 @@ _Noreturn void kolay_sigmiyor(i128 bits, int32_t bicim, const char *tip, const c
     tam_yazi_bicim(bits, bicim, sv);
     grupla(sv, gv);
     snprintf(msg, sizeof msg, "%s değeri %s tipine sığmıyor (%s).", gv, tip, sinir);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 _Noreturn void kolay_sigmiyor_f(double v, const char *tip, const char *sinir, const char *konum, const char *kod) {
     char sv[400], msg[700];
     ondalik_yaz(v, 64, sv);
     snprintf(msg, sizeof msg, "%s değeri %s tipine sığmıyor (%s).", sv, tip, sinir);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 _Noreturn void kolay_cevrilemez_f(double v, const char *konum, const char *kod) {
     char sv[400], msg[700];
     ondalik_yaz(v, 64, sv);
     snprintf(msg, sizeof msg, "%s tam sayıya çevrilemez.", sv);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 /// once + sayı + sonra biçiminde hata (128 bitlik sayı, biçim: bkz. sayi_bicim)
@@ -752,19 +752,19 @@ static void esnek_isaret(int64_t r, int64_t isaret, int64_t a, int64_t b, const 
         char sinir[40];
         bounds_metni(isaret, sinir);
         snprintf(msg, sizeof msg, "%s taştı: -(%s) = %s, ama %s sınırları %s.", tip, gb, gr, tip, sinir);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_TASMA, msg, konum, kod);
     }
     if (!strcmp(op, "**") || !strcmp(op, "<<")) { // sonuç çok büyük olabilir: yazılmaz
         char sinir[40];
         bounds_metni(isaret, sinir);
         snprintf(msg, sizeof msg, "%s taştı: %s %s %s sonucu %s sınırlarını aşıyor (%s).", tip, ga, op, gb, tip, sinir);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_TASMA, msg, konum, kod);
     }
     if (isaret == 2)
         snprintf(msg, sizeof msg, "%s taştı. %s %s %s = %s, ama %s en fazla 0 tutabilir.", tip, ga, op, gb, gr, tip);
     else
         snprintf(msg, sizeof msg, "%s negatif olamaz: %s %s %s = %s.", tip, ga, op, gb, gr);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_TASMA, msg, konum, kod);
 }
 
 /// Kaydırma ve üs: eksi ya da çok büyük miktar hatası (yorumlayıcıdaki shift_pow ile aynı mesajlar).
@@ -789,7 +789,7 @@ static uint64_t esnek_miktar(int64_t op, int64_t a, int64_t b, const char *konum
     if (n > UINT32_MAX && ((op == 'l' && !sifir) || (op == 'p' && !kucuk_taban))) {
         esnek_metin(b, sb, sizeof sb);
         snprintf(msg, sizeof msg, op == 'p' ? "Üs çok büyük (%s)." : "Kaydırma miktarı çok büyük (%s).", sb);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_TASMA, msg, konum, kod);
     }
     return n;
 }
@@ -799,7 +799,7 @@ int64_t kolay_esnek_islem(int64_t op, int64_t a, int64_t b, int64_t isaret, cons
                           const char *kod) {
     char ops[2] = {(char)op, 0};
     const char *opad = esnek_op_adi(op) ? esnek_op_adi(op) : ops;
-    if ((op == '/' || op == '%') && esnek_kars(b, esnek_yap(0)) == 0) kolay_hata("Sıfıra bölme hatası.", konum, kod);
+    if ((op == '/' || op == '%') && esnek_kars(b, esnek_yap(0)) == 0) kolay_hata_tur(HT_SIFIRA_BOLME, "Sıfıra bölme hatası.", konum, kod);
     int64_t r;
     if (op == 'l' || op == 'r' || op == 'p') {
         uint64_t n = esnek_miktar(op, a, b, konum, kod);
@@ -892,7 +892,7 @@ i128 kolay_esnek_boyutluya(int64_t a, int64_t bit, int64_t isaret, const char *t
         esnek_metin(a, sv, sizeof sv);
         grupla(sv, gv);
         snprintf(msg, sizeof msg, "%s değeri %s tipine sığmıyor (%s).", gv, tip, sinir);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
     }
     if (isaret == 1) return (i128)m;
     if (isaret == 2 && bit >= 128) return (i128)m; // büyüklük biçimi
@@ -904,7 +904,7 @@ _Noreturn void kolay_sigmiyor_esnek(int64_t v, const char *tip, const char *sini
     esnek_metin(v, sv, sizeof sv);
     grupla(sv, gv);
     snprintf(msg, sizeof msg, "%s değeri %s tipine sığmıyor (%s).", gv, tip, sinir);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 /// Esnek Tam'ın işaret kısıtına uyup uymadığını kontrol eder (olarak Tam(+) gibi).
@@ -916,7 +916,7 @@ int64_t kolay_esnek_kisitla(int64_t a, int64_t isaret, const char *tip, const ch
         esnek_metin(a, sv, sizeof sv);
         grupla(sv, gv);
         snprintf(msg, sizeof msg, "%s değeri %s tipine sığmıyor (%s).", gv, tip, sinir);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
     }
     return a;
 }
@@ -957,7 +957,7 @@ int64_t kolay_esnek_i64(int64_t a, const char *msg, const char *konum, const cha
         if (x.isaret > 0 && m <= (u128)INT64_MAX) return (int64_t)m;
         if (x.isaret < 0 && m <= (u128)INT64_MAX + 1) return (int64_t)(-(i128)m);
     }
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_INDEKS, msg, konum, kod);
 }
 
 /// 'kere' için tekrar sayısı: negatifse hata, çok büyükse (zaten bitmeyecek) en büyük sayı.

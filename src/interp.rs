@@ -11,8 +11,13 @@ use std::io::{BufRead, Write};
 use std::rc::Rc;
 
 pub struct RtErr {
+    /// Yakalanmazsa yazılacak mesaj
     pub msg: String,
     pub loc: Loc,
+    /// Çalışma hatasının türü (tir::hata_turu); fırlatılan değerde kullanılmaz
+    pub tur: u8,
+    /// `fırlat` ile fırlatılan değer ve statik tipi (çalışma hatasında None: yakalanınca Hata.X nesnesi olur)
+    pub deger: Option<Box<(Value, Type)>>,
 }
 
 pub enum Unwind {
@@ -30,7 +35,17 @@ pub enum Ctl {
 pub(crate) type R<T> = Result<T, Unwind>;
 
 pub(crate) fn rt<T>(loc: Loc, msg: impl Into<String>) -> R<T> {
-    Err(Unwind::Err(RtErr { msg: msg.into(), loc }))
+    rtk(hata_turu::GENEL, loc, msg)
+}
+
+/// Türü belli çalışma hatası (yakalanınca hangi Hata.X nesnesi olacağı)
+pub(crate) fn rtk<T>(tur: u8, loc: Loc, msg: impl Into<String>) -> R<T> {
+    Err(Unwind::Err(RtErr { msg: msg.into(), loc, tur, deger: None }))
+}
+
+/// Hazır hata nesnesi: Hata.X(mesaj: ...)
+pub(crate) fn hata_nesnesi(prog: &Program, tur: u8, msg: &str) -> Value {
+    Value::Obj(Rc::new(ObjV { ty: prog.hata_turleri[tur as usize], fields: vec![Value::str(msg)] }))
 }
 
 pub(crate) const BELIRSIZ: &str = "Değişken henüz belirsiz (bir fonksiyon, değişken tanımlanmadan önce çağrıldı).";
@@ -109,9 +124,9 @@ pub(crate) fn norm_index(i: i64, len: usize, loc: Loc) -> R<usize> {
     let real = if i < 0 { i.checked_add(len as i64).unwrap_or(-1) } else { i };
     if real < 0 || real >= len as i64 {
         if len == 0 {
-            return rt(loc, format!("Listenin {i}. indeksine erişilmek istendi, ama liste boş."));
+            return rtk(hata_turu::INDEKS, loc, format!("Listenin {i}. indeksine erişilmek istendi, ama liste boş."));
         }
-        return rt(loc, format!("Listenin {i}. indeksine erişilmek istendi, ama liste {len} elemanlı (0 .. {}).", len - 1));
+        return rtk(hata_turu::INDEKS, loc, format!("Listenin {i}. indeksine erişilmek istendi, ama liste {len} elemanlı (0 .. {}).", len - 1));
     }
     Ok(real as usize)
 }
@@ -130,7 +145,7 @@ pub(crate) fn field_idx(prog: &Program, ty: TypeId, fid: u32, loc: Loc) -> R<usi
 }
 
 pub(crate) fn missing_key(prog: &Program, kv: &Value, loc: Loc) -> Unwind {
-    Unwind::Err(RtErr { msg: format!("{} anahtarı sözlükte yok.", fmt_value(kv, None, prog, false)), loc })
+    Unwind::Err(RtErr { msg: format!("{} anahtarı sözlükte yok.", fmt_value(kv, None, prog, false)), loc, tur: hata_turu::ANAHTAR, deger: None })
 }
 
 pub(crate) fn key_of(v: &Value, loc: Loc) -> R<Key> {
@@ -276,7 +291,7 @@ impl<'p> Interp<'p> {
 
     pub(crate) fn loop_ctl(&mut self, body: &[TS], f: &mut Frame) -> R<Option<Ctl>> {
         if kesildi() {
-            return rt(body.first().map(stmt_loc).unwrap_or_default(), DURDURULDU);
+            return rtk(hata_turu::YAKALANAMAZ, body.first().map(stmt_loc).unwrap_or_default(), DURDURULDU);
         }
         match self.exec_block(body, f)? {
             Ctl::Normal | Ctl::Continue => Ok(None),
@@ -347,7 +362,7 @@ impl<'p> Interp<'p> {
                     Slot::Local(i) => std::mem::replace(&mut f.slots[*i as usize], Value::Hic),
                     Slot::Global(i) => {
                         if matches!(self.globals[*i as usize], Value::Uninit) {
-                            return rt(*loc, BELIRSIZ);
+                            return rtk(hata_turu::YAKALANAMAZ, *loc, BELIRSIZ);
                         }
                         std::mem::replace(&mut self.globals[*i as usize], Value::Hic)
                     }
@@ -475,9 +490,72 @@ impl<'p> Interp<'p> {
                 }
             }
             TS::RunModule(m) => self.run_module(*m)?,
+            TS::Throw(e) => {
+                let v = self.eval(e, f)?;
+                return Err(Unwind::Err(self.firlat(v, &e.ty, e.loc)));
+            }
+            TS::Dene { body, catches } => {
+                return match self.exec_block(body, f) {
+                    Err(Unwind::Err(e)) => match self.yakala_sec(e, catches, f)? {
+                        None => Ok(Ctl::Normal),
+                        Some(i) => self.exec_block(&catches[i].body, f),
+                    },
+                    r => r,
+                };
+            }
             _ => unreachable!(),
         }
         Ok(Ctl::Normal)
+    }
+
+    /// `fırlat değer`: 'veya' tipindeki değerin kendi üyesinin tipi kullanılır.
+    pub(crate) fn firlat(&self, v: Value, ty: &Type, loc: Loc) -> RtErr {
+        let prog = self.prog;
+        let ty = match ty {
+            Type::Union(ms) => ms.iter().find(|m| value_matches(&v, m, prog)).cloned().unwrap_or_else(|| ty.clone()),
+            t => t.clone(),
+        };
+        let msg = match &v {
+            // Hata nesnesi: yakalanmazsa mesajı yazılır
+            Value::Obj(o) if prog.is_subtype(o.ty, prog.hata_turleri[0]) => match &o.fields[0] {
+                Value::Str(m) => m.to_string(),
+                _ => String::new(),
+            },
+            _ => format!("Yakalanmamış değer fırlatıldı: {} ({}).", fmt_value(&v, Some(&ty), prog, false), self.tn(&ty)),
+        };
+        RtErr { msg, loc, tur: hata_turu::GENEL, deger: Some(Box::new((v, ty))) }
+    }
+
+    /// Hatayı yakalayan ilk dalı seçer ve değişkenine değeri yazar. Dal yoksa hata yok sayılır (None);
+    /// hiçbir dal uymuyorsa (ya da hata yakalanamazsa) hata olduğu gibi geri döner.
+    pub(crate) fn yakala_sec(&mut self, e: RtErr, catches: &[TCatch], f: &mut Frame) -> R<Option<usize>> {
+        if e.tur == hata_turu::YAKALANAMAZ {
+            return Err(Unwind::Err(e));
+        }
+        if catches.is_empty() {
+            return Ok(None);
+        }
+        let prog = self.prog;
+        let (v, ty) = match &e.deger {
+            Some(d) => (d.0.clone(), d.1.clone()),
+            None => (hata_nesnesi(prog, e.tur, &e.msg), Type::Named(prog.hata_turleri[e.tur as usize])),
+        };
+        for (i, c) in catches.iter().enumerate() {
+            let Some((_, dinamik)) = c.kaynak.iter().find(|k| k.0 == ty) else { continue };
+            if *dinamik && !c.ty.as_ref().is_some_and(|t| value_matches(&v, t, prog)) {
+                continue;
+            }
+            if let Some(slot) = c.bind {
+                // Tam -> Ondalık gibi biçim değiştiren tek dönüştürme
+                let v = match (&v, &c.bind_ty) {
+                    (Value::Int(n), Type::Float(b)) => Value::Float(round_float(n.to_f64(), *b)),
+                    _ => v,
+                };
+                self.set_slot(slot, v, f);
+            }
+            return Ok(Some(i));
+        }
+        Err(Unwind::Err(e))
     }
 
     pub(crate) fn truthy(&mut self, e: &TExpr, f: &mut Frame) -> R<bool> {
@@ -523,7 +601,7 @@ impl<'p> Interp<'p> {
             TPlace::ListIndex(b, i) => {
                 let r = self.resolve_into(b, f, s)?;
                 let Value::Int(iv) = self.eval(i, f)? else { unreachable!() };
-                let Some(ix) = iv.as_i64() else { return rt(i.loc, "İndeks çok büyük.") };
+                let Some(ix) = iv.as_i64() else { return rtk(hata_turu::INDEKS, i.loc, "İndeks çok büyük.") };
                 s.push(Step::Idx(ix));
                 Ok(r)
             }
@@ -547,7 +625,7 @@ impl<'p> Interp<'p> {
             },
         };
         if matches!(v, Value::Uninit) {
-            return rt(loc, BELIRSIZ);
+            return rtk(hata_turu::YAKALANAMAZ, loc, BELIRSIZ);
         }
         Ok(v)
     }
@@ -620,7 +698,7 @@ impl<'p> Interp<'p> {
             TK::Var(Slot::Global(i)) => {
                 let v = &self.globals[*i as usize];
                 if matches!(v, Value::Uninit) {
-                    return rt(e.loc, BELIRSIZ);
+                    return rtk(hata_turu::YAKALANAMAZ, e.loc, BELIRSIZ);
                 }
                 v.clone()
             }
@@ -645,7 +723,7 @@ impl<'p> Interp<'p> {
                 match (&v, &e.ty) {
                     (Value::Int(i), Type::Float(b)) => Value::Float(round_float(i.to_f64(), *b)),
                     (Value::List(l), Type::List(_, Some(n))) if l.items.len() != *n => {
-                        return rt(
+                        return rtk(hata_turu::DONUSUM, 
                             e.loc,
                             format!("{} tam {n} eleman almalı, ama {} elemanlı bir liste verildi.", self.tn(&e.ty), l.items.len()),
                         );
@@ -858,7 +936,7 @@ impl<'p> Interp<'p> {
                 match v {
                     Value::List(l) => {
                         let Value::Int(ix) = iv else { unreachable!() };
-                        let Some(ix) = ix.as_i64() else { return rt(e.loc, "İndeks çok büyük.") };
+                        let Some(ix) = ix.as_i64() else { return rtk(hata_turu::INDEKS, e.loc, "İndeks çok büyük.") };
                         let real = norm_index(ix, l.items.len(), e.loc)?;
                         l.items[real].clone()
                     }
@@ -890,6 +968,20 @@ impl<'p> Interp<'p> {
                         Value::string(apply_slice(&cs, b).into_iter().collect())
                     }
                     _ => unreachable!(),
+                }
+            }
+            TK::Unwrap(x) => {
+                // `dene` içinde: dönen değer Hata ise fırlatılır
+                let v = self.eval(x, f)?;
+                if let Value::Obj(o) = &v {
+                    if prog.is_subtype(o.ty, prog.hata_turleri[0]) {
+                        let ty = x.ty.members().into_iter().find(|m| value_matches(&v, m, prog)).unwrap_or(Type::Named(o.ty));
+                        return Err(Unwind::Err(self.firlat(v, &ty, e.loc)));
+                    }
+                }
+                match (&v, &e.ty) {
+                    (Value::Int(n), Type::Float(b)) => Value::Float(round_float(n.to_f64(), *b)),
+                    _ => v,
                 }
             }
             TK::Match(m) => match self.choose_arm(m, f)? {
@@ -924,7 +1016,7 @@ impl<'p> Interp<'p> {
                 None => {
                     let root = &self.globals[g as usize];
                     if matches!(root, Value::Uninit) {
-                        return rt(loc, BELIRSIZ);
+                        return rtk(hata_turu::YAKALANAMAZ, loc, BELIRSIZ);
                     }
                     let bu = walk_ref(root, &rp.1, loc, self.prog)?;
                     self.dispatch(bu, view, mid, name, loc)?
@@ -998,7 +1090,7 @@ impl<'p> Interp<'p> {
 
     pub(crate) fn call(&mut self, fid: FuncId, args: Vec<Value>, bu: BuRef, loc: Loc) -> R<(Value, BuRef)> {
         if self.depth >= MAX_DEPTH {
-            return rt(loc, "Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.");
+            return rtk(hata_turu::YAKALANAMAZ, loc, "Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.");
         }
         let func = &self.prog.funcs[fid];
         if func.dis.is_some() {
@@ -1032,7 +1124,7 @@ impl<'p> Interp<'p> {
             return self.call_plain(fv.fid, args, loc);
         };
         if self.depth >= MAX_DEPTH {
-            return rt(loc, "Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.");
+            return rtk(hata_turu::YAKALANAMAZ, loc, "Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.");
         }
         let ch: *const crate::vm::Chunk<'p> = &self.chunks[fv.fid];
         let ch = unsafe { &*ch };
@@ -1144,7 +1236,7 @@ impl<'p> Interp<'p> {
             _ => {
                 let buyuk = m == BM::EnBuyuk;
                 let Some(mut best) = l.items.first().cloned() else {
-                    return rt(loc, if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." });
+                    return rtk(hata_turu::INDEKS, loc, if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." });
                 };
                 for x in &l.items[1..] {
                     let o = cmp_values(x, &best);
@@ -1185,7 +1277,7 @@ impl<'p> Interp<'p> {
                     Int::B(b) => Int::from_big(-(**b).clone()),
                 };
                 if !fits_int(&r, *bits, *sign) {
-                    return rt(loc, format!("{} taştı: -({}) = {}, ama {} sınırları {}.", self.tn(ty), group_digits(&i.to_string()), group_digits(&r.to_string()), self.tn(ty), bounds_text(*bits, *sign)));
+                    return rtk(hata_turu::TASMA, loc, format!("{} taştı: -({}) = {}, ama {} sınırları {}.", self.tn(ty), group_digits(&i.to_string()), group_digits(&r.to_string()), self.tn(ty), bounds_text(*bits, *sign)));
                 }
                 Value::Int(r)
             }
@@ -1199,7 +1291,7 @@ impl<'p> Interp<'p> {
             Type::Int { bits, sign } => {
                 let (Value::Int(x), Value::Int(y)) = (a, b) else { unreachable!() };
                 if matches!(op, BinOp::Div | BinOp::Rem) && y.is_zero() {
-                    return rt(loc, "Sıfıra bölme hatası.");
+                    return rtk(hata_turu::SIFIRA_BOLME, loc, "Sıfıra bölme hatası.");
                 }
                 if matches!(op, BinOp::Shl | BinOp::Shr | BinOp::Pow) {
                     return self.shift_pow(op, &x, &y, *bits, *sign, ty, loc).map(Value::Int);
@@ -1225,7 +1317,7 @@ impl<'p> Interp<'p> {
                     _ => Int::from_big(big_op(op, &x.to_big(), &y.to_big())),
                 };
                 if !fits_int(&r, *bits, *sign) {
-                    return rt(loc, self.overflow_msg(op, &x, &y, &r, *bits, *sign, ty));
+                    return rtk(hata_turu::TASMA, loc, self.overflow_msg(op, &x, &y, &r, *bits, *sign, ty));
                 }
                 Ok(Value::Int(r))
             }
@@ -1260,7 +1352,7 @@ impl<'p> Interp<'p> {
                 },
             );
         }
-        let too_big = || rt(loc, self.big_result_msg(op, x, y, ty, bits, sign));
+        let too_big = || rtk(hata_turu::TASMA, loc, self.big_result_msg(op, x, y, ty, bits, sign));
         // boyutlu tiplerde sonuç en fazla 129 bit: büyük üs/kaydırmada sonucu hesaplamadan karar verilir
         let n: u64 = match y.as_i64() {
             Some(n) => n as u64,
@@ -1277,7 +1369,7 @@ impl<'p> Interp<'p> {
                 } else if bits.is_some() && n > 130 {
                     return too_big();
                 } else if n > u32::MAX as u64 {
-                    return rt(loc, format!("Kaydırma miktarı çok büyük ({y})."));
+                    return rtk(hata_turu::TASMA, loc, format!("Kaydırma miktarı çok büyük ({y})."));
                 } else {
                     Int::from_big(x.to_big() << (n as usize))
                 }
@@ -1292,14 +1384,14 @@ impl<'p> Interp<'p> {
                 } else if bits.is_some() && n > 130 {
                     return too_big();
                 } else if n > u32::MAX as u64 {
-                    return rt(loc, format!("Üs çok büyük ({y})."));
+                    return rtk(hata_turu::TASMA, loc, format!("Üs çok büyük ({y})."));
                 } else {
                     Int::from_big(xb.pow(n as u32))
                 }
             }
         };
         if !fits_int(&r, bits, sign) {
-            return if op == BinOp::Shr { rt(loc, self.overflow_msg(op, x, y, &r, bits, sign, ty)) } else { too_big() };
+            return if op == BinOp::Shr { rtk(hata_turu::TASMA, loc, self.overflow_msg(op, x, y, &r, bits, sign, ty)) } else { too_big() };
         }
         Ok(r)
     }
@@ -1337,32 +1429,32 @@ impl<'p> Interp<'p> {
         match (&v, to) {
             (Value::Int(i), Type::Int { bits, sign }) => {
                 if !fits_int(i, *bits, *sign) {
-                    return rt(loc, format!("{} değeri {} tipine sığmıyor ({}).", group_digits(&i.to_string()), self.tn(to), bounds_text(*bits, *sign)));
+                    return rtk(hata_turu::DONUSUM, loc, format!("{} değeri {} tipine sığmıyor ({}).", group_digits(&i.to_string()), self.tn(to), bounds_text(*bits, *sign)));
                 }
                 Ok(v)
             }
             (Value::Float(x), Type::Int { bits, sign }) => {
                 if !x.is_finite() {
-                    return rt(loc, format!("{} tam sayıya çevrilemez.", fmt_float(*x, 64)));
+                    return rtk(hata_turu::DONUSUM, loc, format!("{} tam sayıya çevrilemez.", fmt_float(*x, 64)));
                 }
                 let t = BigInt::from_f64(x.trunc()).unwrap_or_default();
                 let i = Int::from_big(t);
                 if !fits_int(&i, *bits, *sign) {
-                    return rt(loc, format!("{} değeri {} tipine sığmıyor ({}).", fmt_float(*x, 64), self.tn(to), bounds_text(*bits, *sign)));
+                    return rtk(hata_turu::DONUSUM, loc, format!("{} değeri {} tipine sığmıyor ({}).", fmt_float(*x, 64), self.tn(to), bounds_text(*bits, *sign)));
                 }
                 Ok(Value::Int(i))
             }
             (Value::Int(i), Type::Float(b)) => {
                 let r = round_float(i.to_f64(), *b);
                 if r.is_infinite() {
-                    return rt(loc, format!("{} değeri {} tipine sığmıyor ({}).", group_digits(&i.to_string()), self.tn(to), crate::types::float_limit_text(*b)));
+                    return rtk(hata_turu::DONUSUM, loc, format!("{} değeri {} tipine sığmıyor ({}).", group_digits(&i.to_string()), self.tn(to), crate::types::float_limit_text(*b)));
                 }
                 Ok(Value::Float(r))
             }
             (Value::Float(x), Type::Float(b)) => {
                 let r = round_float(*x, *b);
                 if r.is_infinite() && x.is_finite() {
-                    return rt(loc, format!("{} değeri {} tipine sığmıyor ({}).", fmt_float(*x, 64), self.tn(to), crate::types::float_limit_text(*b)));
+                    return rtk(hata_turu::DONUSUM, loc, format!("{} değeri {} tipine sığmıyor ({}).", fmt_float(*x, 64), self.tn(to), crate::types::float_limit_text(*b)));
                 }
                 Ok(Value::Float(r))
             }
@@ -1371,7 +1463,7 @@ impl<'p> Interp<'p> {
                     let _ = from;
                     Ok(v)
                 } else {
-                    rt(loc, format!("Bu değer {} değil, {}.", self.tn(to), kind_name(&v, prog)))
+                    rtk(hata_turu::DONUSUM, loc, format!("Bu değer {} değil, {}.", self.tn(to), kind_name(&v, prog)))
                 }
             }
         }
@@ -1590,7 +1682,7 @@ pub(crate) fn bm_mut(m: BM, target: &mut Value, args: Vec<Value>, loc: Loc, prog
                     let len = l.items.len() as i64;
                     let real = if i < 0 { i + len } else { i };
                     if real < 0 || real > len {
-                        return rt(loc, format!("{i}. konuma eklenemez; liste {len} elemanlı (0 .. {len} arası olmalı)."));
+                        return rtk(hata_turu::INDEKS, loc, format!("{i}. konuma eklenemez; liste {len} elemanlı (0 .. {len} arası olmalı)."));
                     }
                     l.items.insert(real as usize, it.next().unwrap());
                 }
@@ -1602,7 +1694,7 @@ pub(crate) fn bm_mut(m: BM, target: &mut Value, args: Vec<Value>, loc: Loc, prog
                 BM::Cikar => {
                     return match l.items.pop() {
                         Some(v) => Ok(v),
-                        None => rt(loc, "Liste boş, eleman çıkarılamaz."),
+                        None => rtk(hata_turu::INDEKS, loc, "Liste boş, eleman çıkarılamaz."),
                     };
                 }
                 BM::Sirala => sort_values(&mut l.items),
@@ -1661,7 +1753,7 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
             let n = s.chars().count() as i64;
             let real = if i < 0 { i + n } else { i };
             if real < 0 || real >= n {
-                return rt(loc, format!("Yazının {i}. karakteri yok; yazı {n} karakterli."));
+                return rtk(hata_turu::INDEKS, loc, format!("Yazının {i}. karakteri yok; yazı {n} karakterli."));
             }
             Value::string(s.chars().nth(real as usize).unwrap().to_string())
         }
@@ -1679,17 +1771,18 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
             Value::List(Rc::new(ListV { items }))
         }
         (BM::Kirp, Value::Str(s)) => Value::str(s.trim()),
+        // başarısızsa Hata.Dönüşüm değeri döner (dene içinde fırlatılır)
         (BM::Tama, Value::Str(s)) => match s.trim().parse::<i64>() {
             Ok(n) => Value::int(n),
-            Err(_) => return rt(loc, format!("\"{s}\" bir tam sayıya çevrilemez.")),
+            Err(_) => hata_nesnesi(prog, hata_turu::DONUSUM, &format!("\"{s}\" bir tam sayıya çevrilemez.")),
         },
         (BM::Ondaliga, Value::Str(s)) => match parse_float(s) {
             Some(x) => Value::Float(x),
-            None => return rt(loc, format!("\"{s}\" bir ondalık sayıya çevrilemez.")),
+            None => hata_nesnesi(prog, hata_turu::DONUSUM, &format!("\"{s}\" bir ondalık sayıya çevrilemez.")),
         },
         (BM::FTama, Value::Float(x)) => {
             if !x.is_finite() || x.trunc() >= 9_223_372_036_854_775_808.0 || x.trunc() < -9_223_372_036_854_775_808.0 {
-                return rt(loc, format!("{} değeri Tam(64) tipine sığmıyor ({}).", fmt_float(*x, 64), bounds_text(Some(64), Sign::Signed)));
+                return rtk(hata_turu::DONUSUM, loc, format!("{} değeri Tam(64) tipine sığmıyor ({}).", fmt_float(*x, 64), bounds_text(Some(64), Sign::Signed)));
             }
             Value::int(x.trunc() as i64)
         }
@@ -1711,7 +1804,7 @@ pub(crate) fn range_list(plan: RangePlan, loc: Loc) -> R<Value> {
     }
     let mut items = Vec::new();
     if items.try_reserve_exact(plan.count as usize).is_err() {
-        return rt(loc, "Bellek yetmedi.");
+        return rtk(hata_turu::YAKALANAMAZ, loc, "Bellek yetmedi.");
     }
     items.extend((0..plan.count).map(|i| Value::int(plan.get(i))));
     Ok(Value::List(Rc::new(ListV { items })))

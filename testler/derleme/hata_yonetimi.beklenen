@@ -1,0 +1,23 @@
+n = 10 [0, 1, 2, 3, 4]
+10
+910
+büyük 20 hata: Hata.Dönüşüm(mesaj: "\"x\" bir tam sayıya çevrilemez.") yok
+dışta: iç
+yeniden 1.5
+Nokta(x: 1, y: 2) 3
+3
+lambda: 30
+Yetersiz bakiye 70
+Hesap(bakiye: 70)
+"b" anahtarı sözlükte yok.
+Tam(8) taştı. 120 + 10 = 130, ama Tam(8) en fazla 127 tutabilir. 120
+300 değeri Tam(8) tipine sığmıyor (-128 .. 127).
+Tam(+) negatif olamaz: 1 - 5 = -4.
+Hata.İndeks(mesaj: "Yazının 9. karakteri yok; yazı 3 karakterli.")
+Hata(mesaj: "Adım sıfır olamaz.")
+sayı 12
+"1x" bir ondalık sayıya çevrilemez.
+Hata.Dönüşüm(mesaj: "\"q\" bir tam sayıya çevrilemez.")
+son 910
+ÇALIŞMA HATASI (hata_yonetimi.kolay, satır 99): elle fırlatılan hata
+  99 | fırlat Hata.İndeks(mesaj: "elle fırlatılan hata")

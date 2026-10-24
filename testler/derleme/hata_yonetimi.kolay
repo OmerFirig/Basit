@@ -1,0 +1,99 @@
+// Hata yönetimi: dene / yakala / fırlat (yorumlayıcı ve derleyici aynı çıktıyı vermeli)
+// gövdede değişen değişkenler yakala dalında son değeriyle görünür
+fonksiyon say() -> Tam(64) {
+    ata n = 0
+    ata l: Liste<Tam(64)>
+    dene {
+        (ata i = 0; i < 10; i += 1) sürece yap {
+            n += i
+            l.ekle(i)
+            eğer i == 4 { ata x = 1 / (i - 4) }
+        }
+    } yakala h: Hata.SıfıraBölme {
+        yazdır("n =", n, l)
+    }
+    döndür n
+}
+yazdır(say())
+// döngü içinde dene, dur ve devam
+ata t = 0
+0..10 içindeki her i için yap {
+    dene {
+        eğer i == 2 { devam }
+        eğer i == 7 { dur }
+        eğer i % 3 == 0 { fırlat i }
+        t += i
+    } yakala k: Tam(64) {
+        t += 100 * k
+    }
+}
+yazdır(t)
+// dene içinden döndür
+fonksiyon ilk_hata(l: Liste<Yazı>) -> Yazı {
+    l içindeki her s için yap {
+        dene {
+            ata v = s.tama()
+            eğer v > 10 { döndür f"büyük {v}" }
+        } yakala h {
+            döndür f"hata: {h}"
+        }
+    }
+    döndür "yok"
+}
+yazdır(ilk_hata(["1", "20", "x"]), ilk_hata(["1", "x"]), ilk_hata(["2"]))
+// iç içe ve yeniden fırlatma
+fonksiyon iç(x: Tam(64)) {
+    dene {
+        eğer x > 0 { fırlat x }
+        fırlat "iç"
+    } yakala s: Tam(64) {
+        yazdır("buraya gelmez")
+    }
+}
+dene {
+    dene { iç(0) } yakala h: Hata { yazdır("buraya da gelmez") }
+} yakala d {
+    yazdır("dışta:", d)
+}
+dene {
+    dene { fırlat 1.5 } yakala o: Ondalık { fırlat f"yeniden {o}" }
+} yakala y: Yazı { yazdır(y) }
+// nesne ve liste fırlatma
+tür Nokta(x: Tam(64), y: Tam(64))
+dene { fırlat Nokta(1, 2) } yakala n: Nokta { yazdır(n, n.x + n.y) }
+dene { fırlat [1, 2, 3] } yakala l: Liste<Tam(64)> { yazdır(l.uzunluk()) }
+// lambda içinden fırlatma
+ata f = her (x: Tam(64)) için yap { eğer x > 2 { fırlat x * 10 }; döndür x }
+dene { yazdır([1, 2, 3].dönüşüm(f)) } yakala d { yazdır("lambda:", d) }
+// metot içinde dene ve bu
+tür Hesap(bakiye: Tam(64)) {
+    fonksiyon çek(m: Tam(64)) {
+        dene {
+            eğer m > bakiye { fırlat Hata(mesaj: "Yetersiz bakiye") }
+            bakiye -= m
+        } yakala h: Hata {
+            yazdır(h.mesaj, bakiye)
+        }
+    }
+}
+ata h = Hesap(100)
+h.çek(30)
+h.çek(500)
+yazdır(h)
+// çalışma hataları
+ata d: Sözlük<Yazı, Tam(64)> = {"a": 1}
+dene { yazdır(d["b"]) } yakala h: Hata.Anahtar { yazdır(h.mesaj) }
+ata k: Tam(8) = 120
+dene { k = k + 10 } yakala h: Hata.Taşma { yazdır(h.mesaj, k) }
+dene { yazdır(300 olarak Tam(8)) } yakala h: Hata.Dönüşüm { yazdır(h.mesaj) }
+ata e: Tam(+) = 1
+dene { e = e - 5 } yakala h: Hata.Taşma { yazdır(h.mesaj) }
+dene { yazdır("abc".karakter(9)) } yakala h { yazdır(h) }
+dene { yazdır((0..10).adım(k - 120)) } yakala h { yazdır(h) }
+// T veya Hata değeri dene dışında: eşleştir
+eşleştir "12".tama() { n: Tam(64) -> yazdır("sayı", n), h: Hata.Dönüşüm -> yazdır(h.mesaj) }
+eşleştir "1x".ondalığa() { Ondalık(o) -> yazdır(o), Hata.Dönüşüm(h) -> yazdır(h.mesaj) }
+// beklenen tip Hata'yı kabul ediyorsa açılmaz
+dene { ata r: Tam(64) veya Hata = "q".tama(); yazdır(r) } yakala h { yazdır("açıldı") }
+yazdır(f"son {t}")
+fırlat Hata.İndeks(mesaj: "elle fırlatılan hata")

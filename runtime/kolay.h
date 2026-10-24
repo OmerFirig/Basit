@@ -27,6 +27,7 @@
 #include <locale.h>
 #include <math.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -55,6 +56,9 @@ enum {
     T_BUYUK = 14,  // büyük tam sayı nesnesi (sadece yığın nesnelerinin tipi olarak)
     T_FONK = 15,   // fonksiyon değeri: Baslik, fonksiyon adresi, yakalanan değerler (ofsetler Tip içinde)
 };
+
+// Çalışma hatalarının türü (yakalanınca hangi Hata.X olacağı; Rust'taki tir::hata_turu ile aynı)
+enum { HT_GENEL = 0, HT_SIFIRA_BOLME = 1, HT_INDEKS = 2, HT_ANAHTAR = 3, HT_TASMA = 4, HT_DONUSUM = 5, HT_YAKALANAMAZ = 255 };
 
 typedef struct Tip Tip;
 
@@ -118,6 +122,8 @@ extern const Tip kolay_buyuk_tipi;
 
 // cekirdek.c
 _Noreturn void kolay_hata(const char *msg, const char *konum, const char *kod);
+_Noreturn void kolay_hata_tur(int tur, const char *msg, const char *konum, const char *kod);
+void *kolay_nesne_yeni(const Tip *t, int64_t boyut);
 void *bellek(size_t n);
 void *bellek_sifir(size_t n);
 void kolay_tut(void *p);

@@ -8,7 +8,7 @@
 // aynı çerçeveyi kullandığı için davranış birebir aynıdır.
 
 use crate::ast::BinOp;
-use crate::interp::{rt, BuRef, Ctl, Frame, Interp, Unwind, R};
+use crate::interp::{rt, rtk, BuRef, Ctl, Frame, Interp, Unwind, R};
 use crate::tir::*;
 use crate::types::{Type, TypeId, TAM64};
 use crate::values::*;
@@ -62,8 +62,15 @@ pub(crate) enum Ins<'p> {
     Ret(A),
     RetV,
     Print(u32, u32, u32),
-    Eval(u32, &'p TExpr, u32, u32),
-    Exec(&'p TS, u32, u32),
+    /// Ağaç yorumlayıcıya devredilen ifade/komut: (.., dur hedefi, devam hedefi, döngünün dene derinliği)
+    Eval(u32, &'p TExpr, u32, u32, u32),
+    Exec(&'p TS, u32, u32, u32),
+    /// `dene` bloğuna giriş: hata yakalayıcı (Chunk::deneler sırası) yığına konur
+    DeneGir(u32),
+    /// `dene` gövdesi bitti: yakalayıcı yığından alınır
+    DeneCik,
+    /// dur/devam ile dene bloklarından çıkılırken yakalayıcı yığını bu derinliğe indirilir
+    DeneKes(u32),
     IterList(u32, u32, Slot, u32),
     /// Aralık döngüsü: (taban, başlangıç, bitiş, adım, dahil mi). Taban yazmaçları: ilk değer, adım,
     /// tur sayısı (işaretsiz), sayaç. Liste oluşturulmaz.
@@ -93,8 +100,16 @@ pub(crate) enum Ins<'p> {
     RunModule(usize),
 }
 
+/// `dene` bloğunun yakala dalları: dalların başladığı komutlar, dal yoksa ya da hata yok sayılınca `son`
+pub(crate) struct DeneBilgi<'p> {
+    pub catches: &'p [TCatch],
+    pub targets: Vec<u32>,
+    pub son: u32,
+}
+
 pub(crate) struct Chunk<'p> {
     pub code: Vec<Ins<'p>>,
+    pub deneler: Vec<DeneBilgi<'p>>,
     pub locs: Vec<Loc>,
     pub consts: Vec<Value>,
     pub types: Vec<Type>,
@@ -107,8 +122,10 @@ pub(crate) struct Chunk<'p> {
 struct Comp<'p> {
     ch: Chunk<'p>,
     next: u32,
-    /// döngüler: (devam hedefi, dur için yamalanacak komutlar)
-    loops: Vec<(u32, Vec<usize>)>,
+    /// döngüler: (devam hedefi, dur için yamalanacak komutlar, döngünün dene derinliği)
+    loops: Vec<(u32, Vec<usize>, u32)>,
+    /// iç içe dene blokları (gövdeleri)
+    dene: u32,
     loc: Loc,
     /// Bu dosyanın kendi değişkenleri (dosya kodu derleniyorsa). Bunların atanmış olduğu derleme anında
     /// akış analiziyle kontrol edildiği için okunurken CheckG gerekmez (derleyicideki gibi).
@@ -147,9 +164,10 @@ pub(crate) fn compile_cell<'p>(prog: &'p Program, stmts: &'p [TS], value: Option
 
 fn new_comp<'p>(nslots: u32, own_globals: std::collections::HashSet<u32>) -> Comp<'p> {
     Comp {
-        ch: Chunk { code: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
+        ch: Chunk { code: Vec::new(), deneler: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
         next: nslots,
         loops: Vec::new(),
+        dene: 0,
         loc: Loc::default(),
         own_globals,
     }
@@ -158,9 +176,10 @@ fn new_comp<'p>(nslots: u32, own_globals: std::collections::HashSet<u32>) -> Com
 fn compile_body<'p>(prog: &'p Program, body: &'p [TS], nslots: u32, own_globals: std::collections::HashSet<u32>) -> Chunk<'p> {
     let _ = prog;
     let mut c = Comp {
-        ch: Chunk { code: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
+        ch: Chunk { code: Vec::new(), deneler: Vec::new(), locs: Vec::new(), consts: Vec::new(), types: Vec::new(), fstrs: Vec::new(), nregs: nslots },
         next: nslots,
         loops: Vec::new(),
+        dene: 0,
         loc: Loc::default(),
         own_globals,
     };
@@ -204,20 +223,20 @@ impl<'p> Comp<'p> {
         match &mut self.ch.code[at] {
             Ins::Jmp(t) | Ins::JmpF(_, t) | Ins::JmpT(_, t) | Ins::JmpIfNot64(_, _, _, t) | Ins::JmpIf64(_, _, _, t) => *t = target,
             Ins::IterList(_, _, _, t) | Ins::IterRange(_, _, t) => *t = target,
-            Ins::Exec(_, b, _) | Ins::Eval(_, _, b, _) => *b = target,
+            Ins::Exec(_, b, _, _) | Ins::Eval(_, _, b, _, _) => *b = target,
             _ => unreachable!(),
         }
     }
     /// Ağaç yorumlayıcıya devredilen komut/ifade için döngü hedefleri (dur yamalanır)
-    fn loop_targets(&mut self) -> (u32, bool) {
+    fn loop_targets(&mut self) -> (u32, bool, u32) {
         match self.loops.last() {
-            Some((c, _)) => (*c, true),
-            None => (YOK, false),
+            Some((c, _, d)) => (*c, true, *d),
+            None => (YOK, false, 0),
         }
     }
     fn exec_fallback(&mut self, s: &'p TS) {
-        let (cont, in_loop) = self.loop_targets();
-        let at = self.emit(Ins::Exec(s, YOK, cont));
+        let (cont, in_loop, depth) = self.loop_targets();
+        let at = self.emit(Ins::Exec(s, YOK, cont, depth));
         if in_loop {
             self.loops.last_mut().unwrap().1.push(at);
         }
@@ -438,8 +457,8 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::LoadBu(d));
             }
             _ => {
-                let (cont, in_loop) = self.loop_targets();
-                let at = self.emit(Ins::Eval(d, e, YOK, cont));
+                let (cont, in_loop, depth) = self.loop_targets();
+                let at = self.emit(Ins::Eval(d, e, YOK, cont, depth));
                 if in_loop {
                     self.loops.last_mut().unwrap().1.push(at);
                 }
@@ -501,7 +520,7 @@ impl<'p> Comp<'p> {
     fn bottom_loop(&mut self, c: &'p TExpr, body: &'p [TS], step: Option<&'p TS>) {
         let j0 = self.emit(Ins::Jmp(0));
         let top = self.pc();
-        self.loops.push((YOK, Vec::new()));
+        self.loops.push((YOK, Vec::new(), self.dene));
         let body_start = self.ch.code.len();
         self.block(body);
         let cont = self.pc();
@@ -515,7 +534,7 @@ impl<'p> Comp<'p> {
         self.cond_jump_true(c, top);
         self.next = mark;
         let exit = self.pc();
-        let (_, breaks) = self.loops.pop().unwrap();
+        let (_, breaks, _) = self.loops.pop().unwrap();
         for b in breaks {
             self.patch(b, exit);
         }
@@ -641,7 +660,7 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::Mov(ctr, zero));
                 let top = self.pc();
                 let j = self.emit(Ins::JmpIfNot64(BinOp::Lt, A::R(ctr), A::R(n), 0));
-                self.loops.push((YOK, Vec::new()));
+                self.loops.push((YOK, Vec::new(), self.dene));
                 let body_start = self.ch.code.len();
                 self.block(body);
                 let step_pc = self.pc();
@@ -659,7 +678,7 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::RangeInit(base, s, en, k, *inclusive));
                 let top = self.pc();
                 let j = self.emit(Ins::IterRange(base, binds[0], 0));
-                self.loops.push((YOK, Vec::new()));
+                self.loops.push((YOK, Vec::new(), self.dene));
                 let body_start = self.ch.code.len();
                 self.block(body);
                 let step_pc = self.pc();
@@ -677,17 +696,24 @@ impl<'p> Comp<'p> {
                 let top = self.pc();
                 self.loc = iter.loc;
                 let j = self.emit(Ins::IterList(l, i, binds[0], 0));
-                self.loops.push((top, Vec::new()));
+                self.loops.push((top, Vec::new(), self.dene));
                 self.block(body);
                 self.emit(Ins::Jmp(top));
                 self.end_loop(j);
             }
             TS::Break => {
+                let depth = self.loops.last().expect("döngü").2;
+                if self.dene > depth {
+                    self.emit(Ins::DeneKes(depth));
+                }
                 let at = self.emit(Ins::Jmp(0));
                 self.loops.last_mut().expect("döngü").1.push(at);
             }
             TS::Continue => {
-                let c = self.loops.last().expect("döngü").0;
+                let (c, _, depth) = *self.loops.last().map(|l| (l.0, 0, l.2)).as_ref().expect("döngü");
+                if self.dene > depth {
+                    self.emit(Ins::DeneKes(depth));
+                }
                 let at = self.emit(Ins::Jmp(c));
                 if c == YOK {
                     // adım komutunun yeri sonra belli olur (fix_continue)
@@ -703,6 +729,29 @@ impl<'p> Comp<'p> {
             }
             TS::RunModule(m) => {
                 self.emit(Ins::RunModule(*m));
+            }
+            TS::Dene { body, catches } => {
+                let idx = self.ch.deneler.len();
+                self.ch.deneler.push(DeneBilgi { catches, targets: Vec::new(), son: 0 });
+                self.emit(Ins::DeneGir(idx as u32));
+                self.dene += 1;
+                self.block(body);
+                self.dene -= 1;
+                self.emit(Ins::DeneCik);
+                let mut ends = vec![self.emit(Ins::Jmp(0))];
+                let mut targets = Vec::new();
+                for c in catches {
+                    targets.push(self.pc());
+                    self.block(&c.body);
+                    ends.push(self.emit(Ins::Jmp(0)));
+                }
+                let son = self.pc();
+                for j in ends {
+                    self.patch(j, son);
+                }
+                let d = &mut self.ch.deneler[idx];
+                d.targets = targets;
+                d.son = son;
             }
             _ => self.exec_fallback(s),
         }
@@ -730,7 +779,7 @@ impl<'p> Comp<'p> {
         for k in from..self.ch.code.len() {
             match &mut self.ch.code[k] {
                 Ins::Jmp(t) if *t == YOK => *t = step_pc,
-                Ins::Exec(_, _, c) | Ins::Eval(_, _, _, c) if *c == YOK => *c = step_pc,
+                Ins::Exec(_, _, c, _) | Ins::Eval(_, _, _, c, _) if *c == YOK => *c = step_pc,
                 _ => {}
             }
         }
@@ -742,7 +791,7 @@ impl<'p> Comp<'p> {
     fn end_loop(&mut self, cond_jump: usize) {
         let exit = self.pc();
         self.patch(cond_jump, exit);
-        let (_, breaks) = self.loops.pop().unwrap();
+        let (_, breaks, _) = self.loops.pop().unwrap();
         for b in breaks {
             self.patch(b, exit);
         }
@@ -817,14 +866,16 @@ impl<'p> Interp<'p> {
     }
 
     /// Ağaç yorumlayıcıdan gelen kontrol akışı (dur/devam/döndür) bytecode'a çevrilir.
-    fn ctl_jump(&self, c: Ctl, brk: u32, cont: u32, pc: &mut usize) -> Option<Value> {
+    fn ctl_jump(&self, c: Ctl, brk: u32, cont: u32, depth: u32, pc: &mut usize, hs: &mut Vec<u32>) -> Option<Value> {
         match c {
             Ctl::Normal => None,
             Ctl::Break => {
+                hs.truncate(depth as usize);
                 *pc = brk as usize;
                 None
             }
             Ctl::Continue => {
+                hs.truncate(depth as usize);
                 *pc = cont as usize;
                 None
             }
@@ -845,9 +896,37 @@ impl<'p> Interp<'p> {
     }
 
     /// Bytecode'u çalıştırır; dönüş değerini verir.
+    /// Bytecode'u çalıştırır; dönüş değerini verir. Bir dene bloğu içinde hata olursa yakalayan dal
+    /// seçilir ve oradan devam edilir.
     pub(crate) fn run_chunk(&mut self, ch: &Chunk<'p>, f: &mut Frame) -> R<Value> {
-        let prog = self.prog;
         let mut pc = 0usize;
+        // etkin dene blokları (Chunk::deneler sırası); çoğu fonksiyonda hep boş kalır
+        let mut hs: Vec<u32> = Vec::new();
+        loop {
+            let mut r = self.run_from(ch, f, pc, &mut hs);
+            loop {
+                match r {
+                    Err(Unwind::Err(e)) if !hs.is_empty() => {
+                        let d = &ch.deneler[hs.pop().unwrap() as usize];
+                        match self.yakala_sec(e, d.catches, f) {
+                            Ok(None) => pc = d.son as usize,
+                            Ok(Some(i)) => pc = d.targets[i] as usize,
+                            Err(e2) => {
+                                r = Err(e2);
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                    other => return other,
+                }
+            }
+        }
+    }
+
+    fn run_from(&mut self, ch: &Chunk<'p>, f: &mut Frame, start: usize, hs: &mut Vec<u32>) -> R<Value> {
+        let prog = self.prog;
+        let mut pc = start;
         loop {
             let ins = &ch.code[pc];
             pc += 1;
@@ -859,7 +938,7 @@ impl<'p> Interp<'p> {
                 Ins::LoadG(d, g) => {
                     let v = &self.globals[*g as usize];
                     if matches!(v, Value::Uninit) {
-                        return rt(ch.locs[pc - 1], crate::interp::BELIRSIZ);
+                        return rtk(hata_turu::YAKALANAMAZ, ch.locs[pc - 1], crate::interp::BELIRSIZ);
                     }
                     f.slots[*d as usize] = v.clone();
                 }
@@ -870,7 +949,7 @@ impl<'p> Interp<'p> {
                 Ins::Uninit(d) => f.slots[*d as usize] = Value::Uninit,
                 Ins::CheckG(g) => {
                     if matches!(self.globals[*g as usize], Value::Uninit) {
-                        return rt(ch.locs[pc - 1], crate::interp::BELIRSIZ);
+                        return rtk(hata_turu::YAKALANAMAZ, ch.locs[pc - 1], crate::interp::BELIRSIZ);
                     }
                 }
                 Ins::ArithG64(op, g, b) => {
@@ -965,7 +1044,7 @@ impl<'p> Interp<'p> {
                     };
                     if r {
                         if crate::interp::kesildi() {
-                            return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                            return rtk(hata_turu::YAKALANAMAZ, ch.locs[pc - 1], crate::interp::DURDURULDU);
                         }
                         pc = *t as usize;
                     }
@@ -991,7 +1070,7 @@ impl<'p> Interp<'p> {
                 Ins::Jmp(t) => {
                     // geriye atlama = döngü turu: REPL'de Ctrl+C burada yakalanır
                     if (*t as usize) < pc && crate::interp::kesildi() {
-                        return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                        return rtk(hata_turu::YAKALANAMAZ, ch.locs[pc - 1], crate::interp::DURDURULDU);
                     }
                     pc = *t as usize
                 }
@@ -1003,7 +1082,7 @@ impl<'p> Interp<'p> {
                 Ins::JmpT(a, t) => {
                     if let Value::Bool(true) = self.gr(ch, f, *a) {
                         if (*t as usize) < pc && crate::interp::kesildi() {
-                            return rt(ch.locs[pc - 1], crate::interp::DURDURULDU);
+                            return rtk(hata_turu::YAKALANAMAZ, ch.locs[pc - 1], crate::interp::DURDURULDU);
                         }
                         pc = *t as usize;
                     }
@@ -1053,22 +1132,27 @@ impl<'p> Interp<'p> {
                     line.push('\n');
                     self.write_line(&line);
                 }
-                Ins::Eval(d, e, brk, cont) => match self.eval(e, f) {
+                Ins::DeneGir(i) => hs.push(*i),
+                Ins::DeneCik => {
+                    hs.pop();
+                }
+                Ins::DeneKes(d) => hs.truncate(*d as usize),
+                Ins::Eval(d, e, brk, cont, depth) => match self.eval(e, f) {
                     Ok(v) => f.slots[*d as usize] = v,
                     Err(Unwind::Ctl(c)) => {
-                        if let Some(v) = self.ctl_jump(c, *brk, *cont, &mut pc) {
+                        if let Some(v) = self.ctl_jump(c, *brk, *cont, *depth, &mut pc, hs) {
                             return Ok(v);
                         }
                     }
                     Err(e) => return Err(e),
                 },
-                Ins::Exec(s, brk, cont) => {
+                Ins::Exec(s, brk, cont, depth) => {
                     let c = match self.exec(s, f) {
                         Ok(c) => c,
                         Err(Unwind::Ctl(c)) => c,
                         Err(e) => return Err(e),
                     };
-                    if let Some(v) = self.ctl_jump(c, *brk, *cont, &mut pc) {
+                    if let Some(v) = self.ctl_jump(c, *brk, *cont, *depth, &mut pc, hs) {
                         return Ok(v);
                     }
                 }
@@ -1150,7 +1234,7 @@ impl<'p> Interp<'p> {
                     let ix = match self.gr(ch, f, *i) {
                         Value::Int(n) => match n.as_i64() {
                             Some(x) => x,
-                            None => return rt(loc, "İndeks çok büyük."),
+                            None => return rtk(hata_turu::INDEKS, loc, "İndeks çok büyük."),
                         },
                         _ => unreachable!(),
                     };
@@ -1159,7 +1243,7 @@ impl<'p> Interp<'p> {
                         Slot::Global(g) => {
                             let t = &mut self.globals[*g as usize];
                             if matches!(t, Value::Uninit) {
-                                return rt(loc, crate::interp::BELIRSIZ);
+                                return rtk(hata_turu::YAKALANAMAZ, loc, crate::interp::BELIRSIZ);
                             }
                             t
                         }
@@ -1188,7 +1272,7 @@ impl<'p> Interp<'p> {
                     let loc = ch.locs[pc - 1];
                     let v = match (self.gr(ch, f, *a), self.gr(ch, f, *i)) {
                         (Value::List(l), Value::Int(ix)) => {
-                            let Some(ix) = ix.as_i64() else { return rt(loc, "İndeks çok büyük.") };
+                            let Some(ix) = ix.as_i64() else { return rtk(hata_turu::INDEKS, loc, "İndeks çok büyük.") };
                             let real = crate::interp::norm_index(ix, l.items.len(), loc)?;
                             l.items[real].clone()
                         }
@@ -1220,7 +1304,7 @@ impl<'p> Interp<'p> {
                         Slot::Global(g) => {
                             let t = &mut self.globals[*g as usize];
                             if matches!(t, Value::Uninit) {
-                                return rt(loc, crate::interp::BELIRSIZ);
+                                return rtk(hata_turu::YAKALANAMAZ, loc, crate::interp::BELIRSIZ);
                             }
                             t
                         }

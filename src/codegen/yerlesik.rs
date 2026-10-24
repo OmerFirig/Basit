@@ -277,7 +277,7 @@ impl<'p> Gen<'p> {
                 let (bad, ok) = (self.new_label(), self.new_label());
                 self.br_cold(&z, &bad, &ok);
                 self.block(&bad);
-                self.error_call(if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." }, loc);
+                self.error_call_tur(hata_turu::INDEKS, if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." }, loc);
                 self.block(&ok);
                 let lt = self.llty(&et);
                 let best = self.alloca(&lt);
@@ -496,13 +496,15 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{t} = call ptr @kolay_yazi_bol(ptr {v}, ptr {}, ptr {tip})", a[0]));
                 self.own(t, ret)
             }
-            BM::Tama => {
-                self.emit(&format!("{t} = call i64 @kolay_yazi_tama(ptr {v}, ptr {k}, ptr {kd})"));
-                t
-            }
-            BM::Ondaliga => {
-                self.emit(&format!("{t} = call double @kolay_yazi_ondaliga(ptr {v}, ptr {k}, ptr {kd})"));
-                t
+            // sonuç 'veya': sayı ya da Hata.Dönüşüm
+            BM::Tama | BM::Ondaliga => {
+                let _ = (k, kd, t);
+                let ut = self.tip(ret);
+                let a = self.alloca("%veya");
+                let f = if m == BM::Tama { "kolay_yazi_tama" } else { "kolay_yazi_ondaliga" };
+                self.emit(&format!("call void @{f}(ptr {v}, ptr {a}, ptr {ut})"));
+                let r = self.load_mem(&a, ret);
+                self.own(r, ret)
             }
             BM::Sirali | BM::Tersi => {
                 let f = if m == BM::Sirali { "kolay_liste_sirali" } else { "kolay_liste_tersi" };

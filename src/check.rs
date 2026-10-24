@@ -89,6 +89,8 @@ pub(crate) struct Ctx {
     pub func: Option<FuncId>,
     /// Gövdesi blok olan lambdanın dönüş tipi çıkarılırken: `döndür` edilen değerlerin tipleri
     pub ret_infer: Option<Vec<(Type, Span)>>,
+    /// İç içe `dene` blokları (yakala dalları sayılmaz): `T veya Hata` döndüren çağrılar açılır
+    pub dene_depth: u32,
 }
 
 pub(crate) struct PendingMut {
@@ -126,9 +128,49 @@ pub struct Checker {
     pub(crate) texts: Vec<String>,
     /// İç içe denetlenen lambdalar (en içteki sonda)
     pub(crate) lambda_stack: Vec<LambdaFrame>,
+    /// Hazır hata türleri (tir::HATA_TURLERI sırasıyla)
+    pub(crate) hata_turleri: [TypeId; 6],
+    /// Tipsiz `yakala` dallarının değişken tipleri (önceki geçişin fırlatma analizinden; anahtar: dalın yeri)
+    pub(crate) tahmin: HashMap<(u32, u32), Type>,
+    /// Keşif geçişi: tipsiz yakala dalındaki hatalar yok sayılır (tipi henüz kesin değil)
+    pub(crate) kesif: bool,
+    pub(crate) tipsiz_var: bool,
+    pub(crate) yutulan: bool,
 }
 
+/// Tipsiz `yakala` dalının değişken tipi, fırlatılabilen değerlere bağlıdır; bunlar ise bütün program
+/// denetlenince belli olur. Bu yüzden böyle bir dal varsa program birkaç kez denetlenir: önce keşif
+/// geçişleri (tipler oturana kadar), sonra asıl geçiş.
 pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<Diag>)> {
+    let mut tahmin: HashMap<(u32, u32), Type> = HashMap::new();
+    let mut kesif = true;
+    for _ in 0..8 {
+        let (prog, mut warnings, yeni, bilgi) = check_pass(parsed.clone(), src, &tahmin, kesif)?;
+        if !bilgi.0 || (yeni == tahmin && !bilgi.1) {
+            warnings.sort_by_key(|w| (w.span.file, w.span.line));
+            // tipsiz dal yok ya da tipler oturdu ve hiçbir dal yok sayılmadı: sonuç kesin
+            return Ok((prog, warnings));
+        }
+        if yeni == tahmin {
+            kesif = false;
+        }
+        tahmin = yeni;
+    }
+    let (prog, mut warnings, _, _) = check_pass(parsed, src, &tahmin, false)?;
+    warnings.sort_by_key(|w| (w.span.file, w.span.line));
+    Ok((prog, warnings))
+}
+
+/// Dönüş: program, uyarılar, tipsiz yakala dallarının analizden çıkan tipleri, (tipsiz dal var mı, keşifte
+/// yok sayılan dal oldu mu)
+#[allow(clippy::type_complexity)]
+fn check_pass(
+    parsed: Vec<ParsedModule>,
+    src: &Sources,
+    tahmin: &HashMap<(u32, u32), Type>,
+    kesif: bool,
+) -> CResult<(Program, Vec<Diag>, HashMap<(u32, u32), Type>, (bool, bool))> {
+
     let mut c = Checker {
         mods: Vec::new(),
         types: Vec::new(),
@@ -151,6 +193,11 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
         pending_keys: std::cell::RefCell::new(Some(Vec::new())),
         texts: src.files.iter().map(|f| f.text.clone()).collect(),
         lambda_stack: Vec::new(),
+        hata_turleri: [0; 6],
+        tahmin: tahmin.clone(),
+        kesif,
+        tipsiz_var: false,
+        yutulan: false,
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -166,6 +213,7 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
         all_stmts.push(m.stmts);
     }
     let n = c.mods.len();
+    c.declare_hata_types();
 
     // 1. Tür ve fonksiyon isimlerini kaydet
     for (mi, stmts) in all_stmts.iter().enumerate() {
@@ -261,6 +309,8 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
     }
     // 8. Sabit nesneler üzerinde değiştiren metot çağrısı var mı?
     c.resolve_mutation()?;
+    // 9. Fırlatma analizi: yakala dallarına hangi değerlerin gelebileceği
+    let tipsiz = c.firlat_analizi(&mut modules_code);
 
     let funcs = c.funcs.iter_mut().map(|f| f.body.take().expect("gövde")).collect();
     // metot ve alan numaraları
@@ -291,8 +341,11 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
             dispatch,
             field_names: c.field_names,
             field_pos,
+            hata_turleri: c.hata_turleri,
         },
         c.warnings,
+        tipsiz,
+        (c.tipsiz_var, c.yutulan),
     ))
 }
 
@@ -353,12 +406,45 @@ impl Checker {
 
     // ------------------------------------------------------------ tanımlar
 
-    fn declare_type(&mut self, mi: usize, name: &str, span: Span, decl: TypeDecl) -> CResult<()> {
-        if self.mods[mi].types.contains_key(name) || self.mods[mi].funcs.contains_key(name) {
-            return err(span, format!("'{name}' bu dosyada zaten tanımlı."));
+    /// Hazır hata türleri: `tür Hata(mesaj: Yazı)` ve alt türleri (Hata.SıfıraBölme ...). Her dosyada görünür.
+    fn declare_hata_types(&mut self) {
+        let sp = Span { file: u32::MAX, ..Default::default() };
+        let yazi = TypeExpr { kind: TypeKind::Path { path: vec!["Yazı".into()], generics: vec![], args: None, dims: vec![] }, span: sp };
+        for (i, name) in HATA_TURLERI.iter().enumerate() {
+            let (parents, fields) = if i == 0 {
+                (vec![], vec![Param { name: "mesaj".into(), ty: yazi.clone(), sabit: false, span: sp }])
+            } else {
+                (vec![(vec!["Hata".to_string()], sp)], vec![])
+            };
+            let d = TurDecl { name: name.to_string(), span: sp, parents, fields, methods: vec![] };
+            let tid = self.types.len();
+            self.types.push(TypeDef {
+                name: name.to_string(),
+                kind: TypeDefKind::Tur { fields: vec![], parents: vec![], ancestors: vec![] },
+                interfaces: vec![],
+                methods: HashMap::new(),
+            });
+            self.type_decls.push((0, sp, Some(TypeDecl::Tur(d))));
+            self.own_fields.push(Vec::new());
+            self.type_methods.push(Vec::new());
+            for m in &mut self.mods {
+                m.types.insert(name.to_string(), tid);
+            }
+            self.hata_turleri[i] = tid;
         }
+    }
+
+    /// Hata ya da onun alt türü mü?
+    pub(crate) fn is_hata(&self, t: &Type) -> bool {
+        matches!(t, Type::Named(id) if self.is_subtype(*id, self.hata_turleri[0]))
+    }
+
+    fn declare_type(&mut self, mi: usize, name: &str, span: Span, decl: TypeDecl) -> CResult<()> {
         if is_builtin_type_name(name) {
             return err(span, format!("'{name}' dilin hazır tiplerinden biri, başka bir ad seçin."));
+        }
+        if self.mods[mi].types.contains_key(name) || self.mods[mi].funcs.contains_key(name) {
+            return err(span, format!("'{name}' bu dosyada zaten tanımlı."));
         }
         let tid = self.types.len();
         let kind = match &decl {
@@ -625,6 +711,13 @@ impl Checker {
                 _ => {}
             }
         }
+        // hazır hata türleri: Hata.SıfıraBölme ...
+        if path.len() == 2 && path[0] == "Hata" && !self.mods[mi].namespaces.contains_key("Hata") {
+            return match self.mods[mi].types.get(&format!("Hata.{}", path[1])) {
+                Some(&tid) => Ok(Type::Named(tid)),
+                None => err(span, hata_turu_yok(&path[1])),
+            };
+        }
         // kullanıcı tipleri
         let mut module = mi;
         for (i, part) in path[..path.len() - 1].iter().enumerate() {
@@ -649,8 +742,8 @@ impl Checker {
                 return format!("'{name}' diye bir tip yok. '{tr}' mı demek istediniz? (Türkçe karakter olmadan yazmak için dosyanın başına klavye(\"us\") ekleyin.)");
             }
         }
-        let mut names: Vec<String> = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Hiç"].iter().map(|s| s.to_string()).collect();
-        names.extend(self.mods[mi].types.keys().cloned());
+        let mut names: Vec<String> = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Hiç", "Hata"].iter().map(|s| s.to_string()).collect();
+        names.extend(self.mods[mi].types.keys().filter(|k| !k.contains('.')).cloned());
         if let Some(s) = closest(name, names.iter()) {
             let shown = if mode == Mode::Us { to_us(&s) } else { s };
             return format!("'{name}' diye bir tip yok. '{shown}' mı demek istediniz?");
@@ -1234,7 +1327,12 @@ pub(crate) fn starts_upper(s: &str) -> bool {
 }
 
 pub(crate) fn is_builtin_type_name(s: &str) -> bool {
-    matches!(s, "Tam" | "Ondalık" | "Yazı" | "Mantık" | "Liste" | "Sözlük" | "Hiç" | "Fonksiyon")
+    matches!(s, "Tam" | "Ondalık" | "Yazı" | "Mantık" | "Liste" | "Sözlük" | "Hiç" | "Fonksiyon" | "Hata")
+}
+
+pub(crate) fn hata_turu_yok(name: &str) -> String {
+    let adlar: Vec<&str> = HATA_TURLERI[1..].iter().map(|n| &n[5..]).collect();
+    format!("'Hata' içinde '{name}' diye bir hata türü yok. Hazır hata türleri: {}.", adlar.join(", "))
 }
 
 pub(crate) fn to_us(s: &str) -> String {

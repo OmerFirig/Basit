@@ -1,0 +1,3 @@
+sayı yakalandı: 5
+ÇALIŞMA HATASI (hata_yakalanmamis.kolay, satır 5): Yakalanmamış değer fırlatıldı: "yazı" (Yazı).
+  5 |         fırlat "yazı"

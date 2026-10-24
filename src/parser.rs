@@ -190,6 +190,17 @@ impl Parser {
                 }
             }
             Tok::Kw(Kw::Eslestir) => StmtKind::Match(self.match_expr()?),
+            Tok::Kw(Kw::Dene) => self.dene()?,
+            Tok::Kw(Kw::Firlat) => {
+                self.advance();
+                if self.at(&Tok::RBrace) || self.at(&Tok::Eof) || self.at(&Tok::Semi) || self.tok().nl_before {
+                    return err(start, format!("'{}' sonrasında fırlatılacak bir değer yazılmalı. Örnek: {} Hata(mesaj: \"...\")", self.kw(Kw::Firlat), self.kw(Kw::Firlat)));
+                }
+                StmtKind::Firlat(self.expr()?)
+            }
+            Tok::Kw(Kw::Yakala) => {
+                return err(start, format!("'{}' sadece bir '{} {{ }}' bloğundan sonra yazılabilir.", self.kw(Kw::Yakala), self.kw(Kw::Dene)));
+            }
             Tok::Kw(Kw::Dahil) => self.dahil(None)?,
             Tok::Kw(Kw::Yeniden) => {
                 return err(start, format!("'{}' sadece bir tür içinde kullanılabilir.", self.kw(Kw::Yeniden)));
@@ -451,6 +462,38 @@ impl Parser {
         } else {
             Ok(vec![self.ident("Döngü değişkeninin adı")?])
         }
+    }
+
+    /// `dene { } yakala h: Tip { } yakala diğer { }`
+    fn dene(&mut self) -> CResult<StmtKind> {
+        self.advance();
+        let body = self.block()?;
+        let mut catches = Vec::new();
+        while self.at_kw(Kw::Yakala) {
+            let start = self.advance().span;
+            let (name, name_span) = self.ident("'yakala' sonrasında değişken adı")?;
+            let ty = if self.eat(&Tok::Colon) {
+                Some(self.ty()?)
+            } else {
+                if starts_upper(&name) {
+                    // `yakala Hata.Dönüşüm { }`: tip yazılmış ama değişken adı yok
+                    let mut tip = name.clone();
+                    while self.at(&Tok::Dot) && matches!(self.peek_n(1).tok, Tok::Ident(_)) {
+                        self.advance();
+                        tip.push('.');
+                        tip.push_str(&self.ident("Tip adı")?.0);
+                    }
+                    return err(
+                        name_span.to(self.prev_span()),
+                        format!("'{}' sonrasında önce bir değişken adı yazılır: {} h: {tip} {{ }}", self.kw(Kw::Yakala), self.kw(Kw::Yakala)),
+                    );
+                }
+                None
+            };
+            let body = self.block()?;
+            catches.push(Catch { name, name_span, ty, body, span: start.to(name_span) });
+        }
+        Ok(StmtKind::Dene { body, catches })
     }
 
     fn eger(&mut self) -> CResult<StmtKind> {
@@ -1222,6 +1265,13 @@ impl Parser {
             Tok::Kw(Kw::Dogru) => Pattern::Bool(true, t.span),
             Tok::Kw(Kw::Yanlis) => Pattern::Bool(false, t.span),
             Tok::Kw(Kw::Hic) => Pattern::Hic(t.span),
+            Tok::Ident(s) if self.at(&Tok::Colon) => {
+                // `n: Tam ->` (tip deseni)
+                self.advance();
+                let ty = self.type_atom()?;
+                let name = if s == "_" { None } else { Some((s, t.span)) };
+                Pattern::Typed { name, ty, span: start.to(self.prev_span()) }
+            }
             Tok::Ident(s) if s == "_" => Pattern::Wild,
             Tok::Ident(s) => {
                 let mut path = vec![s];

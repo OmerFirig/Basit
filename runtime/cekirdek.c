@@ -2,20 +2,143 @@
 
 void *bellek(size_t n) {
     void *p = malloc(n ? n : 1);
-    if (!p) kolay_hata("Bellek yetmedi.", "?", "");
+    if (!p) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
     return p;
 }
 
 void *bellek_sifir(size_t n) {
     void *p = calloc(1, n ? n : 1);
-    if (!p) kolay_hata("Bellek yetmedi.", "?", "");
+    if (!p) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
     return p;
 }
 
-_Noreturn void kolay_hata(const char *msg, const char *konum, const char *kod) {
-    fflush(stdout);
-    fprintf(stderr, "ÇALIŞMA HATASI (%s): %s\n%s", konum, msg, kod);
-    exit(1);
+// ------------------------------------------------------------ hatalar ve dene/yakala
+//
+// Her `dene` bloğu girişte bir DeneCerceve'yi zincire ekler ve setjmp yapar (derleyici, codegen/komut.rs).
+// Hata olunca (çalışma hatası ya da `fırlat`) değer en içteki çerçeveye yazılır, çerçeve zincirden
+// çıkarılır ve longjmp ile bloğun yakala kısmına dönülür. Çerçeve yoksa mesaj yazılıp program biter.
+// Atlanan fonksiyonların geçici nesneleri geri verilmez (sadece hata anında küçük sızıntı).
+
+typedef struct DeneCerceve {
+    jmp_buf jb;
+    struct DeneCerceve *ust;
+    const Tip *tip;              // fırlatılan değerin (statik) tipi
+    _Alignas(16) char deger[32]; // değer, depolama biçiminde (sahipliği çerçevededir)
+    char *msg;                   // yakalanmazsa yazılacak mesaj
+    const char *konum, *kod;
+} DeneCerceve;
+
+_Static_assert(sizeof(DeneCerceve) <= 1024, "derleyici dene çerçevesi için 1024 bayt ayırır");
+
+static DeneCerceve *dene_ust;
+
+// Derleyicinin ürettiği tablolar: hazır hata türleri (hata_turu sırasıyla), tür sayısı, alt tür tablosu
+extern const Tip *const kolay_hata_tipleri[6];
+extern const int64_t kolay_tur_sayisi;
+extern const char kolay_altmi[];
+
+void kolay_dene_gir(DeneCerceve *c) {
+    c->ust = dene_ust;
+    dene_ust = c;
+}
+
+/// Gövde bitti (ya da dur/devam/döndür ile çıkıldı): çerçeve ve içindekiler zincirden çıkar.
+void kolay_dene_cik(DeneCerceve *c) { dene_ust = c->ust; }
+
+const Tip *kolay_dene_tip(DeneCerceve *c) { return c->tip; }
+void *kolay_dene_deger(DeneCerceve *c) { return c->deger; }
+
+/// Yakalanan değer kullanılmadı (dal yok ya da değişkensiz dal): bırakılır.
+void kolay_dene_birak(DeneCerceve *c) {
+    kolay_deger_birak(c->deger, c->tip);
+    free(c->msg);
+}
+
+/// Yakalanan değer bir değişkene taşındı.
+void kolay_dene_bitti(DeneCerceve *c) { free(c->msg); }
+
+static _Noreturn void firlat_ic(const Tip *t, const void *deger, char *msg, const char *konum, const char *kod) {
+    DeneCerceve *c = dene_ust;
+    if (!c) {
+        fflush(stdout);
+        fprintf(stderr, "ÇALIŞMA HATASI (%s): %s\n%s", konum, msg, kod);
+        exit(1);
+    }
+    dene_ust = c->ust;
+    c->tip = t;
+    memmove(c->deger, deger, (size_t)t->boyut);
+    c->msg = msg;
+    c->konum = konum;
+    c->kod = kod;
+    longjmp(c->jb, 1);
+}
+
+/// Hiçbir yakala dalı uymadı: aynı değer dıştaki bloğa gider.
+_Noreturn void kolay_dene_yeniden(DeneCerceve *c) { firlat_ic(c->tip, c->deger, c->msg, c->konum, c->kod); }
+
+static char *kopya_c(const char *s) {
+    size_t n = strlen(s);
+    char *k = malloc(n + 1);
+    if (!k) {
+        fflush(stdout);
+        fprintf(stderr, "ÇALIŞMA HATASI: Bellek yetmedi.\n");
+        exit(1);
+    }
+    memcpy(k, s, n + 1);
+    return k;
+}
+
+/// Türü belli çalışma hatası: dene içindeyse Hata.X nesnesi olarak fırlatılır.
+_Noreturn void kolay_hata_tur(int tur, const char *msg, const char *konum, const char *kod) {
+    if (tur == HT_YAKALANAMAZ || !dene_ust) {
+        fflush(stdout);
+        fprintf(stderr, "ÇALIŞMA HATASI (%s): %s\n%s", konum, msg, kod);
+        exit(1);
+    }
+    const Tip *t = kolay_hata_tipleri[tur];
+    Baslik *o = kolay_nesne_yeni(t, t->nesne_boyut);
+    *(Yazi **)((char *)o + t->ofsetler[0]) = yazi_c(msg);
+    firlat_ic(t, &o, kopya_c(msg), konum, kod);
+}
+
+_Noreturn void kolay_hata(const char *msg, const char *konum, const char *kod) { kolay_hata_tur(HT_GENEL, msg, konum, kod); }
+
+/// Nesne Hata ya da alt türü mü? (değer, tür/arayüz tipinde bir işaretçi)
+static int hata_nesnesi_mi(const Tip *t, const void *p) {
+    if (t->tur != T_TUR && t->tur != T_ARAYUZ) return 0;
+    const Baslik *o = *(Baslik *const *)p;
+    if (o->tip->tur != T_TUR) return 0;
+    return kolay_altmi[o->tip->no * kolay_tur_sayisi + kolay_hata_tipleri[0]->no] != 0;
+}
+
+/// `fırlat değer` (değerin sahipliği fırlatmaya geçer). 'veya' değerinde üyenin kendi tipi kullanılır.
+_Noreturn void kolay_firlat(const Tip *t, void *p, const char *konum, const char *kod) {
+    if (t->tur == T_VEYA) {
+        int64_t e = *(int64_t *)p;
+        t = t->tipler[e];
+        p = (char *)p + 8;
+    }
+    char *msg;
+    if (hata_nesnesi_mi(t, p)) {
+        const Baslik *o = *(Baslik *const *)p;
+        msg = kopya_c((*(Yazi *const *)((const char *)o + o->tip->ofsetler[0]))->d);
+    } else {
+        Yazi *y = yazi_c("Yakalanmamış değer fırlatıldı: ");
+        deger_yaz(&y, p, t, 0, 1);
+        yazi_ekle_c(&y, " (", 2);
+        yazi_ekle_c(&y, t->ad, strlen(t->ad));
+        yazi_ekle_c(&y, ").", 2);
+        msg = kopya_c(y->d);
+        kolay_birak(y);
+    }
+    firlat_ic(t, p, msg, konum, kod);
+}
+
+/// Derlenmiş kodun, dene bloğu olan fonksiyonlarda yerel değişkenlerinin adresini "kaçırması": böylece
+/// LLVM onları yazmaçta tutmaz; longjmp sonrası yakala dalı değişkenlerin son değerini görür.
+void kolay_kacir(void *p) {
+    static void *volatile son;
+    son = p;
 }
 
 _Noreturn void kolay_hata_sayi(const char *once, int64_t n, const char *sonra, const char *konum, const char *kod) {
@@ -162,7 +285,7 @@ void *kolay_nesne_yeni(const Tip *t, int64_t boyut) {
 _Noreturn void kolay_tur_degil(const char *hedef, const char *bulunan, const char *konum, const char *kod) {
     char msg[400];
     snprintf(msg, sizeof msg, "Bu değer %s değil, %s.", hedef, bulunan);
-    kolay_hata(msg, konum, kod);
+    kolay_hata_tur(HT_DONUSUM, msg, konum, kod);
 }
 
 _Noreturn void kolay_tur_degil_nesne(const char *hedef, void *nesne, const char *konum, const char *kod) {

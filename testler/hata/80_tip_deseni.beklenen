@@ -1,0 +1,3 @@
+HATA (80_tip_deseni.kolay, satır 2): 'Yazı' deseni bu değerle eşleşemez; eşleştirilen değer Tam(64).
+  2 | eşleştir x { n: Yazı -> yazdır(n) }
+    |              ^^^^^^^

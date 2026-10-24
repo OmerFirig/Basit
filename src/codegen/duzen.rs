@@ -423,7 +423,7 @@ impl<'p> Gen<'p> {
                 items.push(format!("i8 {}", prog.is_subtype(c, p) as i32));
             }
         }
-        let _ = writeln!(out, "@kolay_altmi = internal constant [{} x i8] [{}]", n * n, items.join(", "));
+        let _ = writeln!(out, "@kolay_altmi = constant [{} x i8] [{}]", n * n, items.join(", "));
     }
 
     /// Nesnenin gerçek türü `hedef`in alt türü mü? (i1)

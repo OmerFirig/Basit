@@ -1,0 +1,2 @@
+ata x = 5
+eşleştir x { n: Yazı -> yazdır(n) }

@@ -153,6 +153,8 @@ pub enum Pattern {
     Wild,
     Range(BigInt, BigInt, bool, Span),
     Path { path: Vec<String>, binds: Option<Vec<Option<(String, Span)>>>, span: Span },
+    /// `n: Tam ->` (tip deseni, adla): ad `_` ise None
+    Typed { name: Option<(String, Span)>, ty: TypeExpr, span: Span },
 }
 
 #[derive(Debug, Clone)]
@@ -255,6 +257,16 @@ pub struct SecenekDecl {
     pub methods: Vec<FnDecl>,
 }
 
+/// `yakala ad: Tip { }` ya da tipsiz `yakala ad { }`
+#[derive(Debug, Clone)]
+pub struct Catch {
+    pub name: String,
+    pub name_span: Span,
+    pub ty: Option<TypeExpr>,
+    pub body: Block,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
@@ -289,4 +301,8 @@ pub enum StmtKind {
     Dahil { path: String, alias: Option<(String, Span)> },
     /// C kütüphanesinden fonksiyonlar (#Güvensiz ile)
     Dis { alias: Option<(String, Span)>, lib: String, lib_span: Span, funcs: Vec<DisFn> },
+    /// `dene { } yakala h: Tip { } ...`
+    Dene { body: Block, catches: Vec<Catch> },
+    /// `fırlat değer`
+    Firlat(Expr),
 }

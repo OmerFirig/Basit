@@ -1,0 +1,3 @@
+HATA (79_hata_hazir.kolay, satır 1): 'Hata' dilin hazır tiplerinden biri, başka bir ad seçin.
+  1 | tür Hata(kod: Tam) { }
+    | ^^^

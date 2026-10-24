@@ -43,7 +43,7 @@ void yazi_ekle_c(Yazi **a, const char *s, size_t n) {
         int64_t kap = y->kapasite * 2;
         if (kap < gerek) kap = gerek;
         y = realloc(y, sizeof(Yazi) + (size_t)kap + 1);
-        if (!y) kolay_hata("Bellek yetmedi.", "?", "");
+        if (!y) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
         y->kapasite = kap;
     }
     memcpy(y->d + y->uzunluk, s, n);
@@ -75,7 +75,7 @@ Yazi *kolay_ekle(Yazi *a, Yazi *b) {
         if (kap < gerek) kap = gerek;
         int ayni = (a == b);
         Yazi *n = realloc(a, sizeof(Yazi) + (size_t)kap + 1);
-        if (!n) kolay_hata("Bellek yetmedi.", "?", "");
+        if (!n) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
         if (ayni) b = n;
         a = n;
         a->kapasite = kap;
@@ -158,7 +158,7 @@ static Yazi *harf_cevir(Yazi *s, uint32_t (*f)(uint32_t)) {
         if (n + 4 > o->kapasite) {
             int64_t kap = o->kapasite * 2;
             Yazi *y = realloc(o, sizeof(Yazi) + (size_t)kap + 1);
-            if (!y) kolay_hata("Bellek yetmedi.", "?", "");
+            if (!y) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", "?", "");
             o = y;
             o->kapasite = kap;
         }
@@ -263,7 +263,7 @@ Yazi *kolay_karakter(Yazi *s, int64_t i, const char *konum, const char *kod) {
     if (real < 0 || real >= n) {
         char msg[200];
         snprintf(msg, sizeof msg, "Yazının %lld. karakteri yok; yazı %lld karakterli.", (long long)i, (long long)n);
-        kolay_hata(msg, konum, kod);
+        kolay_hata_tur(HT_INDEKS, msg, konum, kod);
     }
     const unsigned char *p = (const unsigned char *)s->d;
     for (int64_t k = 0; k < real; k++) utf8_oku(&p);
@@ -294,46 +294,77 @@ Liste *kolay_yazi_bol(Yazi *s, Yazi *ayrac, const Tip *liste_tipi) {
     return l;
 }
 
-static _Noreturn void cevrilemez(Yazi *s, const char *ne, const char *konum, const char *kod) {
-    char msg[400];
-    snprintf(msg, sizeof msg, "\"%.200s\" bir %s çevrilemez.", s->d, ne);
-    kolay_hata(msg, konum, kod);
-}
-
-int64_t kolay_yazi_tama(Yazi *s, const char *konum, const char *kod) {
+/// Yazıdan tam sayı (Rust'taki gibi: isteğe bağlı +/- ve ardından sadece rakamlar). Başarısızsa 0.
+static int tama_coz(Yazi *s, int64_t *v) {
     const char *b, *e;
     kirp_sinir(s, &b, &e);
     size_t n = (size_t)(e - b);
     char buf[64];
-    // Rust'taki gibi: isteğe bağlı +/- ve ardından sadece rakamlar
-    if (n == 0 || n >= sizeof buf) cevrilemez(s, "tam sayıya", konum, kod);
+    if (n == 0 || n >= sizeof buf) return 0;
     memcpy(buf, b, n);
     buf[n] = 0;
     size_t k = (buf[0] == '+' || buf[0] == '-') ? 1 : 0;
-    if (k == n) cevrilemez(s, "tam sayıya", konum, kod);
+    if (k == n) return 0;
     for (size_t i = k; i < n; i++)
-        if (buf[i] < '0' || buf[i] > '9') cevrilemez(s, "tam sayıya", konum, kod);
+        if (buf[i] < '0' || buf[i] > '9') return 0;
     errno = 0;
-    long long v = strtoll(buf, NULL, 10);
-    if (errno == ERANGE) cevrilemez(s, "tam sayıya", konum, kod);
-    return v;
+    long long x = strtoll(buf, NULL, 10);
+    if (errno == ERANGE) return 0;
+    *v = x;
+    return 1;
 }
 
-double kolay_yazi_ondaliga(Yazi *s, const char *konum, const char *kod) {
+/// Yazıdan ondalık sayı (virgül de ayırıcı). Başarısızsa 0.
+static int ondaliga_coz(Yazi *s, double *v) {
     const char *b, *e;
     kirp_sinir(s, &b, &e);
     size_t n = (size_t)(e - b);
     char buf[512];
-    if (n == 0 || n >= sizeof buf) cevrilemez(s, "ondalık sayıya", konum, kod);
+    if (n == 0 || n >= sizeof buf) return 0;
     memcpy(buf, b, n);
     buf[n] = 0;
     for (char *c = buf; *c; c++) {
         if (*c == ',') *c = '.';
         // Rust'ın kabul etmediği biçimler: onaltılık (0x..) ve nan(...)
-        if (*c == 'x' || *c == 'X' || *c == '(' || *c == ' ') cevrilemez(s, "ondalık sayıya", konum, kod);
+        if (*c == 'x' || *c == 'X' || *c == '(' || *c == ' ') return 0;
     }
     char *end;
-    double v = strtod(buf, &end);
-    if (*end != 0) cevrilemez(s, "ondalık sayıya", konum, kod);
-    return v;
+    double x = strtod(buf, &end);
+    if (*end != 0) return 0;
+    *v = x;
+    return 1;
+}
+
+/// Sonuç 'veya' değeri: sayı ya da Hata.Dönüşüm (ut: sonucun tipi, ör. Tam(64) veya Hata.Dönüşüm)
+static void sayi_ya_da_hata(void *out, const Tip *ut, int ok, const void *deger, Yazi *s, const char *ne) {
+    for (int64_t i = 0; i < ut->n; i++) {
+        const Tip *m = ut->tipler[i];
+        int hata = m->tur == T_TUR;
+        if (hata == !ok) {
+            *(int64_t *)out = i;
+            memset((char *)out + 8, 0, 16);
+            if (ok) {
+                memcpy((char *)out + 8, deger, 8);
+            } else {
+                char msg[400];
+                snprintf(msg, sizeof msg, "\"%.200s\" bir %s çevrilemez.", s->d, ne);
+                Baslik *o = kolay_nesne_yeni(m, m->nesne_boyut);
+                *(Yazi **)((char *)o + m->ofsetler[0]) = yazi_c(msg);
+                *(void **)((char *)out + 8) = o;
+            }
+            return;
+        }
+    }
+}
+
+void kolay_yazi_tama(Yazi *s, void *out, const Tip *ut) {
+    int64_t v = 0;
+    int ok = tama_coz(s, &v);
+    sayi_ya_da_hata(out, ut, ok, &v, s, "tam sayıya");
+}
+
+void kolay_yazi_ondaliga(Yazi *s, void *out, const Tip *ut) {
+    double v = 0;
+    int ok = ondaliga_coz(s, &v);
+    sayi_ya_da_hata(out, ut, ok, &v, s, "ondalık sayıya");
 }

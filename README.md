@@ -42,7 +42,7 @@ Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kald�
 
 ```
 $ kolay
-Kolay 0.5.0 — yardım için :yardım, çıkmak için :çık
+Kolay 0.6.0 — yardım için :yardım, çıkmak için :çık
 
 Girdi [1]: ata x = 5
 
@@ -58,7 +58,7 @@ Komutlar: `:yardım`, `:tip ifade`, `:geçmiş`, `:kaydet dosya`, `:yükle dosya
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.5.0.vsix
+code --install-extension editor/vscode/kolay-0.6.0.vsix
 ```
 
 ## Örnekler
@@ -67,7 +67,7 @@ code --install-extension editor/vscode/kolay-0.5.0.vsix
 
 | Dosya | Konu |
 |---|---|
-| `01_merhaba.kolay` | yazdır, oku, f-yazı |
+| `01_merhaba.kolay` | yazdır, oku, f-yazı, dene/yakala |
 | `02_sayilar.kolay` | Tam(N), işaret, esnek Tam, Ondalık, olarak, taşma |
 | `03_asal_sayilar.kolay` | fonksiyonlar ve tüm döngü türleri |
 | `04_hiz_testi.kolay` | fib(35) hız testi |
@@ -133,6 +133,15 @@ liste[4..1]  liste[-1..=0]  liste.adım(2)   // ters dilim, her 2. eleman
 liste.sırala()  liste.sıralı()              // emir kipi değiştirir, sıfat yeni liste verir
 "merhaba"[0..3]                             // yazı dilimi: "mer"
 
+dene {                                      // hata yakalama
+    ata yaş = oku("Yaş: ").tama()           // tama(): Tam(64) veya Hata.Dönüşüm
+} yakala h: Hata.Dönüşüm {
+    yazdır(h.mesaj)
+} yakala diğer { yazdır(diğer) }            // tipsiz: geri kalan her şey
+fırlat Hata.SıfıraBölme(mesaj: "...")       // her değer fırlatılabilir: fırlat 42
+fonksiyon böl(a: Tam, b: Tam) -> Tam veya Hata { ... }   // dene içinde dönen Hata fırlatılır
+tür GeçersizYaş[Hata](yaş: Tam)             // kendi hata türü
+
 dahil et("./yardımcı.kolay")
 m adıyla dahil et("./matematik.kolay")
 
@@ -151,7 +160,8 @@ kaynak (.kolay)
   → loader.rs     dahil et ile eklenen dosyalar
   → check.rs      tip denetleyici: tanımlar, kalıtım, arayüzler
     cexpr.rs      ifadeler, tip çıkarımı, Türkçe hata mesajları
-    cstmt.rs      komutlar, eşleştir, akış analizi (belirsiz/sabit kontrolü)
+    cstmt.rs      komutlar, eşleştir, dene/yakala, akış analizi (belirsiz/sabit kontrolü)
+    firlat.rs     fırlatma analizi: yakala dallarına gelebilecek değerler, uyarılar
   → tir.rs        tipleri çözülmüş ara gösterim (TIR)
       → repl.rs     etkileşimli kip (oturum, hücreler, rustyline)
       → vm.rs       bytecode yorumlayıcı (kolay kod.kolay)
@@ -180,12 +190,13 @@ Yorumlayıcı programı hemen başlatır (derleme beklemez); hız gerekiyorsa `k
 ## Derleyici
 
 Dilin tamamı derlenir: tüm sayı tipleri (esnek Tam dahil), yazılar, listeler, sözlükler, türler
-(kalıtım, arayüz, `yeniden`), seçenekler, `veya` tipleri, eşleştir, `olarak`, `dahil et`.
+(kalıtım, arayüz, `yeniden`), seçenekler, `veya` tipleri, eşleştir, `olarak`, `dahil et`, `dene`/`yakala`/`fırlat`.
 
 Derlenmiş programlarda:
 - Değerler yazmaçlarda durur; yazı, liste, sözlük ve nesneler referans sayımıyla tutulur ve
   kullanılmayınca bellekleri hemen geri verilir (çöp toplayıcı yok). Değer semantiği "yazınca
   kopyala" ile sağlanır: paylaşılan bir liste ancak değiştirilirken kopyalanır.
+- `dene` bloğu girişte setjmp yapar; hata (çalışma hatası ya da `fırlat`) longjmp ile yakala dalına döner.
 - Metotlar mümkünse doğrudan, birden fazla aday varsa türe göre `switch` ile çağrılır.
 - Hata mesajları yorumlayıcıdakiyle aynıdır (dosya, satır ve kaynak satırı dahil).
 - Program 1 GB'lık yığında çalışır (yorumlayıcıyla aynı). Sonsuz özyineleme Türkçe "Çok derin özyineleme" hatasıyla durur. Fark: yorumlayıcı 100.000 iç içe çağrıda durur ve hatalı çağrının satırını gösterir; derlenmiş program yığın dolunca durur ve fonksiyonun tanımlandığı satırı gösterir.

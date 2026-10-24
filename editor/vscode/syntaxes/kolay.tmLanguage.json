@@ -17,7 +17,7 @@
         },
         {
           "name": "keyword.control.kolay",
-          "match": "(?<![\\p{L}\\p{N}_])(?:eğer|eger|değilse|degilse|kere|yap|içindeki|icindeki|her|için|icin|sürece|surece|dur|devam|döndür|dondur|eşleştir|eslestir)(?![\\p{L}\\p{N}_])"
+          "match": "(?<![\\p{L}\\p{N}_])(?:eğer|eger|değilse|degilse|kere|yap|içindeki|icindeki|her|için|icin|sürece|surece|dur|devam|döndür|dondur|eşleştir|eslestir|dene|yakala|fırlat|firlat)(?![\\p{L}\\p{N}_])"
         },
         {
           "name": "storage.type.kolay",
@@ -45,7 +45,7 @@
         },
         {
           "name": "support.type.kolay",
-          "match": "(?<![\\p{L}\\p{N}_])(?:Tam|Ondalık|Ondalik|Yazı|Yazi|Mantık|Mantik|Liste|Sözlük|Sozluk|Fonksiyon)(?![\\p{L}\\p{N}_])"
+          "match": "(?<![\\p{L}\\p{N}_])(?:Tam|Ondalık|Ondalik|Yazı|Yazi|Mantık|Mantik|Liste|Sözlük|Sozluk|Fonksiyon|Hata)(?![\\p{L}\\p{N}_])"
         },
         {
           "name": "support.function.kolay",

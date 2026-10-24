@@ -288,5 +288,43 @@
       "ata ${1:x}: ${2:Tam} veya ${3:Yazı} = ${4:0}"
     ],
     "description": "Birden fazla tipten biri olabilen değişken"
+  },
+  "Dene yakala": {
+    "prefix": "dene",
+    "body": [
+      "dene {",
+      "\t$1",
+      "} yakala ${2:h}: ${3:Hata} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Hata yakalama (dene / yakala)"
+  },
+  "Yakala": {
+    "prefix": "yakala",
+    "body": [
+      "yakala ${1:h}: ${2:Hata} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Bir hata türünü yakalar"
+  },
+  "Fırlat": {
+    "prefix": "fırlat",
+    "body": [
+      "fırlat ${1:Hata}(mesaj: \"${2:açıklama}\")"
+    ],
+    "description": "Hata (ya da herhangi bir değer) fırlatır"
+  },
+  "Hata döndüren fonksiyon": {
+    "prefix": "fonksiyonh",
+    "body": [
+      "fonksiyon ${1:ad}(${2:x}: ${3:Tam(64)}) -> ${4:Tam(64)} veya Hata {",
+      "\teğer ${5:koşul} { döndür Hata(mesaj: \"${6:açıklama}\") }",
+      "\t$0",
+      "\tdöndür ${2:x}",
+      "}"
+    ],
+    "description": "Değer ya da Hata döndüren fonksiyon"
   }
 }

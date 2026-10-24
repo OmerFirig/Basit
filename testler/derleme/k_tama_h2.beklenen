@@ -1,2 +1,1 @@
-ÇALIŞMA HATASI (k_tama_h2.kolay, satır 1): "99999999999999999999" bir tam sayıya çevrilemez.
-  1 | yazdır("99999999999999999999".tama())
+"99999999999999999999" bir tam sayıya çevrilemez.

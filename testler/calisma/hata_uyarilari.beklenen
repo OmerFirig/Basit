@@ -1,0 +1,15 @@
+Uyarı (hata_uyarilari.kolay, satır 6): 'dene' bloğundaki hatalar yok sayılıyor (satır 6: böl() hata verebilir). Hatayı ele almak için: dene { } yakala h { }
+  6 | dene { yazdır(böl(1, 0)) }
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Uyarı (hata_uyarilari.kolay, satır 7): 'yakala h: Hata' önce geldiği için 'Hata.SıfıraBölme' dalı hiç çalışmaz. Dalları özelden genele sıralayın.
+  7 | dene { yazdır(böl(1, 0)) } yakala h: Hata { yazdır("genel") } yakala s: Hata.SıfıraBölme { yazdır("özel") }
+    |                                                               ^^^^^^^^
+Uyarı (hata_uyarilari.kolay, satır 8): Bu blokta Ondalık fırlatılamaz, 'yakala o: Ondalık' dalı hiç çalışmaz.
+  8 | dene { yazdır(böl(4, 2)) } yakala o: Ondalık { yazdır(o) } yakala h { yazdır(h.mesaj) }
+    |                            ^^^^^^^^
+Uyarı (hata_uyarilari.kolay, satır 9): 'yakala d' önce geldiği için 'Tam(64)' dalı hiç çalışmaz. Dalları özelden genele sıralayın.
+  9 | dene { fırlat 3 } yakala d { yazdır(d) } yakala k: Tam(64) { yazdır(k) }
+    |                                          ^^^^^^^^
+genel
+2
+3

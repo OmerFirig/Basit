@@ -1,10 +1,16 @@
-// İlk program: ekrana yazma ve kullanıcıdan bilgi alma
+// İlk program: ekrana yazma, kullanıcıdan bilgi alma ve hataları yakalama
 // Çalıştırmak için:  kolay 01_merhaba.kolay
 // Derlemek için:     kolay derle 01_merhaba.kolay
 
 yazdır("Merhaba dünya!")
 
 ata ad = oku("Adınız nedir? ")
-ata yaş = oku("Kaç yaşındasınız? ").tama()
+yazdır(f"Merhaba {ad}!")
 
-yazdır(f"Merhaba {ad}! 10 yıl sonra {yaş + 10} yaşında olacaksınız.")
+// tama() yazıyı sayıya çevirir; sayı yazılmadıysa hata verir. Hata 'yakala' ile ele alınır.
+dene {
+    ata yaş = oku("Kaç yaşındasınız? ").tama()
+    yazdır(f"10 yıl sonra {yaş + 10} yaşında olacaksınız.")
+} yakala h: Hata.Dönüşüm {
+    yazdır("Yaşınızı sayıyla yazmalısınız:", h.mesaj)
+}

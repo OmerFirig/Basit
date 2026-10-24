@@ -1,2 +1,3 @@
-ÇALIŞMA HATASI (35_tama_hatasi.kolay, satır 1): "abc" bir tam sayıya çevrilemez.
-  1 | ata x = "abc".tama()
+HATA (35_tama_hatasi.kolay, satır 1): 'tama()' hata verebilir (Tam(64) veya Hata.Dönüşüm). Bir 'dene { } yakala' bloğu içinde kullanın ya da eşleştir ile kontrol edin.
+  1 | ata x: Tam = "abc".tama()
+    |              ^^^^^^^^^^^^

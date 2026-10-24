@@ -12,12 +12,12 @@ liste[0].art()
 ata s = Sayaç(n: 5, ad: "x")
 fonksiyon değiştir() { s = Sayaç(n: 100, ad: "yeni") }
 tür Kap(sayaç: Sayaç) {
-    fonksiyon dene() {
+    fonksiyon deneme() {
         sayaç.art()
         yazdır(sayaç)
     }
 }
 ata k = Kap(sayaç: Sayaç(n: 1, ad: "k"))
-k.dene()
+k.deneme()
 k.sayaç.art()
 yazdır(k)

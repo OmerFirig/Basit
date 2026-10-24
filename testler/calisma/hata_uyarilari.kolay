@@ -1,0 +1,9 @@
+// dene / yakala uyarıları
+fonksiyon böl(a: Tam(64), b: Tam(64)) -> Tam(64) veya Hata {
+    eğer b == 0 { döndür Hata.SıfıraBölme(mesaj: "Bölen sıfır olamaz.") }
+    döndür a / b
+}
+dene { yazdır(böl(1, 0)) }
+dene { yazdır(böl(1, 0)) } yakala h: Hata { yazdır("genel") } yakala s: Hata.SıfıraBölme { yazdır("özel") }
+dene { yazdır(böl(4, 2)) } yakala o: Ondalık { yazdır(o) } yakala h { yazdır(h.mesaj) }
+dene { fırlat 3 } yakala d { yazdır(d) } yakala k: Tam(64) { yazdır(k) }

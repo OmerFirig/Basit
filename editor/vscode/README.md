@@ -8,6 +8,6 @@ Kolay (Türkçe programlama dili) için VS Code eklentisi.
   `klavye("us")` dosyalarında Türkçe harfsiz önerir.
 - **Hata gösterme:** dosya açılınca ve kaydedilince `kolay denetle` çalışır, hata kırmızı altı çizili gösterilir.
 - **Çalıştırma:** F5 ya da sağ üstteki ▷ düğmesi (`Kolay: Çalıştır`), komut paletinde `Kolay: Derle`.
-- Renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `dış`, `olarak`...).
+- Renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `dene`, `fırlat`, `dış`, `olarak`...).
 
 Ayar: `kolay.yol` (boşsa PATH'teki `kolay` kullanılır).

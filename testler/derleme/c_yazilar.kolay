@@ -7,7 +7,7 @@ ata s = "istanbul"
 yazdır(s.büyük_harf(), "IŞIK".küçük_harf(), s.uzunluk(), "çğış".uzunluk())
 yazdır(s.karakter(0), s.karakter(-1))
 yazdır("a,b,c".böl(","), "  boşluk  ".kırp(), s.içerir("tan"))
-yazdır("42".tama() + 1, "3,5".ondalığa() * 2)
+dene { yazdır("42".tama() + 1, "3,5".ondalığa() * 2) } yakala h { yazdır(h) }
 yazdır(ad + " Veli")
 ata kelimeler = ["zeytin", "çilek", "armut", "ıhlamur", "incir", "Ördek", "elma", "cevi̇z"]
 kelimeler.sırala()

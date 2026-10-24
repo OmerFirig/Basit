@@ -344,7 +344,117 @@ impl Checker {
             StmtKind::Dis { .. } => {
                 return err(span, "Dış kütüphaneler sadece dosyanın en üst düzeyinde tanımlanabilir.");
             }
+            StmtKind::Firlat(e) => {
+                let t = self.expr(e, None)?;
+                if t.ty == Type::Hic {
+                    if matches!(t.kind, TK::Hic) {
+                        return err(e.span, "Hiç fırlatılamaz. Bir değer ya da hata fırlatın: fırlat Hata(mesaj: \"...\")");
+                    }
+                    return Err(self.mismatch(&t, &Type::Str, e.span));
+                }
+                (vec![TS::Throw(t)], true)
+            }
+            StmtKind::Dene { body, catches } => self.dene(body, catches, span)?,
         })
+    }
+
+    /// `dene { } yakala ...`. Hata gövdenin herhangi bir yerinde olabileceği için yakala dalları,
+    /// gövdede atanan değişkenleri "belki atanmış" görür.
+    fn dene(&mut self, body: &[Stmt], catches: &[Catch], span: Span) -> CResult<(Vec<TS>, bool)> {
+        let pre = self.cx.flow.clone();
+        let pre_len = pre.len();
+        self.cx.dene_depth += 1;
+        let r = self.block(body);
+        self.cx.dene_depth -= 1;
+        let (tb, bdiv) = r?;
+        let after_body = self.cx.flow.clone();
+        self.merge(vec![pre.clone(), after_body.clone()], pre_len, &pre);
+        let at_catch = self.cx.flow.clone();
+        let mut outs = Vec::new();
+        if !bdiv {
+            outs.push(after_body);
+        }
+        if catches.is_empty() {
+            let yer = match ilk_cagri(body) {
+                Some((sp, ad)) => format!(" (satır {}: {ad} hata verebilir)", sp.line),
+                None => String::new(),
+            };
+            let d = self.kw_name(crate::lexer::Kw::Dene);
+            self.warn(span, format!("'{d}' bloğundaki hatalar yok sayılıyor{yer}. Hatayı ele almak için: {d} {{ }} {} h {{ }}", self.kw_name(crate::lexer::Kw::Yakala)));
+            outs.push(at_catch.clone());
+        }
+        let yk = self.kw_name(crate::lexer::Kw::Yakala);
+        let mut tcs: Vec<TCatch> = Vec::new();
+        let mut onceki: Vec<(String, Option<Type>)> = Vec::new();
+        for c in catches {
+            self.cx.flow = at_catch.clone();
+            let cty = match &c.ty {
+                Some(te) => {
+                    let t = self.resolve_type(te, self.cx.module)?;
+                    self.no_hic_value(&t, te.span)?;
+                    Some(t)
+                }
+                None => None,
+            };
+            // önceki bir dal bunu her zaman yakalıyorsa bu dal hiç çalışmaz
+            for (on, ot) in &onceki {
+                let kapsar = match (ot, &cty) {
+                    (None, _) => true,
+                    (Some(o), Some(t)) => self.assignable(t, o),
+                    (Some(_), None) => false,
+                };
+                if kapsar {
+                    let once = match ot {
+                        Some(o) => format!("{yk} {on}: {}", self.type_name(o)),
+                        None => format!("{yk} {on}"),
+                    };
+                    let bu = match &cty {
+                        Some(t) => self.type_name(t),
+                        None => format!("{yk} {}", c.name),
+                    };
+                    self.warn(c.span, format!("'{once}' önce geldiği için '{bu}' dalı hiç çalışmaz. Dalları özelden genele sıralayın."));
+                    break;
+                }
+            }
+            let bind_ty = match &cty {
+                Some(t) => t.clone(),
+                None => {
+                    self.tipsiz_var = true;
+                    self.tahmin.get(&(c.span.file, c.span.start)).cloned().unwrap_or(Type::Named(self.hata_turleri[0]))
+                }
+            };
+            self.push_scope();
+            let bind = if c.name == "_" {
+                None
+            } else {
+                if let Err(e) = self.check_shadow_sabit(&c.name, c.name_span) {
+                    self.pop_scope();
+                    return Err(e);
+                }
+                Some(self.declare_var(&c.name, bind_ty.clone(), false, true).slot)
+            };
+            let geri = self.geri_nokta();
+            let r = self.block(&c.body);
+            self.pop_scope();
+            let (b, d) = match r {
+                Ok(x) => x,
+                // keşif geçişi: tipsiz dalın değişken tipi henüz kesin değil, hata sonra yeniden denetlenir
+                Err(_) if self.kesif && cty.is_none() => {
+                    self.geri_al(geri);
+                    self.yutulan = true;
+                    (vec![], true)
+                }
+                Err(e) => return Err(e),
+            };
+            if !d {
+                outs.push(self.cx.flow.clone());
+            }
+            onceki.push((c.name.clone(), cty.clone()));
+            tcs.push(TCatch { ty: cty, bind, bind_ty, body: b, kaynak: vec![], span: c.span });
+        }
+        let div = outs.is_empty();
+        self.merge(outs, pre_len, &pre);
+        Ok((vec![TS::Dene { body: tb, catches: tcs }], div))
     }
 
     fn check_shadow_sabit(&self, name: &str, span: Span) -> CResult<()> {
@@ -786,6 +896,11 @@ impl Checker {
                     kind: TypeKind::Path { path: path.clone(), generics: vec![], args: None, dims: vec![] },
                     span: *span,
                 };
+                if let Some(bs) = binds {
+                    if bs.len() > 1 {
+                        return err(*span, "Tip deseninde en fazla bir isim yazılır: Tam(n)");
+                    }
+                }
                 let target = match self.resolve_type(&te, self.cx.module) {
                     Ok(t) => t,
                     Err(_) => {
@@ -799,35 +914,45 @@ impl Checker {
                         return err(*span, format!("'{}' diye bir seçenek ya da tip yok.{hint}", path.join(".")));
                     }
                 };
-                let member = sty.members().into_iter().find(|m| {
-                    *m == target
-                        || (m.is_int() && target.is_int())
-                        || (m.is_float() && target.is_float())
-                        || matches!((m, &target), (Type::List(..), Type::List(..)) | (Type::Dict(..), Type::Dict(..)))
-                });
-                let bind_ty = match (member, &target, sty) {
-                    (Some(m), _, _) => m,
-                    (None, Type::Named(c), Type::Named(p)) if self.is_subtype(*c, *p) => target.clone(),
-                    _ => {
-                        return err(*span, format!("'{}' deseni bu değerle eşleşemez; eşleştirilen değer {sname}.", self.type_name(&target)));
-                    }
-                };
-                let mut bind = None;
-                if let Some(bs) = binds {
-                    if bs.len() > 1 {
-                        return err(*span, "Tip deseninde en fazla bir isim yazılır: Tam(n)");
-                    }
-                    if alt && bs.iter().any(Option::is_some) {
-                        return err(*span, "'veya' ile birleştirilen desenlerde değişken tanımlanamaz.");
-                    }
-                    if let Some(Some((n, s))) = bs.first() {
-                        self.check_shadow_sabit(n, *s)?;
-                        bind = Some(self.declare_var(n, bind_ty.clone(), false, true).slot);
-                    }
-                }
-                TPat::TypeTest { ty: bind_ty, bind }
+                let name = binds.as_ref().and_then(|bs| bs.first().cloned().flatten());
+                self.type_test(target, name, *span, sty, alt)?
+            }
+            Pattern::Typed { name, ty, span } => {
+                let target = self.resolve_type(ty, self.cx.module)?;
+                self.type_test(target, name.clone(), *span, sty, alt)?
             }
         })
+    }
+
+    /// Tip deseni: `Tam(n) ->`, `n: Tam ->`, `Kişi(k) ->`
+    fn type_test(&mut self, target: Type, name: Option<(String, Span)>, span: Span, sty: &Type, alt: bool) -> CResult<TPat> {
+        let sname = self.type_name(sty);
+        let alt_tur = |m: &Type, t: &Type| matches!((m, t), (Type::Named(a), Type::Named(b)) if self.is_subtype(*b, *a));
+        let member = sty.members().into_iter().find(|m| {
+            *m == target
+                || (m.is_int() && target.is_int())
+                || (m.is_float() && target.is_float())
+                || matches!((m, &target), (Type::List(..), Type::List(..)) | (Type::Dict(..), Type::Dict(..)))
+                || alt_tur(m, &target)
+        });
+        let bind_ty = match (member, &target, sty) {
+            // üyenin alt türü (Hata -> Hata.Dönüşüm): değişken alt türün tipinde
+            (Some(m), Type::Named(_), _) if alt_tur(&m, &target) => target.clone(),
+            (Some(m), _, _) => m,
+            (None, Type::Named(c), Type::Named(p)) if self.is_subtype(*c, *p) => target.clone(),
+            _ => {
+                return err(span, format!("'{}' deseni bu değerle eşleşemez; eşleştirilen değer {sname}.", self.type_name(&target)));
+            }
+        };
+        let mut bind = None;
+        if let Some((n, s)) = name {
+            if alt {
+                return err(span, "'veya' ile birleştirilen desenlerde değişken tanımlanamaz.");
+            }
+            self.check_shadow_sabit(&n, s)?;
+            bind = Some(self.declare_var(&n, bind_ty.clone(), false, true).slot);
+        }
+        Ok(TPat::TypeTest { ty: bind_ty, bind })
     }
 
     // ------------------------------------------------------------ üst düzey ve gövdeler
@@ -945,4 +1070,58 @@ impl Checker {
         });
         Ok(())
     }
+}
+
+/// Bloktaki ilk fonksiyon çağrısı (uyarı mesajı için): yeri ve adı (`böl()`)
+fn ilk_cagri(stmts: &[Stmt]) -> Option<(Span, String)> {
+    fn e(x: &Expr) -> Option<(Span, String)> {
+        match &x.kind {
+            ExprKind::Call { callee, args } => {
+                for a in args {
+                    if let Some(r) = e(&a.value) {
+                        return Some(r);
+                    }
+                }
+                if let ExprKind::Field(b, _, _) = &callee.kind {
+                    if let Some(r) = e(b) {
+                        return Some(r);
+                    }
+                }
+                let ad = match &callee.kind {
+                    ExprKind::Ident(n) | ExprKind::Field(_, n, _) => n.clone(),
+                    _ => "fonksiyon".into(),
+                };
+                Some((x.span, format!("{ad}()")))
+            }
+            ExprKind::Neg(a) | ExprKind::Not(a) | ExprKind::BitNot(a) | ExprKind::Field(a, _, _) | ExprKind::Olarak(a, _) => e(a),
+            ExprKind::Binary(_, a, b) | ExprKind::Index(a, b) => e(a).or_else(|| e(b)),
+            ExprKind::List(v) => v.iter().find_map(e),
+            ExprKind::Dict(v) => v.iter().find_map(|(a, b)| e(a).or_else(|| e(b))),
+            ExprKind::FStr(ps) => ps.iter().find_map(|p| if let FPartE::Expr(x) = p { e(x) } else { None }),
+            ExprKind::Range { start, end, .. } => start.as_deref().and_then(e).or_else(|| end.as_deref().and_then(e)),
+            ExprKind::Match(m) => e(&m.scrutinee),
+            _ => None,
+        }
+    }
+    for st in stmts {
+        let r = match &st.kind {
+            StmtKind::Ata { value: Some(v), .. } => e(v),
+            StmtKind::Assign { target, value, .. } => e(target).or_else(|| e(value)),
+            StmtKind::Expr(x) | StmtKind::Firlat(x) | StmtKind::Dondur(Some(x)) => e(x),
+            StmtKind::Eger { branches, else_ } => {
+                branches.iter().find_map(|(c, b)| e(c).or_else(|| ilk_cagri(b))).or_else(|| else_.as_deref().and_then(ilk_cagri))
+            }
+            StmtKind::Kere { count: c, body } | StmtKind::Her { iter: c, body, .. } | StmtKind::Surece { cond: c, body } => {
+                e(c).or_else(|| ilk_cagri(body))
+            }
+            StmtKind::CFor { cond, body, .. } => e(cond).or_else(|| ilk_cagri(body)),
+            StmtKind::Match(m) => e(&m.scrutinee),
+            StmtKind::Dene { body, .. } => ilk_cagri(body),
+            _ => None,
+        };
+        if r.is_some() {
+            return r;
+        }
+    }
+    None
 }

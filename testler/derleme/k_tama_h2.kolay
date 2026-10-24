@@ -1,1 +1,5 @@
-yazdır("99999999999999999999".tama())
+dene {
+    yazdır("99999999999999999999".tama())
+} yakala h: Hata.Dönüşüm {
+    yazdır(h.mesaj)
+}

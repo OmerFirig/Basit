@@ -187,6 +187,8 @@ pub enum TK {
     FuncRef(FuncId),
     /// Fonksiyon değerini çağırma: `f(3)`
     CallValue(Box<TExpr>, Vec<TExpr>),
+    /// `dene` içinde `T veya Hata` döndüren çağrı: Hata ise fırlatılır, değilse T değeri
+    Unwrap(Box<TExpr>),
 }
 
 #[derive(Clone, Debug)]
@@ -222,6 +224,37 @@ pub struct TMatch {
     pub loc: Loc,
 }
 
+/// `yakala` dalı
+#[derive(Clone, Debug)]
+pub struct TCatch {
+    /// None: tipsiz `yakala diğer` (geri kalan her şey)
+    pub ty: Option<Type>,
+    pub bind: Option<Slot>,
+    /// Değişkenin tipi (tipsizde: blokta fırlatılabilenlerin 'veya'sı)
+    pub bind_ty: Type,
+    pub body: Vec<TS>,
+    /// Bu dala uyabilen fırlatılmış değer tipleri (statik tipleri); ikinci değer: nesnenin gerçek türü
+    /// ayrıca kontrol edilmeli mi (Hata tipinde fırlatılan değer Hata.Dönüşüm dalına uyabilir).
+    /// Tip denetiminden sonra fırlatma analizi (firlat.rs) doldurur.
+    pub kaynak: Vec<(Type, bool)>,
+    pub span: crate::diag::Span,
+}
+
+/// Çalışma anı hatalarının türü: yakalanınca hangi `Hata.X` nesnesi olacağı (Program::hata_turleri sırası).
+pub mod hata_turu {
+    pub const GENEL: u8 = 0;
+    pub const SIFIRA_BOLME: u8 = 1;
+    pub const INDEKS: u8 = 2;
+    pub const ANAHTAR: u8 = 3;
+    pub const TASMA: u8 = 4;
+    pub const DONUSUM: u8 = 5;
+    /// Yakalanamayan hatalar: çok derin özyineleme, Ctrl+C, bellek yetmedi, belirsiz değişken
+    pub const YAKALANAMAZ: u8 = 255;
+}
+
+/// Hazır hata türlerinin adları (hata_turu sırasıyla)
+pub const HATA_TURLERI: [&str; 6] = ["Hata", "Hata.SıfıraBölme", "Hata.İndeks", "Hata.Anahtar", "Hata.Taşma", "Hata.Dönüşüm"];
+
 #[derive(Clone, Debug)]
 pub enum TS {
     Let(Slot, TExpr),
@@ -240,6 +273,10 @@ pub enum TS {
     Return(Option<TExpr>),
     Match(TMatch),
     RunModule(usize),
+    /// `dene { } yakala ...` (dal yoksa hatalar yok sayılır)
+    Dene { body: Vec<TS>, catches: Vec<TCatch> },
+    /// `fırlat değer`
+    Throw(TExpr),
 }
 
 /// Dış (C) fonksiyon: hangi kütüphanede, C'deki adı
@@ -322,9 +359,16 @@ pub struct Program {
     pub field_names: Vec<Rc<str>>,
     /// field_pos[tür][alan numarası] = nesnedeki yeri (yoksa u32::MAX)
     pub field_pos: Vec<Vec<u32>>,
+    /// Hazır hata türleri (hata_turu sırasıyla): Hata, Hata.SıfıraBölme, ...
+    pub hata_turleri: [TypeId; 6],
 }
 
 impl Program {
+    /// Hata ya da onun alt türü mü?
+    pub fn is_hata(&self, t: &Type) -> bool {
+        matches!(t, Type::Named(id) if self.is_subtype(*id, self.hata_turleri[0]))
+    }
+
     pub fn is_subtype(&self, child: TypeId, parent: TypeId) -> bool {
         if child == parent {
             return true;
