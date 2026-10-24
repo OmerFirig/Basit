@@ -164,6 +164,9 @@ impl Checker {
                 (self.ata(*sabit, *explicit_ata, name, *name_span, ty.as_ref(), value.as_ref())?, false)
             }
             StmtKind::Assign { target, op, value } => (vec![self.assign(target, *op, value, span)?], false),
+            StmtKind::Expr(Expr { kind: ExprKind::Lambda { .. }, span }) => {
+                return err(*span, "Bu bir isimsiz fonksiyon (lambda), tek başına bir şey yapmaz. Bir liste üzerinde dönmek için: liste içindeki her x için yap { }");
+            }
             StmtKind::Expr(e) => {
                 let t = self.expr(e, None)?;
                 let div = t.ty == Type::Never;
@@ -295,6 +298,16 @@ impl Checker {
                     (vec![TS::Continue], true)
                 }
             }
+            StmtKind::Dondur(e) if self.cx.ret_infer.is_some() => {
+                // bloklu lambdanın dönüş tipi çıkarılıyor: döndürülen değerin tipi toplanır
+                let t = match e {
+                    Some(x) => Some(self.expr(x, None)?),
+                    None => None,
+                };
+                let ty = t.as_ref().map(|t| t.ty.clone()).unwrap_or(Type::Hic);
+                self.cx.ret_infer.as_mut().unwrap().push((ty, span));
+                (vec![TS::Return(t)], true)
+            }
             StmtKind::Dondur(e) => {
                 let Some(ret) = self.cx.ret.clone() else {
                     return err(span, "'döndür' sadece bir fonksiyon içinde kullanılabilir.");
@@ -335,7 +348,7 @@ impl Checker {
     }
 
     fn check_shadow_sabit(&self, name: &str, span: Span) -> CResult<()> {
-        if let Some(v) = self.lookup_var(name) {
+        if let Some(v) = self.local_var(name) {
             if v.sabit {
                 return err(span, format!("'{name}' sabit; aynı isimle yeni bir değişken tanımlanamaz."));
             }
@@ -360,7 +373,7 @@ impl Checker {
             }
             None => None,
         };
-        let existing = self.lookup_var(name);
+        let existing = self.local_var(name);
         if !explicit_ata && existing.is_none() {
             let tn = declared.as_ref().map(|t| self.type_name(t)).unwrap_or_default();
             return err(name_span, format!("'{name}' tanımlı değil. Yeni değişken için 'ata {name}: {tn} = ...' yazın."));
@@ -422,7 +435,7 @@ impl Checker {
     fn assign(&mut self, target: &Expr, op: Option<BinOp>, value: &Expr, span: Span) -> CResult<TS> {
         // sabit ve henüz atanmamış değişkene ilk atama
         if let (ExprKind::Ident(n), None) = (&target.kind, op) {
-            if let Some(v) = self.lookup_var(n) {
+            if let Some(v) = self.lookup_var(n, target.span)? {
                 let st = self.flow_get(v.key);
                 if st != FlowSt::Assigned || v.sabit {
                     if v.sabit {
@@ -874,9 +887,15 @@ impl Checker {
     }
 
     pub(crate) fn check_body(&mut self, fid: FuncId) -> CResult<()> {
+        if self.funcs[fid].body.is_some() {
+            return Ok(()); // lambda: yazıldığı yerde denetlendi
+        }
         if let Some(dis) = self.funcs[fid].dis.clone() {
             let f = &self.funcs[fid];
+            let key = (f.span.file, f.span.start);
             self.funcs[fid].body = Some(TFunc {
+                key,
+                caps: None,
                 dis: Some(dis),
                 params: f.params.iter().map(|p| p.1.clone()).collect(),
                 ret: f.ret.clone(),
@@ -914,6 +933,8 @@ impl Checker {
         }
         let loc = self.loc(decl.span);
         self.funcs[fid].body = Some(TFunc {
+            key: (decl.span.file, decl.span.start),
+            caps: None,
             dis: None,
             params: params.into_iter().map(|p| p.1).collect(),
             ret,

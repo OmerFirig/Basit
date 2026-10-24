@@ -85,6 +85,18 @@ pub enum BM {
     /// yeni liste döndürenler: sıralı(), tersi()
     Sirali,
     Tersi,
+    // fonksiyon alanlar (lambda): ilk argüman fonksiyon değeri
+    Donusum,
+    Filtre,
+    Hepsi,
+    Herhangi,
+    /// sırala(göre: f): listeyi değiştirir
+    SiralaGore,
+    SiraliGore,
+    // sayı listeleri
+    Toplam,
+    EnBuyuk,
+    EnKucuk,
     // Sözlük
     DUzunluk,
     DIcerir,
@@ -168,6 +180,13 @@ pub enum TK {
     /// Liste ya da yazı dilimi: `l[a..b]` (sınırlar boş olabilir: `l[2..]`, `l[..-1]`)
     Slice { base: Box<TExpr>, start: Option<Box<TExpr>>, end: Option<Box<TExpr>>, inclusive: bool },
     Match(Box<TMatch>),
+    /// İsimsiz fonksiyon değeri: fonksiyonu ve yakaladığı değerler (oluşturulduğu andaki kopyaları).
+    /// `bu`: metot içinde oluşturulduysa ve nesneyi kullanıyorsa nesnenin kopyası.
+    Lambda { func: FuncId, caps: Vec<TExpr>, bu: Option<Box<TExpr>> },
+    /// İsimli fonksiyonun değer olarak kullanılması: `uygula(kare, 3)`
+    FuncRef(FuncId),
+    /// Fonksiyon değerini çağırma: `f(3)`
+    CallValue(Box<TExpr>, Vec<TExpr>),
 }
 
 #[derive(Clone, Debug)]
@@ -235,12 +254,17 @@ pub struct DisInfo {
 #[derive(Clone, Debug)]
 pub struct TFunc {
     pub dis: Option<DisInfo>,
+    /// Lambda ise yakalanan değerlerin (yerel yuva numarası, tip); çağrıda bu yuvalara yazılır.
+    /// None: isimli fonksiyon.
+    pub caps: Option<Vec<(u32, Type)>>,
     pub params: Vec<Type>,
     pub ret: Type,
     pub body: Vec<TS>,
     pub nslots: u32,
     pub owner: Option<TypeId>,
     pub loc: Loc,
+    /// Kaynaktaki yeri (dosya, bayt): REPL'de fonksiyon değerlerini hücreden hücreye eşlemek için
+    pub key: (u32, u32),
 }
 
 #[derive(Clone, Debug)]
@@ -313,6 +337,11 @@ impl Program {
     }
 }
 
+/// Fonksiyon değeri alan hazır metot mu?
+pub fn is_hof(m: BM) -> bool {
+    matches!(m, BM::Donusum | BM::Filtre | BM::Hepsi | BM::Herhangi | BM::SiralaGore | BM::SiraliGore)
+}
+
 /// İfade, bir değişkeni değiştirebilecek kod (çağrı, okuma, eşleştir...) içermiyor mu?
 pub fn is_pure(e: &TExpr) -> bool {
     match &e.kind {
@@ -327,10 +356,14 @@ pub fn is_pure(e: &TExpr) -> bool {
             TFPart::Expr(x) => is_pure(x),
         }),
         TK::List(v) | TK::New(_, v) | TK::Variant(_, _, v) => v.iter().all(is_pure),
+        TK::Lambda { caps, bu, .. } => caps.iter().all(is_pure) && bu.as_deref().is_none_or(is_pure),
+        TK::FuncRef(_) => true,
         TK::Dict(v) => v.iter().all(|(a, b)| is_pure(a) && is_pure(b)),
         TK::Range { start, end, step, .. } => is_pure(start) && is_pure(end) && step.as_deref().is_none_or(is_pure),
         TK::BMethod { recv: Recv::Value(x), m, args } => {
+            // fonksiyon alan metotlar kullanıcının kodunu çalıştırır
             !matches!(m, BM::Ekle | BM::ArayaEkle | BM::Sil | BM::Cikar | BM::Sirala | BM::TersCevir | BM::Temizle | BM::DSil | BM::DTemizle)
+                && !is_hof(*m)
                 && is_pure(x)
                 && args.iter().all(is_pure)
         }

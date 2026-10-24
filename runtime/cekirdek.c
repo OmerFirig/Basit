@@ -43,6 +43,7 @@ static void icerik_birak(Baslik *b) {
         sozluk_icerik_birak(b);
         break;
     case T_TUR:
+    case T_FONK:
         for (int64_t i = 0; i < t->n; i++) kolay_deger_birak((char *)b + t->ofsetler[i], t->tipler[i]);
         break;
     case T_SECENEK: {
@@ -73,7 +74,7 @@ void kolay_esnek_birak(int64_t v) {
 
 static int isaretci_mi(const Tip *t) {
     switch (t->tur) {
-    case T_YAZI: case T_LISTE: case T_SOZLUK: case T_TUR: case T_SECENEK: case T_ARAYUZ:
+    case T_YAZI: case T_LISTE: case T_SOZLUK: case T_TUR: case T_SECENEK: case T_ARAYUZ: case T_FONK:
         return 1;
     default:
         return 0;

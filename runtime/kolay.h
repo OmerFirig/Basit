@@ -13,6 +13,8 @@
 //   Nesne (tür):   Baslik, alanlar (ofsetler Tip içinde)
 //   Seçenek:       Baslik, etiket (i64), değerler (ofsetler Varyant içinde)
 //   Buyuk (büyük tam sayı): Baslik, işaret, basamak sayısı, basamaklar
+//   Fonksiyon değeri: Baslik, fonksiyon adresi (16. bayt), yakalanan değerler. Başlıktaki Tip o lambdaya
+//   özeldir (yakalananların tipleri); değerin kendi (statik) tipi sadece adı ve yazdırma için kullanılır.
 //
 // Depolama biçimi (liste elemanı, nesne alanı, sözlük girdisi): her tipin sabit boyutlu bir biçimi
 // vardır. Tam(N) 1/2/4/8/16 bayt (N+1 bitlik Tam(N, -) bir üst boyutta; Tam(128, -) değeri eksiyle
@@ -51,6 +53,7 @@ enum {
     T_ARAYUZ = 11,
     T_VEYA = 12,
     T_BUYUK = 14,  // büyük tam sayı nesnesi (sadece yığın nesnelerinin tipi olarak)
+    T_FONK = 15,   // fonksiyon değeri: Baslik, fonksiyon adresi, yakalanan değerler (ofsetler Tip içinde)
 };
 
 typedef struct Tip Tip;

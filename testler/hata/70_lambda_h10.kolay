@@ -1,0 +1,2 @@
+ata l = ["a"]
+yazdır(l.toplam())

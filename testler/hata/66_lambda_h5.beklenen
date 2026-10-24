@@ -1,0 +1,3 @@
+HATA (66_lambda_h5.kolay, satır 2): Fonksiyonlar karşılaştırılamaz.
+  2 | yazdır(k == k)
+    |        ^^^^^^

@@ -1,0 +1,3 @@
+HATA (70_lambda_h10.kolay, satır 2): 'toplam' sadece sayı listelerinde kullanılır, ama liste Yazı elemanlı.
+  2 | yazdır(l.toplam())
+    |        ^^^^^^^^^^

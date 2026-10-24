@@ -4,6 +4,7 @@ use super::Gen;
 use crate::diag::CResult;
 use crate::tir::*;
 use crate::types::{Type, TAM64};
+use crate::tir::is_hof;
 
 impl<'p> Gen<'p> {
     /// Değeri yazıya çevirir. Yazı ise kendisini döndürür (sahiplik durumu değişmez); diğer
@@ -50,6 +51,9 @@ impl<'p> Gen<'p> {
     }
 
     pub(super) fn bmethod(&mut self, m: BM, recv: &Recv, args: &[TExpr], ret: &Type, loc: Loc) -> CResult<String> {
+        if is_hof(m) || matches!(m, BM::Toplam | BM::EnBuyuk | BM::EnKucuk) {
+            return self.list_hof(m, recv, args, ret, loc);
+        }
         // argümanlar önce hesaplanır (yorumlayıcıdaki gibi)
         let mut a = Vec::new();
         for x in args {
@@ -77,6 +81,247 @@ impl<'p> Gen<'p> {
             }
         }
         Ok(r)
+    }
+
+    /// Listenin her elemanı için `body` (elemanın değeri ödünç; çıkış etiketine dallanılabilir)
+    fn liste_dongu(&mut self, l: &str, et: &Type, mut body: impl FnMut(&mut Self, &str, &str) -> CResult<()>) -> CResult<()> {
+        let ctr = self.alloca("i64");
+        self.emit(&format!("store i64 0, ptr {ctr}"));
+        let (cond, bodyl, exit) = (self.new_label(), self.new_label(), self.new_label());
+        self.block(&cond);
+        let (lp, len, i, c) = (self.tmp(), self.tmp(), self.tmp(), self.tmp());
+        self.emit(&format!("{lp} = getelementptr i8, ptr {l}, i64 16"));
+        self.emit(&format!("{len} = load i64, ptr {lp}{}", super::BASLIK));
+        self.emit(&format!("{i} = load i64, ptr {ctr}"));
+        self.emit(&format!("{c} = icmp slt i64 {i}, {len}"));
+        self.term(&format!("br i1 {c}, label %{bodyl}, label %{exit}"));
+        self.block(&bodyl);
+        let st = self.stor(et);
+        let (dp, ep) = (self.tmp(), self.tmp());
+        self.emit(&format!("{dp} = getelementptr i8, ptr {l}, i64 32"));
+        self.emit(&format!("{ep} = getelementptr {}, ptr {dp}, i64 {i}", st.ll));
+        let x = self.load_mem(&ep, et);
+        body(self, &x, &exit)?;
+        let inc = self.tmp();
+        self.emit(&format!("{inc} = add i64 {i}, 1"));
+        self.emit(&format!("store i64 {inc}, ptr {ctr}"));
+        self.term(&format!("br label %{cond}"));
+        self.block(&exit);
+        Ok(())
+    }
+
+    /// Fonksiyon değerini çağırır (ilk argüman nesnenin kendisi). Dönen değer sahiplidir.
+    pub(super) fn closure_call(&mut self, fv: &str, args: &[(String, Type)], ret: &Type) -> String {
+        let (fpp, fp) = (self.tmp(), self.tmp());
+        self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 16"));
+        self.emit(&format!("{fp} = load ptr, ptr {fpp}"));
+        let mut all = vec![format!("ptr {fv}")];
+        for (v, t) in args {
+            all.push(format!("{} {v}", self.llty(t)));
+        }
+        if *ret == Type::Hic {
+            self.emit(&format!("call void {fp}({})", all.join(", ")));
+            return String::new();
+        }
+        let lt = self.llty(ret);
+        let r = self.tmp();
+        self.emit(&format!("{r} = call {lt} {fp}({})", all.join(", ")));
+        r
+    }
+
+    /// dönüşüm, filtre, hepsi, herhangi, sırala(göre:), sıralı(göre:), toplam, en_büyük, en_küçük
+    /// (yorumlayıcıdaki Interp::list_hof ile aynı kurallar)
+    fn list_hof(&mut self, m: BM, recv: &Recv, args: &[TExpr], ret: &Type, loc: Loc) -> CResult<String> {
+        let fv = match args.first() {
+            Some(x) => Some((self.expr(x)?, x.ty.clone())),
+            None => None,
+        };
+        // liste tutulur: fonksiyon onu tutan değişkeni değiştirse bile döngü bu liste üzerinde döner
+        let (l, lty) = match recv {
+            Recv::Value(x) => {
+                let v = self.expr(x)?;
+                self.ensure_owned(&v, &x.ty);
+                (v, x.ty.clone())
+            }
+            Recv::Place(p) => (self.place_value(p, loc)?, self.place_type(p)),
+        };
+        let Type::List(et, _) = &lty else { unreachable!() };
+        let et = (**et).clone();
+        let (f, fty) = fv.clone().unwrap_or((String::new(), Type::Hic));
+        let fret = match &fty {
+            Type::Func(_, r) => (**r).clone(),
+            _ => Type::Hic,
+        };
+        let result = match m {
+            BM::Donusum | BM::SiralaGore | BM::SiraliGore => {
+                // sonuçlar (sıralamada anahtarlar) yeni bir listeye
+                let lt_ = Type::List(Box::new(fret.clone()), None);
+                let tip = self.tip(&lt_);
+                let (lp, n) = (self.tmp(), self.tmp());
+                self.emit(&format!("{lp} = getelementptr i8, ptr {l}, i64 16"));
+                self.emit(&format!("{n} = load i64, ptr {lp}{}", super::BASLIK));
+                let out = self.tmp();
+                self.emit(&format!("{out} = call ptr @kolay_liste_yeni(ptr {tip}, i64 {n})"));
+                let ctr = self.alloca("i64");
+                self.emit(&format!("store i64 0, ptr {ctr}"));
+                let st = self.stor(&fret);
+                self.liste_dongu(&l, &et, |me, x, _| {
+                    let r = me.closure_call(&f, &[(x.to_string(), et.clone())], &fret);
+                    let i = me.tmp();
+                    me.emit(&format!("{i} = load i64, ptr {ctr}"));
+                    let (dp, ep, inc) = (me.tmp(), me.tmp(), me.tmp());
+                    me.emit(&format!("{dp} = getelementptr i8, ptr {out}, i64 32"));
+                    me.emit(&format!("{ep} = getelementptr {}, ptr {dp}, i64 {i}", st.ll));
+                    me.store_mem(&ep, &r, &fret); // dönen değerin sahipliği listeye geçer
+                    me.emit(&format!("{inc} = add i64 {i}, 1"));
+                    me.emit(&format!("store i64 {inc}, ptr {ctr}"));
+                    Ok(())
+                })?;
+                if m == BM::Donusum {
+                    self.own(out, ret)
+                } else {
+                    let s = self.tmp();
+                    self.emit(&format!("{s} = call ptr @kolay_liste_anahtarla(ptr {l}, ptr {out})"));
+                    self.emit(&format!("call void @kolay_birak(ptr {out})"));
+                    if m == BM::SiraliGore {
+                        self.own(s, ret)
+                    } else {
+                        if let Recv::Place(p) = recv {
+                            let (addr, pty, reg) = self.place_mut_addr(p, false, loc)?;
+                            self.own(s.clone(), &pty);
+                            self.store_at(&addr, &s, &pty, reg);
+                        } else {
+                            self.emit(&format!("call void @kolay_birak(ptr {s})"));
+                        }
+                        String::new()
+                    }
+                }
+            }
+            BM::Filtre => {
+                let tip = self.tip(ret);
+                let out = self.alloca("ptr");
+                let n0 = self.tmp();
+                self.emit(&format!("{n0} = call ptr @kolay_liste_yeni(ptr {tip}, i64 0)"));
+                self.emit(&format!("store ptr {n0}, ptr {out}"));
+                self.liste_dongu(&l, &et, |me, x, _| {
+                    let b = me.closure_call(&f, &[(x.to_string(), et.clone())], &Type::Bool);
+                    let (yes, no) = (me.new_label(), me.new_label());
+                    me.term(&format!("br i1 {b}, label %{yes}, label %{no}"));
+                    me.block(&yes);
+                    if me.is_rc(&et) {
+                        me.retain(x, &et);
+                    }
+                    let p = me.spill(x, &et);
+                    let (cur, nl) = (me.tmp(), me.tmp());
+                    me.emit(&format!("{cur} = load ptr, ptr {out}"));
+                    me.emit(&format!("{nl} = call ptr @kolay_liste_ekle(ptr {cur}, ptr {p})"));
+                    me.emit(&format!("store ptr {nl}, ptr {out}"));
+                    me.block(&no);
+                    Ok(())
+                })?;
+                let r = self.tmp();
+                self.emit(&format!("{r} = load ptr, ptr {out}"));
+                self.own(r, ret)
+            }
+            BM::Hepsi | BM::Herhangi => {
+                let aranan = m == BM::Herhangi;
+                let res = self.alloca("i1");
+                self.emit(&format!("store i1 {}, ptr {res}", !aranan));
+                self.liste_dongu(&l, &et, |me, x, exit| {
+                    let b = me.closure_call(&f, &[(x.to_string(), et.clone())], &Type::Bool);
+                    let (hit, cont) = (me.new_label(), me.new_label());
+                    let c = me.tmp();
+                    me.emit(&format!("{c} = icmp eq i1 {b}, {aranan}"));
+                    me.term(&format!("br i1 {c}, label %{hit}, label %{cont}"));
+                    me.block(&hit);
+                    me.emit(&format!("store i1 {aranan}, ptr {res}"));
+                    me.term(&format!("br label %{exit}"));
+                    me.block(&cont);
+                    Ok(())
+                })?;
+                let r = self.tmp();
+                self.emit(&format!("{r} = load i1, ptr {res}"));
+                r
+            }
+            BM::Toplam => {
+                let lt = self.llty(&et);
+                let acc = self.alloca(&lt);
+                let zero = match &et {
+                    Type::Float(b) => super::ifade::float_const(0.0, *b),
+                    t if super::duzen::is_esnek(t) => "1".into(), // etiketli 0
+                    _ => "0".into(),
+                };
+                self.emit(&format!("store {lt} {zero}, ptr {acc}"));
+                self.liste_dongu(&l, &et, |me, x, _| {
+                    let cur = me.tmp();
+                    me.emit(&format!("{cur} = load {lt}, ptr {acc}"));
+                    let nv = me.arith(crate::ast::BinOp::Add, &cur, x, &et, loc)?;
+                    if me.is_rc(&et) {
+                        me.disown(&nv);
+                        me.release(&cur, &et);
+                    }
+                    me.emit(&format!("store {lt} {nv}, ptr {acc}"));
+                    Ok(())
+                })?;
+                let r = self.tmp();
+                self.emit(&format!("{r} = load {lt}, ptr {acc}"));
+                if self.is_rc(&et) { self.own(r, &et) } else { r }
+            }
+            _ => {
+                // en_büyük / en_küçük: boşsa hata; TanımsızSayı en büyük sayılır (sırala ile aynı)
+                let buyuk = m == BM::EnBuyuk;
+                let (lp, n, z) = (self.tmp(), self.tmp(), self.tmp());
+                self.emit(&format!("{lp} = getelementptr i8, ptr {l}, i64 16"));
+                self.emit(&format!("{n} = load i64, ptr {lp}{}", super::BASLIK));
+                self.emit(&format!("{z} = icmp eq i64 {n}, 0"));
+                let (bad, ok) = (self.new_label(), self.new_label());
+                self.br_cold(&z, &bad, &ok);
+                self.block(&bad);
+                self.error_call(if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." }, loc);
+                self.block(&ok);
+                let lt = self.llty(&et);
+                let best = self.alloca(&lt);
+                let (dp, first) = (self.tmp(), self.tmp());
+                self.emit(&format!("{dp} = getelementptr i8, ptr {l}, i64 32"));
+                let st = self.stor(&et);
+                self.emit(&format!("{first} = getelementptr {}, ptr {dp}, i64 0", st.ll));
+                let f0 = self.load_mem(&first, &et);
+                self.emit(&format!("store {lt} {f0}, ptr {best}"));
+                self.liste_dongu(&l, &et, |me, x, _| {
+                    let b = me.tmp();
+                    me.emit(&format!("{b} = load {lt}, ptr {best}"));
+                    let daha = if let Type::Float(_) = &et {
+                        let (c, xn, bn, nb, ek, r) = (me.tmp(), me.tmp(), me.tmp(), me.tmp(), me.tmp(), me.tmp());
+                        let (op, yeni, eski) = if buyuk { ("ogt", &xn, &bn) } else { ("olt", &bn, &xn) };
+                        me.emit(&format!("{c} = fcmp {op} {lt} {x}, {b}"));
+                        me.emit(&format!("{xn} = fcmp uno {lt} {x}, {x}"));
+                        me.emit(&format!("{bn} = fcmp uno {lt} {b}, {b}"));
+                        me.emit(&format!("{nb} = xor i1 {eski}, true"));
+                        me.emit(&format!("{ek} = and i1 {yeni}, {nb}"));
+                        me.emit(&format!("{r} = or i1 {c}, {ek}"));
+                        r
+                    } else {
+                        me.compare(if buyuk { crate::ast::BinOp::Gt } else { crate::ast::BinOp::Lt }, x, &b, &et)?
+                    };
+                    let s = me.tmp();
+                    me.emit(&format!("{s} = select i1 {daha}, {lt} {x}, {lt} {b}"));
+                    me.emit(&format!("store {lt} {s}, ptr {best}"));
+                    Ok(())
+                })?;
+                let r = self.tmp();
+                self.emit(&format!("{r} = load {lt}, ptr {best}"));
+                if self.is_rc(&et) {
+                    self.retain(&r, &et);
+                    self.own(r.clone(), &et);
+                }
+                r
+            }
+        };
+        if let Some((f, _)) = fv {
+            self.drop_temp(&f);
+        }
+        self.drop_temp(&l);
+        Ok(result)
     }
 
     /// Yerin statik tipi

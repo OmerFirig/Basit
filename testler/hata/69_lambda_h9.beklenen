@@ -1,0 +1,3 @@
+HATA (69_lambda_h9.kolay, satır 2): Bu fonksiyon 1 değer alır, ama 2 değer verildi.
+  2 | yazdır(f(1, 2))
+    |        ^^^^^^^

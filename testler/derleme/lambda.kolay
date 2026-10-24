@@ -1,0 +1,40 @@
+// Lambda (her x için), fonksiyon değerleri ve fonksiyon alan liste metotları
+ata sayılar = [5, 12, 3, 20, 8]
+yazdır(sayılar.dönüşüm(her x için x * 2))
+yazdır(sayılar.filtre(her x için x > 6))
+yazdır(sayılar.hepsi(her x için x > 0), sayılar.herhangi(her x için x == 7))
+yazdır(sayılar.toplam(), sayılar.en_büyük(), sayılar.en_küçük(), sayılar.sıralı(göre: her x için -x))
+tür Öğrenci(ad: Yazı, yaş: Tam(64))
+ata ö = [Öğrenci("Can", 20), Öğrenci("Ayşe", 18), Öğrenci("Ömer", 19), Öğrenci("Bora", 18)]
+ö.sırala(göre: her k için k.yaş)
+yazdır(ö.dönüşüm(her k için k.ad))
+yazdır(ö.sıralı(göre: her k için k.ad).dönüşüm(her k için k.ad))
+ata iki_kat = her (x: Tam(64)) için x * 2
+yazdır(iki_kat(5))
+ata topla = her (a: Tam(64), b: Tam(64)) için a + b
+yazdır(topla(2, 3))
+fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
+fonksiyon kare(n: Tam(64)) -> Tam(64) { döndür n * n }
+yazdır(uygula(her x için x + 1, 5), uygula(kare, 5), uygula(iki_kat, 7))
+ata n = 10
+ata ekle_n = her (x: Tam(64)) için x + n
+n = 99
+yazdır(ekle_n(1))
+yazdır(sayılar.dönüşüm(her x için yap {
+    ata y = x * 2
+    eğer y > 20 { döndür "büyük" }
+    döndür f"{y}"
+}))
+ata fs: Liste<Fonksiyon(Tam(64)) -> Tam(64)> = [kare, iki_kat, her x için x - 1]
+yazdır(fs.dönüşüm(her g için g(10)), fs[0])
+fonksiyon sayaç_yap(baş: Tam(64)) -> Fonksiyon(Tam(64)) -> Tam(64) {
+    döndür her x için x + baş
+}
+ata s5 = sayaç_yap(5)
+yazdır(s5(1), sayaç_yap(100)(1))
+tür Kutu(k: Tam(64)) {
+    fonksiyon çarpanlar(l: Liste<Tam(64)>) -> Liste<Tam(64)> { döndür l.dönüşüm(her x için x * k) }
+}
+yazdır(Kutu(3).çarpanlar([1, 2, 3]))
+yazdır([[1, 2], [3]].dönüşüm(her l için l.dönüşüm(her x için x * n)))
+yazdır(["elma", "Çilek", "armut"].sıralı(göre: her s için s), [1.5, 2.5].toplam(), ([] olarak Liste<Tam(64)>).toplam())

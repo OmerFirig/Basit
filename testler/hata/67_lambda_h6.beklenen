@@ -1,0 +1,3 @@
+HATA (67_lambda_h6.kolay, satır 2): Tip uyuşmuyor: Mantık bekleniyordu, ama Tam(64) verildi.
+  2 | yazdır(l.filtre(her x için x * 2))
+    |                            ^^^^^

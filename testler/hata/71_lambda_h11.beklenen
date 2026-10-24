@@ -1,0 +1,3 @@
+HATA (71_lambda_h11.kolay, satır 2): Sıralama anahtarı sayı ya da yazı olmalı, ama Liste<Tam(64)> verildi.
+  2 | yazdır(l.sıralı(göre: her x için [x]))
+    |                       ^^^^^^^^^^^^^^

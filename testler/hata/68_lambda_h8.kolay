@@ -1,0 +1,1 @@
+tür A(v: Tam(64)) { fonksiyon f() { ata g = her (x: Tam(64)) için yap { v = x } } }

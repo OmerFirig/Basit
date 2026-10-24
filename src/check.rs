@@ -28,6 +28,18 @@ pub(crate) struct VarInfo {
     pub sabit: bool,
     pub key: usize,
     pub loop_depth: u32,
+    /// Lambdanın dışarıdan kopya olarak yakaladığı değişken (lambda içinde değiştirilemez)
+    pub yakalanan: bool,
+}
+
+/// Denetlenmekte olan bir lambdanın dışarıdaki bağlamı ve yakaladıkları.
+pub(crate) struct LambdaFrame {
+    /// Lambdanın yazıldığı yerin bağlamı
+    pub outer: Ctx,
+    /// (dışarıdaki yuva, içerideki yuva, tip)
+    pub caps: Vec<(Slot, Slot, Type)>,
+    /// Lambda nesneyi (`bu`, alanlar, kendi metotları) kullanıyor mu
+    pub bu: bool,
 }
 
 pub(crate) struct ModInfo {
@@ -75,6 +87,8 @@ pub(crate) struct Ctx {
     pub loop_depth: u32,
     pub flow: Vec<FlowSt>,
     pub func: Option<FuncId>,
+    /// Gövdesi blok olan lambdanın dönüş tipi çıkarılırken: `döndür` edilen değerlerin tipleri
+    pub ret_infer: Option<Vec<(Type, Span)>>,
 }
 
 pub(crate) struct PendingMut {
@@ -110,6 +124,8 @@ pub struct Checker {
     pub(crate) pending_keys: std::cell::RefCell<Option<Vec<(Type, Span)>>>,
     /// Kaynak dosyaların metni (hata mesajlarında kullanıcının yazdığı ifadeyi göstermek için)
     pub(crate) texts: Vec<String>,
+    /// İç içe denetlenen lambdalar (en içteki sonda)
+    pub(crate) lambda_stack: Vec<LambdaFrame>,
 }
 
 pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<Diag>)> {
@@ -134,6 +150,7 @@ pub fn check(parsed: Vec<ParsedModule>, src: &Sources) -> CResult<(Program, Vec<
         method_ids: HashMap::new(),
         pending_keys: std::cell::RefCell::new(Some(Vec::new())),
         texts: src.files.iter().map(|f| f.text.clone()).collect(),
+        lambda_stack: Vec::new(),
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -459,11 +476,32 @@ impl Checker {
             Type::Dict(k, v) => format!("Sözlük<{}, {}>", self.type_name(k), self.type_name(v)),
             Type::Union(v) => v.iter().map(|t| self.type_name(t)).collect::<Vec<_>>().join(" veya "),
             Type::Named(id) => self.types[*id].name.clone(),
+            Type::Func(ps, r) => {
+                let ps: Vec<String> = ps.iter().map(|t| self.type_name(t)).collect();
+                if **r == Type::Hic {
+                    format!("Fonksiyon({})", ps.join(", "))
+                } else {
+                    format!("Fonksiyon({}) -> {}", ps.join(", "), self.type_name(r))
+                }
+            }
         }
     }
 
     pub(crate) fn resolve_type(&self, te: &TypeExpr, mi: usize) -> CResult<Type> {
         match &te.kind {
+            TypeKind::Func { params, ret } => {
+                let mut ps = Vec::new();
+                for p in params {
+                    let t = self.resolve_type(p, mi)?;
+                    self.no_hic_value(&t, p.span)?;
+                    ps.push(t);
+                }
+                let r = match ret {
+                    Some(r) => self.resolve_type(r, mi)?,
+                    None => Type::Hic,
+                };
+                Ok(Type::Func(ps, Box::new(r)))
+            }
             TypeKind::Union(parts) => {
                 let mut ts = Vec::new();
                 for p in parts {
@@ -1196,7 +1234,7 @@ pub(crate) fn starts_upper(s: &str) -> bool {
 }
 
 pub(crate) fn is_builtin_type_name(s: &str) -> bool {
-    matches!(s, "Tam" | "Ondalık" | "Yazı" | "Mantık" | "Liste" | "Sözlük" | "Hiç")
+    matches!(s, "Tam" | "Ondalık" | "Yazı" | "Mantık" | "Liste" | "Sözlük" | "Hiç" | "Fonksiyon")
 }
 
 pub(crate) fn to_us(s: &str) -> String {

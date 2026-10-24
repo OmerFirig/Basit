@@ -1,0 +1,3 @@
+HATA (72_lambda_h12.kolay, satır 2): 'dönüşüm' bir fonksiyon bekler (Fonksiyon(Tam(64)) -> ...), ama Tam(64) verildi. Örnek: her x için x * 2
+  2 | yazdır(l.dönüşüm(5))
+    |                  ^

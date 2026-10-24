@@ -82,6 +82,8 @@ struct Oturum {
     dir: PathBuf,
     /// Tamamlama için oturumdaki adlar
     adlar: Rc<RefCell<Vec<String>>>,
+    /// Önceki programdaki fonksiyonların kaynak anahtarları (fonksiyon numarası sırasıyla)
+    fkeys: Vec<(u32, u32)>,
 }
 
 impl Oturum {
@@ -96,6 +98,7 @@ impl Oturum {
             renk: Renk(renk),
             dir: std::env::current_dir().unwrap_or_default(),
             adlar,
+            fkeys: Vec::new(),
         }
     }
 
@@ -182,6 +185,15 @@ impl Oturum {
         let mut it = Interp::new(&prog);
         it.dis = dis;
         let mut g = std::mem::take(&mut self.globals);
+        // fonksiyon numaraları her denetimde yeniden dağıtılır (yeni bir fonksiyon araya girebilir):
+        // saklanan fonksiyon değerleri kaynaktaki yerlerine göre yeni numaralarına eşlenir
+        let yeni: std::collections::HashMap<(u32, u32), usize> = prog.funcs.iter().enumerate().map(|(i, f)| (f.key, i)).collect();
+        let esle: Vec<usize> = self.fkeys.iter().enumerate().map(|(i, k)| yeni.get(k).copied().unwrap_or(i)).collect();
+        if esle.iter().enumerate().any(|(i, j)| i != *j) {
+            for v in g.iter_mut() {
+                fonk_esle(v, &esle);
+            }
+        }
         if g.len() < prog.nglobals as usize {
             g.resize(prog.nglobals as usize, Value::Uninit);
         }
@@ -200,6 +212,7 @@ impl Oturum {
             }
         }
         self.globals = std::mem::take(&mut it.globals);
+        self.fkeys = prog.funcs.iter().map(|f| f.key).collect();
         match r {
             Ok(v) => {
                 self.girdiler.push((n, girdi.to_string()));
@@ -278,6 +291,42 @@ impl Oturum {
             _ => println!("{} '{ad}' diye bir komut yok. Komutlar için :yardım", self.renk.hata("Hata:")),
         }
         true
+    }
+}
+
+/// Değerin içindeki fonksiyon değerlerinin numaralarını yenileriyle değiştirir.
+fn fonk_esle(v: &mut Value, esle: &[usize]) {
+    match v {
+        Value::Func(f) => {
+            let f = Rc::make_mut(f);
+            if let Some(&n) = esle.get(f.fid) {
+                f.fid = n;
+            }
+            for c in f.caps.iter_mut().chain(f.bu.iter_mut()) {
+                fonk_esle(c, esle);
+            }
+        }
+        Value::List(l) => {
+            for x in Rc::make_mut(l).items.iter_mut() {
+                fonk_esle(x, esle);
+            }
+        }
+        Value::Dict(d) => {
+            for (_, x) in Rc::make_mut(d).map.values_mut() {
+                fonk_esle(x, esle);
+            }
+        }
+        Value::Obj(o) => {
+            for x in Rc::make_mut(o).fields.iter_mut() {
+                fonk_esle(x, esle);
+            }
+        }
+        Value::Var(o) => {
+            for x in Rc::make_mut(o).fields.iter_mut() {
+                fonk_esle(x, esle);
+            }
+        }
+        _ => {}
     }
 }
 

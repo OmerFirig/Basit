@@ -1,0 +1,3 @@
+klavye("us")
+ata l = [3, 1, 2]
+yazdir(l.donusum(her x icin x * 2), l.en_buyuk(), l.sirali(gore: her x icin -x))

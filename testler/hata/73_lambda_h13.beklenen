@@ -1,0 +1,3 @@
+HATA (73_lambda_h13.kolay, satır 1): Bu lambda Tam(64) döndürmeli, ama sonuna bir değer döndürmeden ulaşılabiliyor.
+  1 | ata f = her (x: Tam(64)) için yap { eğer x > 0 { döndür 1 } }
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

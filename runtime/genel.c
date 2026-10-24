@@ -80,6 +80,8 @@ _Bool kolay_esit(void *a, void *b, const Tip *t) {
     }
     case T_SOZLUK:
         return sozluk_esit(*(void **)a, *(void **)b);
+    case T_FONK:
+        return *(void **)a == *(void **)b;
     case T_TUR: case T_SECENEK: case T_ARAYUZ: {
         Baslik *x = *(Baslik **)a, *y = *(Baslik **)b;
         if (x == y) return 1;
@@ -210,6 +212,9 @@ void deger_yaz(Yazi **out, const void *p, const Tip *t, int ust, int ipucu) {
     }
     case T_SOZLUK:
         sozluk_yaz(out, *(void *const *)p, ipucu);
+        break;
+    case T_FONK:
+        cyaz(out, t->ad); // tipin adı: Fonksiyon(Tam(64)) -> Tam(64)
         break;
     case T_TUR: case T_SECENEK: case T_ARAYUZ: {
         const Baslik *x = *(Baslik *const *)p;

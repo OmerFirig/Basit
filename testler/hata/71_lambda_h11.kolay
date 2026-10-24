@@ -1,0 +1,2 @@
+ata l = [1]
+yazdır(l.sıralı(göre: her x için [x]))

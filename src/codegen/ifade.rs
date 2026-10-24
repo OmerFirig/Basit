@@ -466,6 +466,58 @@ impl<'p> Gen<'p> {
                 self.drop_temp(&l);
                 self.own(t, &e.ty)
             }
+            TK::Lambda { func, caps, bu } => {
+                // nesne: başlık, fonksiyon adresi, yakalanan değerlerin kopyaları
+                let (offs, bu_off, size) = self.lambda_layout(*func);
+                let tip = self.lambda_tip(*func, &e.ty);
+                let mut vals = Vec::new();
+                for c in caps {
+                    vals.push((self.expr(c)?, c.ty.clone()));
+                }
+                let buv = match bu {
+                    Some(b) => Some((self.expr(b)?, b.ty.clone())),
+                    None => None,
+                };
+                let o = self.tmp();
+                self.emit(&format!("{o} = call ptr @kolay_nesne_yeni(ptr {tip}, i64 {size})"));
+                let fp = self.tmp();
+                self.emit(&format!("{fp} = getelementptr i8, ptr {o}, i64 16"));
+                self.emit(&format!("store ptr @f{func}, ptr {fp}"));
+                let all: Vec<(i64, (String, Type))> = offs.into_iter().zip(vals).chain(bu_off.zip(buv)).collect();
+                for (off, (v, t)) in all {
+                    let p = self.tmp();
+                    self.emit(&format!("{p} = getelementptr i8, ptr {o}, i64 {off}"));
+                    self.keep_ref(&v, &t);
+                    self.store_mem(&p, &v, &t);
+                }
+                self.own(o, &e.ty)
+            }
+            TK::FuncRef(fid) => self.func_ref(*fid, &e.ty),
+            TK::CallValue(fe, args) => {
+                let Type::Func(ps, ret) = &fe.ty else { unreachable!() };
+                let (ps, ret) = (ps.clone(), (**ret).clone());
+                let fv = self.expr(fe)?;
+                let (vals, temps) = self.call_args(args, &ps)?;
+                let (fpp, fp) = (self.tmp(), self.tmp());
+                self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 16"));
+                self.emit(&format!("{fp} = load ptr, ptr {fpp}"));
+                let mut all = vec![format!("ptr {fv}")];
+                all.extend(vals);
+                let r = if ret == Type::Hic {
+                    self.emit(&format!("call void {fp}({})", all.join(", ")));
+                    String::new()
+                } else {
+                    let lt = self.llty(&ret);
+                    let t = self.tmp();
+                    self.emit(&format!("{t} = call {lt} {fp}({})", all.join(", ")));
+                    t
+                };
+                for v in temps {
+                    self.drop_temp(&v);
+                }
+                self.drop_temp(&fv);
+                if self.is_rc(&ret) { self.own(r, &ret) } else { r }
+            }
             TK::Match(m) => {
                 if e.ty == Type::Never || e.ty == Type::Hic {
                     self.match_code(m, None)?;

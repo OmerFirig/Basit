@@ -8,6 +8,13 @@ use crate::tir::*;
 use crate::types::*;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
+use std::collections::HashMap;
+
+fn slot_no(s: Slot) -> u32 {
+    match s {
+        Slot::Local(i) | Slot::Global(i) => i,
+    }
+}
 
 pub(crate) enum PathRes {
     Module(usize),
@@ -33,6 +40,8 @@ pub(crate) struct BInfo {
 
 const BUILTIN_FUNCS: &[&str] = &["yazdır", "oku"];
 
+const LAMBDA_BU: &str = "Lambda içinde nesne (bu) bir kopyadır";
+
 fn is_num_lit(e: &Expr) -> bool {
     matches!(e.kind, ExprKind::Int(_) | ExprKind::Float(_))
 }
@@ -57,13 +66,62 @@ impl Checker {
 
     // ------------------------------------------------------------ değişkenler
 
-    pub(crate) fn lookup_var(&self, name: &str) -> Option<VarInfo> {
+    /// Sadece şu anki bağlamda (lambda içindeyse lambdanın kendisinde) arar.
+    pub(crate) fn local_var(&self, name: &str) -> Option<VarInfo> {
         for s in self.cx.scopes.iter().rev() {
             if let Some(v) = s.get(name) {
                 return Some(v.clone());
             }
         }
         self.cx.snapshot.as_ref().and_then(|s| s.get(name).cloned())
+    }
+
+    /// Bu ad bir değişken mi? (lambdanın dışındakiler dahil; yakalamadan)
+    pub(crate) fn var_exists(&self, name: &str) -> bool {
+        let in_ctx = |c: &Ctx| c.scopes.iter().any(|s| s.contains_key(name)) || c.snapshot.as_ref().is_some_and(|s| s.contains_key(name));
+        in_ctx(&self.cx) || self.lambda_stack.iter().any(|f| in_ctx(&f.outer))
+    }
+
+    /// Değişkeni bulur. Lambda içindeyse ve değişken dışarıdaysa onu kopya olarak yakalar.
+    pub(crate) fn lookup_var(&mut self, name: &str, span: Span) -> CResult<Option<VarInfo>> {
+        if let Some(v) = self.local_var(name) {
+            return Ok(Some(v));
+        }
+        let Some(mut frame) = self.lambda_stack.pop() else { return Ok(None) };
+        // dışarıdaki bağlamda ara (o da bir lambdaysa, oradan da yakalanabilir)
+        std::mem::swap(&mut self.cx, &mut frame.outer);
+        let found = match self.lookup_var(name, span) {
+            Ok(Some(v)) => self.check_readable(name, &v, span).map(|_| Some(v)),
+            r => r,
+        };
+        std::mem::swap(&mut self.cx, &mut frame.outer);
+        let found = match found {
+            Ok(f) => f,
+            Err(d) => {
+                self.lambda_stack.push(frame);
+                return Err(d);
+            }
+        };
+        let r = found.map(|v| {
+            let slot = self.new_slot();
+            let info = VarInfo { slot, ty: v.ty.clone(), sabit: false, key: ALWAYS, loop_depth: 0, yakalanan: true };
+            self.cx.scopes[0].insert(name.to_string(), info.clone());
+            frame.caps.push((v.slot, slot, v.ty));
+            info
+        });
+        self.lambda_stack.push(frame);
+        Ok(r)
+    }
+
+    /// Lambda içinde nesneye (`bu`) erişildi: lambda nesnenin kopyasını yakalar.
+    pub(crate) fn use_bu(&mut self) {
+        if let Some(f) = self.lambda_stack.last_mut() {
+            f.bu = true;
+        }
+    }
+
+    pub(crate) fn in_lambda(&self) -> bool {
+        !self.lambda_stack.is_empty()
     }
 
     pub(crate) fn flow_get(&self, key: usize) -> FlowSt {
@@ -90,7 +148,7 @@ impl Checker {
         let slot = self.new_slot();
         let key = self.cx.flow.len();
         self.cx.flow.push(if assigned { FlowSt::Assigned } else { FlowSt::Unassigned });
-        let info = VarInfo { slot, ty, sabit, key, loop_depth: self.cx.loop_depth };
+        let info = VarInfo { slot, ty, sabit, key, loop_depth: self.cx.loop_depth, yakalanan: false };
         self.cx.scopes.last_mut().unwrap().insert(name.to_string(), info.clone());
         info
     }
@@ -326,6 +384,7 @@ impl Checker {
                 let Some(o) = self.cx.owner else {
                     return err(span, "'bu' sadece bir tür ya da seçenek içindeki fonksiyonlarda kullanılabilir.");
                 };
+                self.use_bu();
                 self.mk(TK::Bu, Type::Named(o), span)
             }
             ExprKind::Ident(name) => self.ident_expr(name, span)?,
@@ -379,7 +438,310 @@ impl Checker {
                 let (tm, ty, _) = self.match_(m, true, expected)?;
                 self.mk(TK::Match(Box::new(tm)), ty, span)
             }
+            ExprKind::Lambda { params, body } => match expected {
+                Some(Type::Func(ps, r)) => self.lambda(params, body, Some(ps), Some(r), span)?,
+                _ => self.lambda(params, body, None, None, span)?,
+            },
         })
+    }
+
+    // ------------------------------------------------------------ lambda
+
+    /// `her x için ...`: parametre tipleri yazılmamışsa kullanıldığı yerden (`hint`) gelir.
+    pub(crate) fn lambda(
+        &mut self,
+        params: &[LParam],
+        body: &LambdaBody,
+        hint: Option<&[Type]>,
+        hint_ret: Option<&Type>,
+        span: Span,
+    ) -> CResult<TExpr> {
+        if let Some(h) = hint {
+            if h.len() != params.len() {
+                return err(span, format!("Burada {} değer alan bir fonksiyon bekleniyordu, ama lambda {} parametreli.", h.len(), params.len()));
+            }
+        }
+        let mut ptys = Vec::new();
+        for (i, p) in params.iter().enumerate() {
+            let t = match (&p.ty, hint) {
+                (Some(te), _) => {
+                    let t = self.resolve_type(te, self.cx.module)?;
+                    self.no_hic_value(&t, te.span)?;
+                    if let Some(h) = hint {
+                        if h[i] != t {
+                            return err(te.span, format!("'{}' burada {} olmalı, ama {} yazılmış.", p.name, self.type_name(&h[i]), self.type_name(&t)));
+                        }
+                    }
+                    t
+                }
+                (None, Some(h)) => h[i].clone(),
+                (None, None) => {
+                    return err(p.span, format!("'{}' parametresinin tipi belli değil. Tipini yazın: her ({}: Tam(64)) için ...", p.name, p.name));
+                }
+            };
+            ptys.push(t);
+        }
+        let ret = match (body, hint_ret) {
+            (_, Some(r)) => Some(r.clone()),
+            (LambdaBody::Expr(_), None) => None,
+            (LambdaBody::Block(_), None) => {
+                // dönüş tipi `döndür` edilen değerlerden çıkarılır; sonra o tiple yeniden denetlenir
+                let geri = self.geri_nokta();
+                let r = self.lambda_once(params, &ptys, body, None, true, span);
+                self.geri_al(geri);
+                let Type::Func(_, r) = r?.ty else { unreachable!() };
+                Some(*r)
+            }
+        };
+        self.lambda_once(params, &ptys, body, ret.as_ref(), false, span)
+    }
+
+    /// İki geçişli denetim için: lambdanın ilk denetiminde eklenenler geri alınır.
+    fn geri_nokta(&self) -> (usize, usize, usize, usize, usize) {
+        (self.funcs.len(), self.warnings.len(), self.mut_edges.len(), self.mut_direct.len(), self.pending_mut.len())
+    }
+
+    fn geri_al(&mut self, g: (usize, usize, usize, usize, usize)) {
+        self.funcs.truncate(g.0);
+        self.mutates.truncate(g.0);
+        self.warnings.truncate(g.1);
+        self.mut_edges.truncate(g.2);
+        self.mut_direct.truncate(g.3);
+        self.pending_mut.truncate(g.4);
+    }
+
+    /// `infer`: dönüş tipini bulmak için (gövde blok, `döndür` değerleri toplanır); dönen ifadenin tipi
+    /// çıkarılan dönüş tipidir.
+    fn lambda_once(&mut self, params: &[LParam], ptys: &[Type], body: &LambdaBody, ret: Option<&Type>, infer: bool, span: Span) -> CResult<TExpr> {
+        let fid = self.funcs.len();
+        self.funcs.push(FuncInfo {
+            name: "isimsiz fonksiyon".into(),
+            module: self.cx.module,
+            owner: self.cx.owner,
+            params: params.iter().zip(ptys).map(|(p, t)| (p.name.clone(), t.clone())).collect(),
+            param_sabit: vec![false; params.len()],
+            ret: ret.cloned().unwrap_or(Type::Hic),
+            decl: None,
+            snapshot: None,
+            yeniden: Yeniden::Yok,
+            span,
+            body: None,
+            dis: None,
+        });
+        self.mutates.push(false);
+        let inner = Ctx {
+            module: self.cx.module,
+            scopes: vec![HashMap::new()],
+            owner: self.cx.owner,
+            ret: if infer { None } else { Some(ret.cloned().unwrap_or(Type::Hic)) },
+            ret_infer: if infer { Some(Vec::new()) } else { None },
+            fname: "isimsiz fonksiyon".into(),
+            func: Some(fid),
+            ..Default::default()
+        };
+        let outer = std::mem::replace(&mut self.cx, inner);
+        self.lambda_stack.push(LambdaFrame { outer, caps: Vec::new(), bu: false });
+        let r = self.lambda_body(params, ptys, body, ret, span);
+        let frame = self.lambda_stack.pop().expect("lambda");
+        let inner = std::mem::replace(&mut self.cx, frame.outer);
+        let (tbody, rty) = r?;
+        let rty = if infer {
+            let rs = inner.ret_infer.clone().unwrap_or_default();
+            self.infer_ret(&rs, span)?
+        } else {
+            rty
+        };
+        let caps: Vec<TExpr> = frame.caps.iter().map(|(o, _, t)| self.mk(TK::Var(*o), t.clone(), span)).collect();
+        let bu = if frame.bu {
+            self.use_bu();
+            Some(Box::new(self.mk(TK::Bu, Type::Named(self.cx.owner.expect("tür")), span)))
+        } else {
+            None
+        };
+        let loc = self.loc(span);
+        self.funcs[fid].ret = rty.clone();
+        self.funcs[fid].body = Some(TFunc {
+            key: (span.file, span.start),
+            dis: None,
+            caps: Some(frame.caps.iter().map(|(_, i, t)| (slot_no(*i), t.clone())).collect()),
+            params: ptys.to_vec(),
+            ret: rty.clone(),
+            body: tbody,
+            nslots: inner.nslots,
+            owner: if frame.bu { self.cx.owner } else { None },
+            loc,
+        });
+        Ok(self.mk(TK::Lambda { func: fid, caps, bu }, Type::Func(ptys.to_vec(), Box::new(rty)), span))
+    }
+
+    fn lambda_body(&mut self, params: &[LParam], ptys: &[Type], body: &LambdaBody, ret: Option<&Type>, span: Span) -> CResult<(Vec<TS>, Type)> {
+        for (p, t) in params.iter().zip(ptys) {
+            self.declare_var(&p.name, t.clone(), false, true);
+        }
+        match body {
+            LambdaBody::Expr(e) => {
+                let t = self.expr(e, ret)?;
+                let t = match ret {
+                    Some(r) => self.coerce(t, r, e.span)?,
+                    None => t,
+                };
+                let ty = t.ty.clone();
+                if ty == Type::Hic || ty == Type::Never {
+                    Ok((vec![TS::Expr(t), TS::Return(None)], Type::Hic))
+                } else {
+                    Ok((vec![TS::Return(Some(t))], ty))
+                }
+            }
+            LambdaBody::Block(b) => {
+                let (ts, div) = self.block(b)?;
+                let r = ret.cloned().unwrap_or(Type::Hic);
+                if self.cx.ret_infer.is_none() && r != Type::Hic && !div {
+                    return err(span, format!("Bu lambda {} döndürmeli, ama sonuna bir değer döndürmeden ulaşılabiliyor.", self.type_name(&r)));
+                }
+                Ok((ts, r))
+            }
+        }
+    }
+
+    /// Bloklu lambdanın `döndür`lerinden dönüş tipi
+    fn infer_ret(&self, rs: &[(Type, Span)], span: Span) -> CResult<Type> {
+        let vals: Vec<&(Type, Span)> = rs.iter().filter(|(t, _)| *t != Type::Never).collect();
+        if vals.is_empty() {
+            return Ok(Type::Hic);
+        }
+        let has_hic = vals.iter().any(|(t, _)| *t == Type::Hic);
+        if has_hic && vals.iter().any(|(t, _)| *t != Type::Hic) {
+            return err(span, "Bu lambda bazı yollarda değer döndürüyor, bazılarında döndürmüyor.");
+        }
+        let ts: Vec<Type> = vals.iter().map(|(t, _)| t.clone()).collect();
+        self.unify(&ts, span, "lambdanın döndürdüğü")
+    }
+
+    /// Fonksiyon değerini çağırma: `f(3)`
+    pub(crate) fn call_value(&mut self, f: TExpr, args: &[Arg], fspan: Span, span: Span) -> CResult<TExpr> {
+        let Type::Func(ps, r) = f.ty.clone() else {
+            return err(fspan, format!("Bu bir {} değeri, fonksiyon değil; çağrılamaz.", self.type_name(&f.ty)));
+        };
+        if args.len() != ps.len() {
+            return err(span, format!("Bu fonksiyon {} değer alır, ama {} değer verildi.", ps.len(), args.len()));
+        }
+        let mut vals = Vec::new();
+        for (a, p) in args.iter().zip(&ps) {
+            if let Some((n, s)) = &a.name {
+                return err(*s, format!("Fonksiyon değerine adlı değer verilemez ('{n}:' yazmayın)."));
+            }
+            let t = self.expr(&a.value, Some(p))?;
+            vals.push(self.coerce(t, p, a.value.span)?);
+        }
+        Ok(self.mk(TK::CallValue(Box::new(f), vals), *r, span))
+    }
+
+    /// Fonksiyon bekleyen argüman (dönüşüm, filtre...): lambda ise parametre tipleri buradan gelir.
+    fn func_arg(&mut self, a: &Arg, params: &[Type], ret: Option<&Type>, what: &str) -> CResult<TExpr> {
+        if let ExprKind::Lambda { params: lp, body } = &a.value.kind {
+            return self.lambda(lp, body, Some(params), ret, a.value.span);
+        }
+        let t = self.expr(&a.value, None)?;
+        let ok = matches!(&t.ty, Type::Func(ps, r) if ps.as_slice() == params && ret.is_none_or(|x| **r == *x));
+        if !ok {
+            let beklenen = match ret {
+                Some(r) => self.type_name(&Type::Func(params.to_vec(), Box::new(r.clone()))),
+                None => format!("Fonksiyon({}) -> ...", params.iter().map(|p| self.type_name(p)).collect::<Vec<_>>().join(", ")),
+            };
+            return err(a.value.span, format!("'{what}' bir fonksiyon bekler ({beklenen}), ama {} verildi. Örnek: her x için x * 2", self.type_name(&t.ty)));
+        }
+        Ok(t)
+    }
+
+    /// Liste metotları: fonksiyon alanlar ve sayı listeleri (dönüşüm, filtre, toplam...)
+    fn list_method(&mut self, pi: &mut Option<PlaceInfo>, value: &mut Option<TExpr>, elem: &Type, name: &str, args: &[Arg], span: Span) -> CResult<Option<TExpr>> {
+        let shown = self.shown(name);
+        let tek = |_: &Self| -> CResult<&Arg> {
+            match args {
+                [a] => Ok(a),
+                _ => err(span, format!("'{shown}' tek bir fonksiyon alır: liste.{shown}(her x için ...)")),
+            }
+        };
+        let siralanabilir = |t: &Type| t.is_num() || *t == Type::Str;
+        let (bm, f, ret) = match name {
+            "dönüşüm" => {
+                let a = tek(self)?;
+                let f = self.func_arg(a, std::slice::from_ref(elem), None, &shown)?;
+                let Type::Func(_, r) = &f.ty else { unreachable!() };
+                if matches!(**r, Type::Hic | Type::Never) {
+                    return err(a.value.span, format!("'{shown}' için fonksiyon bir değer döndürmeli."));
+                }
+                let rt = Type::List(r.clone(), None);
+                (BM::Donusum, Some(f), rt)
+            }
+            "filtre" | "hepsi" | "herhangi" => {
+                let a = tek(self)?;
+                let f = self.func_arg(a, std::slice::from_ref(elem), Some(&Type::Bool), &shown)?;
+                match name {
+                    "filtre" => (BM::Filtre, Some(f), Type::List(Box::new(elem.clone()), None)),
+                    "hepsi" => (BM::Hepsi, Some(f), Type::Bool),
+                    _ => (BM::Herhangi, Some(f), Type::Bool),
+                }
+            }
+            "sırala" | "sıralı" if !args.is_empty() => {
+                let a = match args {
+                    [a] if a.name.as_ref().is_none_or(|(n, _)| n == "göre") => a,
+                    _ => return err(span, format!("Örnek: liste.{shown}(göre: her x için x.yaş)")),
+                };
+                let f = self.func_arg(a, std::slice::from_ref(elem), None, &shown)?;
+                let Type::Func(_, k) = &f.ty else { unreachable!() };
+                if !siralanabilir(k) {
+                    return err(a.value.span, format!("Sıralama anahtarı sayı ya da yazı olmalı, ama {} verildi.", self.type_name(k)));
+                }
+                if name == "sırala" {
+                    (BM::SiralaGore, Some(f), Type::Hic)
+                } else {
+                    (BM::SiraliGore, Some(f), Type::List(Box::new(elem.clone()), None))
+                }
+            }
+            "toplam" | "en_büyük" | "en_küçük" => {
+                if !args.is_empty() {
+                    return err(span, format!("'{shown}' değer almaz: liste.{shown}()"));
+                }
+                if name == "toplam" && !elem.is_num() {
+                    return err(span, format!("'{shown}' sadece sayı listelerinde kullanılır, ama liste {} elemanlı.", self.type_name(elem)));
+                }
+                if !siralanabilir(elem) {
+                    return err(span, format!("'{shown}' sadece sayı ve yazı listelerinde kullanılır, ama liste {} elemanlı.", self.type_name(elem)));
+                }
+                let bm = match name {
+                    "toplam" => BM::Toplam,
+                    "en_büyük" => BM::EnBuyuk,
+                    _ => BM::EnKucuk,
+                };
+                (bm, None, elem.clone())
+            }
+            _ => return Ok(None),
+        };
+        let recv = if bm == BM::SiralaGore {
+            let Some(p) = pi.take() else {
+                // geçici liste: sıralanır ve atılır
+                let v = value.take().expect("alıcı");
+                let vals = f.into_iter().collect();
+                return Ok(Some(self.mk(TK::BMethod { recv: Recv::Value(Box::new(v)), m: bm, args: vals }, ret, span)));
+            };
+            if let Some(reason) = &p.immut {
+                return err(span, format!("{reason}; '{shown}()' içeriği değiştirir."));
+            }
+            if p.rooted_bu {
+                if let Some(cur) = self.cx.func {
+                    self.mutates[cur] = true;
+                }
+            }
+            Recv::Place(p.place)
+        } else {
+            match pi.take() {
+                Some(p) => Recv::Value(Box::new(p.expr)),
+                None => Recv::Value(Box::new(value.take().expect("alıcı"))),
+            }
+        };
+        let vals = f.into_iter().collect();
+        Ok(Some(self.mk(TK::BMethod { recv, m: bm, args: vals }, ret, span)))
     }
 
     /// Aralık ya da dilim sınırı: Tam(64)'e sığan tam sayı
@@ -442,17 +804,21 @@ impl Checker {
     }
 
     fn ident_expr(&mut self, name: &str, span: Span) -> CResult<TExpr> {
-        if let Some(v) = self.lookup_var(name) {
+        if let Some(v) = self.lookup_var(name, span)? {
             self.check_readable(name, &v, span)?;
             return Ok(self.mk(TK::Var(v.slot), v.ty, span));
         }
         if let Some(f) = self.owner_field(name) {
+            self.use_bu();
             let bu = self.mk(TK::Bu, Type::Named(self.cx.owner.unwrap()), span);
             let fid = self.field_id(&f.name);
             return Ok(self.mk(TK::Field(Box::new(bu), fid), f.ty, span));
         }
+        if let Some(&fid) = self.mods[self.cx.module].funcs.get(name) {
+            return Ok(self.func_ref(fid, span));
+        }
         let m = &self.mods[self.cx.module];
-        if m.funcs.contains_key(name) || BUILTIN_FUNCS.contains(&name) {
+        if BUILTIN_FUNCS.contains(&name) {
             return err(span, format!("'{}' bir fonksiyon; çağırmak için {}(...) yazın.", self.shown(name), self.shown(name)));
         }
         if let Some(&tid) = m.types.get(name) {
@@ -475,6 +841,13 @@ impl Checker {
             (Some(m), None) => Some(m.clone()),
             _ => None,
         }
+    }
+
+    /// İsimli fonksiyon değer olarak: `uygula(kare, 3)`
+    fn func_ref(&self, fid: FuncId, span: Span) -> TExpr {
+        let f = &self.funcs[fid];
+        let ty = Type::Func(f.params.iter().map(|p| p.1.clone()).collect(), Box::new(f.ret.clone()));
+        self.mk(TK::FuncRef(fid), ty, span)
     }
 
     fn list_lit(&mut self, items: &[Expr], expected: Option<&Type>, span: Span) -> CResult<TExpr> {
@@ -676,6 +1049,9 @@ impl Checker {
                     return Ok(self.mk(TK::Cmp(op, Box::new(lt), Box::new(rt)), Type::Bool, span));
                 }
                 if matches!(op, BinOp::Eq | BinOp::Ne) {
+                    if matches!(lt.ty, Type::Func(..)) || matches!(rt.ty, Type::Func(..)) {
+                        return err(span, "Fonksiyonlar karşılaştırılamaz.");
+                    }
                     let (lt, rt) = if lt.ty == rt.ty {
                         (lt, rt)
                     } else if self.assignable(&rt.ty, &lt.ty) {
@@ -710,7 +1086,7 @@ impl Checker {
     pub(crate) fn static_path(&self, e: &Expr) -> Option<PathRes> {
         match &e.kind {
             ExprKind::Ident(n) => {
-                if self.lookup_var(n).is_some() || self.owner_field(n).is_some() {
+                if self.var_exists(n) || self.owner_field(n).is_some() {
                     return None;
                 }
                 let m = &self.mods[self.cx.module];
@@ -782,8 +1158,10 @@ impl Checker {
     fn call_expr(&mut self, callee: &Expr, args: &[Arg], span: Span) -> CResult<TExpr> {
         match &callee.kind {
             ExprKind::Ident(name) => {
-                if self.lookup_var(name).is_some() || self.owner_field(name).is_some() {
-                    return err(callee.span, format!("'{name}' bir değişken, fonksiyon değil."));
+                if self.var_exists(name) || self.owner_field(name).is_some() {
+                    // fonksiyon tipindeki değişken: f(3)
+                    let f = self.expr(callee, None)?;
+                    return self.call_value(f, args, callee.span, span);
                 }
                 if let Some(o) = self.cx.owner {
                     if self.types[o].methods.contains_key(name) {
@@ -856,7 +1234,10 @@ impl Checker {
                 }
                 self.method_call(base, name, *nspan, args, span)
             }
-            _ => err(callee.span, "Bu ifade bir fonksiyon değil, çağrılamaz."),
+            _ => {
+                let f = self.expr(callee, None)?;
+                self.call_value(f, args, callee.span, span)
+            }
         }
     }
 
@@ -931,23 +1312,36 @@ impl Checker {
     pub(crate) fn place_of(&mut self, e: &Expr) -> CResult<Option<PlaceInfo>> {
         Ok(match &e.kind {
             ExprKind::Ident(n) => {
-                if let Some(v) = self.lookup_var(n) {
+                if let Some(v) = self.lookup_var(n, e.span)? {
                     self.check_readable(n, &v, e.span)?;
                     Some(PlaceInfo {
                         place: TPlace::Var(v.slot),
                         expr: self.mk(TK::Var(v.slot), v.ty.clone(), e.span),
                         ty: v.ty,
-                        immut: if v.sabit { Some(format!("'{n}' sabit")) } else { None },
+                        immut: if v.yakalanan {
+                            Some(format!("'{n}' lambdanın dışında tanımlı (lambda onun kopyasını kullanır)"))
+                        } else if v.sabit {
+                            Some(format!("'{n}' sabit"))
+                        } else {
+                            None
+                        },
                         rooted_bu: false,
                     })
                 } else if let Some(f) = self.owner_field(n) {
+                    self.use_bu();
                     let fid = self.field_id(&f.name);
                     let bu = self.mk(TK::Bu, Type::Named(self.cx.owner.unwrap()), e.span);
                     Some(PlaceInfo {
                         place: TPlace::Field(Box::new(TPlace::Bu), fid),
                         expr: self.mk(TK::Field(Box::new(bu), fid), f.ty.clone(), e.span),
                         ty: f.ty,
-                        immut: if f.sabit { Some(format!("'{n}' alanı sabit")) } else { None },
+                        immut: if self.in_lambda() {
+                            Some(LAMBDA_BU.to_string())
+                        } else if f.sabit {
+                            Some(format!("'{n}' alanı sabit"))
+                        } else {
+                            None
+                        },
                         rooted_bu: true,
                     })
                 } else {
@@ -958,11 +1352,12 @@ impl Checker {
                 let Some(o) = self.cx.owner else {
                     return err(e.span, "'bu' sadece bir tür ya da seçenek içindeki fonksiyonlarda kullanılabilir.");
                 };
+                self.use_bu();
                 Some(PlaceInfo {
                     place: TPlace::Bu,
                     expr: self.mk(TK::Bu, Type::Named(o), e.span),
                     ty: Type::Named(o),
-                    immut: None,
+                    immut: if self.in_lambda() { Some(LAMBDA_BU.to_string()) } else { None },
                     rooted_bu: true,
                 })
             }
@@ -1094,6 +1489,12 @@ impl Checker {
                 return Ok(self.mk(TK::Method { recv, view: tid, name: name.into(), mid, args: vals }, ret, span));
             }
         }
+        if let Type::List(elem, _) = &recv_ty {
+            let elem = (**elem).clone();
+            if let Some(r) = self.list_method(&mut pi, &mut value, &elem, name, args, span)? {
+                return Ok(r);
+            }
+        }
         if recv_ty == Type::Str && name == "tersi" {
             if !args.is_empty() {
                 return err(span, "'tersi' değer almaz: yazı.tersi()");
@@ -1174,7 +1575,7 @@ impl Checker {
 
     fn builtin_method_names(&self, t: &Type) -> Vec<&'static str> {
         match t {
-            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "yazıya"],
+            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "dönüşüm", "filtre", "hepsi", "herhangi", "toplam", "en_büyük", "en_küçük", "yazıya"],
             Type::Dict(..) => vec!["uzunluk", "içerir", "sil", "anahtarlar", "değerler", "temizle", "yazıya"],
             Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "tama", "ondalığa", "tersi", "yazıya"],
             Type::Float(_) => vec!["tama", "yazıya"],
@@ -1246,8 +1647,8 @@ impl Checker {
                 if let Some(v) = self.mods[mi].globals.get(name).cloned() {
                     return Ok(self.mk(TK::Var(v.slot), v.ty, span));
                 }
-                if self.mods[mi].funcs.contains_key(name) {
-                    return err(nspan, format!("'{name}' bir fonksiyon; çağırmak için {name}(...) yazın."));
+                if let Some(&fid) = self.mods[mi].funcs.get(name) {
+                    return Ok(self.func_ref(fid, span));
                 }
                 return err(nspan, format!("'{}' dosyasında '{name}' diye bir değişken yok.", self.mods[mi].name));
             }
@@ -1328,7 +1729,9 @@ impl Checker {
 
     fn olarak(&mut self, x: &Expr, te: &TypeExpr, span: Span) -> CResult<TExpr> {
         let target = self.resolve_type(te, self.cx.module)?;
-        let v = self.expr(x, None)?;
+        // `[] olarak Liste<Tam>`: liste ve sözlük sabitleri hedef tipte oluşturulur
+        let hint = if matches!(x.kind, ExprKind::List(_) | ExprKind::Dict(_)) { Some(&target) } else { None };
+        let v = self.expr(x, hint)?;
         let ok = match (&v.ty, &target) {
             (a, b) if a.is_num() && b.is_num() => true,
             (Type::Union(ms), t) => ms.contains(t) || ms.iter().any(|m| self.assignable(m, t) || self.assignable(t, m)),

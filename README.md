@@ -58,7 +58,7 @@ Komutlar: `:yardım`, `:tip ifade`, `:geçmiş`, `:kaydet dosya`, `:yükle dosya
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.4.1.vsix
+code --install-extension editor/vscode/kolay-0.5.0.vsix
 ```
 
 ## Örnekler
@@ -92,6 +92,11 @@ ata o: Ondalık(32) = 3.14
 ata renk = 0xFF8800              // onaltılık sayı
 ata m = renk & 0xFF | 1 << 8     // bit işlemleri: & | ^ ~ << >>
 ata ü = 2 ** 10                  // üs
+
+sayılar.dönüşüm(her x için x * 2)            // lambda: isimsiz fonksiyon
+sayılar.filtre(her x için x > 10).toplam()
+öğrenciler.sırala(göre: her ö için ö.yaş)
+fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
 ata sabit pi = 3.14159           // değiştirilemez
 ata sabit mesaj: Yazı            // değeri sonra, bir kez atanır

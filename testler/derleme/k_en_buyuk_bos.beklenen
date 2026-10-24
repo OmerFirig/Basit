@@ -1,0 +1,2 @@
+ÇALIŞMA HATASI (k_en_buyuk_bos.kolay, satır 2): Liste boş; en büyük eleman yok.
+  2 | yazdır(l.en_büyük())

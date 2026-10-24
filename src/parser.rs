@@ -668,6 +668,26 @@ impl Parser {
 
     fn type_atom(&mut self) -> CResult<TypeExpr> {
         let start = self.span();
+        if matches!(self.peek(), Tok::Ident(n) if n == "Fonksiyon") && self.peek_n(1).tok == Tok::LParen {
+            // Fonksiyon(Tam, Yazı) -> Mantık
+            self.advance();
+            self.advance();
+            let mut params = Vec::new();
+            while !self.at(&Tok::RParen) {
+                params.push(self.ty()?);
+                if !self.eat(&Tok::Comma) {
+                    break;
+                }
+            }
+            self.expect(&Tok::RParen, "')'")?;
+            let ret = if self.at(&Tok::Arrow) && !self.tok().nl_before {
+                self.advance();
+                Some(Box::new(self.type_atom()?))
+            } else {
+                None
+            };
+            return Ok(TypeExpr { kind: TypeKind::Func { params, ret }, span: start.to(self.prev_span()) });
+        }
         let mut path = Vec::new();
         if self.eat_kw(Kw::Hic) {
             path.push("Hiç".to_string());
@@ -1083,11 +1103,37 @@ impl Parser {
                 let m = self.match_expr()?;
                 ExprKind::Match(Box::new(m))
             }
+            Tok::Kw(Kw::Her) => self.lambda()?,
             other => {
                 return err(span, format!("Bir değer bekleniyordu, ama {} bulundu.", describe(&other, self.mode)));
             }
         };
         Ok(Expr { kind, span: span.to(self.prev_span()) })
+    }
+
+    /// `her` okunduktan sonra: `x için ifade`, `(a, b: Tam) için ifade`, `x için yap { ... }`
+    fn lambda(&mut self) -> CResult<ExprKind> {
+        let param = |p: &mut Self| -> CResult<LParam> {
+            let (name, span) = p.ident("Parametre adı")?;
+            let ty = if p.eat(&Tok::Colon) { Some(p.ty()?) } else { None };
+            Ok(LParam { name, ty, span })
+        };
+        let mut params = Vec::new();
+        if self.eat(&Tok::LParen) {
+            while !self.at(&Tok::RParen) {
+                params.push(param(self)?);
+                if !self.eat(&Tok::Comma) {
+                    break;
+                }
+            }
+            self.expect(&Tok::RParen, "')'")?;
+        } else {
+            let (name, span) = self.ident("Parametre adı")?;
+            params.push(LParam { name, ty: None, span });
+        }
+        self.expect_kw(Kw::Icin, "Örnek: her x için x * 2")?;
+        let body = if self.eat_kw(Kw::Yap) { LambdaBody::Block(self.block()?) } else { LambdaBody::Expr(Box::new(self.expr()?)) };
+        Ok(ExprKind::Lambda { params, body })
     }
 
     // ---------------------------------------------------------------- eşleştir

@@ -1,0 +1,2 @@
+ata l: Liste<Yazı>
+yazdır(l.en_büyük())

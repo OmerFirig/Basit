@@ -111,6 +111,7 @@ declare zeroext i1 @kolay_liste_icerir(ptr, ptr)
 declare i64 @kolay_liste_bul(ptr, ptr)
 declare ptr @kolay_liste_dilim(ptr, ptr, i64, i64, i64)
 declare ptr @kolay_liste_adim(ptr, i64, ptr, ptr, ptr)
+declare ptr @kolay_liste_anahtarla(ptr, ptr)
 declare ptr @kolay_aralik_liste(i64, i64, i1 zeroext, i64, ptr, ptr, ptr)
 declare ptr @kolay_liste_sirali(ptr)
 declare ptr @kolay_liste_tersi(ptr)
@@ -318,6 +319,8 @@ pub(super) struct Gen<'p> {
     variant_sizes: Vec<Vec<i64>>,
     /// (bakış türü, metot numarası) -> [(gerçek tür, fonksiyon)]
     dispatch: HashMap<(TypeId, u32), Vec<(TypeId, FuncId)>>,
+    /// değer olarak kullanılan isimli fonksiyonlar
+    fref_used: HashSet<FuncId>,
     label: u32,
     f: FnState,
 }
@@ -348,6 +351,7 @@ impl<'p> Gen<'p> {
             variant_offsets: Vec::new(),
             variant_sizes: Vec::new(),
             dispatch,
+            fref_used: HashSet::new(),
             label: 0,
             f: Self::fresh_fn(Type::Hic, false, 0, None),
         }
@@ -552,6 +556,7 @@ impl<'p> Gen<'p> {
             let _ = writeln!(globals_ir, "@m{mi}_ran = internal global i1 false");
             funcs_ir.push_str(&self.module_fn(mi, code)?);
         }
+        funcs_ir.push_str(&self.fref_wrappers());
         let n = self.fn_table.len();
         let _ = writeln!(
             globals_ir,
@@ -656,11 +661,23 @@ impl<'p> Gen<'p> {
         for (i, t) in func.params.iter().enumerate() {
             slots.insert(i as u32, t.clone());
         }
+        if let Some(caps) = &func.caps {
+            for (s, t) in caps {
+                slots.insert(*s, t.clone());
+            }
+        }
         collect_slots_stmts(&func.body, &mut slots, false, self.prog);
         self.f.local_tys = slots;
         let ret = self.llty(&func.ret);
         let mut params = Vec::new();
-        if func.owner.is_some() {
+        if func.caps.is_some() {
+            // lambda: ilk parametre kendi nesnesi (fonksiyon adresi ve yakalanan değerler)
+            params.push("ptr %env".to_string());
+            if func.owner.is_some() {
+                let (_, bu_off, _) = self.lambda_layout(fid);
+                let _ = writeln!(self.f.allocas, "  %bu = getelementptr i8, ptr %env, i64 {}", bu_off.expect("bu"));
+            }
+        } else if func.owner.is_some() {
             params.push("ptr %bu".to_string());
         }
         for (i, t) in func.params.iter().enumerate() {
@@ -691,6 +708,20 @@ impl<'p> Gen<'p> {
                 self.retain(&format!("%p{i}"), t);
             }
         }
+        // lambda: yakalanan değerler nesneden kendi yuvalarına kopyalanır (ve tutulur)
+        if let Some(caps) = &func.caps {
+            let (offs, _, _) = self.lambda_layout(fid);
+            for ((s, t), off) in caps.iter().zip(offs) {
+                let p = self.tmp();
+                self.emit(&format!("{p} = getelementptr i8, ptr %env, i64 {off}"));
+                let v = self.load_mem(&p, t);
+                if self.is_rc(t) {
+                    self.retain(&v, t);
+                }
+                let lt = self.llty(t);
+                self.emit(&format!("store {lt} {v}, ptr %s{s}"));
+            }
+        }
         self.stmts(&func.body)?;
         if !self.f.terminated {
             if func.ret == Type::Hic {
@@ -705,6 +736,74 @@ impl<'p> Gen<'p> {
         let (k, c) = self.where_(func.loc);
         self.fn_table.push(format!("{{ ptr, ptr, ptr }} {{ ptr @f{fid}, ptr {k}, ptr {c} }}"));
         Ok(self.finish_fn(&format!("define internal {ret} @f{fid}({}) section \"kolay_kod\"", params.join(", "))))
+    }
+
+    /// Lambda nesnesinin düzeni: yakalananların ofsetleri, nesnenin (bu) ofseti, toplam boyut.
+    /// Nesne: başlık (16), fonksiyon adresi (8), yakalananlar.
+    pub(super) fn lambda_layout(&self, fid: FuncId) -> (Vec<i64>, Option<i64>, i64) {
+        let f = &self.prog.funcs[fid];
+        let mut off = 24;
+        let mut offs = Vec::new();
+        for (_, t) in f.caps.as_deref().unwrap_or(&[]) {
+            let st = self.stor(t);
+            off = duzen::align(off, st.align);
+            offs.push(off);
+            off += st.size;
+        }
+        let bu = f.owner.map(|_| {
+            off = duzen::align(off, 8);
+            let o = off;
+            off += 8;
+            o
+        });
+        (offs, bu, duzen::align(off.max(24), 16))
+    }
+
+    /// Lambdanın başlık tipi (@lam.N): yakalanan değerlerin tipleri ve ofsetleri (bırakmak için)
+    pub(super) fn lambda_tip(&mut self, fid: FuncId, ty: &Type) -> String {
+        let name = format!("@lam.{fid}");
+        if self.tip_defs.contains(&format!("{name} =")) {
+            return name;
+        }
+        let f = &self.prog.funcs[fid];
+        let mut tys: Vec<Type> = f.caps.as_deref().unwrap_or(&[]).iter().map(|c| c.1.clone()).collect();
+        if let Some(o) = f.owner {
+            tys.push(Type::Named(o));
+        }
+        let (mut offs, bu, _) = self.lambda_layout(fid);
+        offs.extend(bu);
+        let tips: Vec<String> = tys.iter().map(|t| self.tip(t)).collect();
+        self.emit_fonk_tip(&name, ty, &tips, &offs);
+        name
+    }
+
+    /// İsimli fonksiyonun değer hali: hiç silinmeyen sabit nesne ve sarmalayıcı (@fN.deger)
+    pub(super) fn func_ref(&mut self, fid: FuncId, ty: &Type) -> String {
+        let name = format!("@fref.{fid}");
+        if !self.fref_used.contains(&fid) {
+            self.fref_used.insert(fid);
+            let tip = format!("@fref.{fid}.tip");
+            self.emit_fonk_tip(&tip, ty, &[], &[]);
+            let _ = writeln!(self.tip_defs, "{name} = internal global {{ i64, ptr, ptr }} {{ i64 -1, ptr {tip}, ptr @f{fid}.deger }}, align 16");
+        }
+        name
+    }
+
+    /// Kullanılan isimli fonksiyonlar için değer sarmalayıcıları: ilk parametre (nesne) kullanılmaz.
+    fn fref_wrappers(&self) -> String {
+        let mut out = String::new();
+        let mut v: Vec<&FuncId> = self.fref_used.iter().collect();
+        v.sort();
+        for &fid in v {
+            let f = &self.prog.funcs[fid];
+            let ret = self.llty(&f.ret);
+            let ps: Vec<String> = f.params.iter().enumerate().map(|(i, t)| format!("{} %p{i}", self.llty(t))).collect();
+            let args: Vec<String> = f.params.iter().enumerate().map(|(i, t)| format!("{} %p{i}", self.llty(t))).collect();
+            let call = format!("call {ret} @f{fid}({})", args.join(", "));
+            let body = if f.ret == Type::Hic { format!("  {call}\n  ret void") } else { format!("  %r = {call}\n  ret {ret} %r") };
+            let _ = writeln!(out, "define internal {ret} @f{fid}.deger(ptr %env{}{}) {{\n{body}\n}}\n", if ps.is_empty() { "" } else { ", " }, ps.join(", "));
+        }
+        out
     }
 
     fn module_fn(&mut self, mi: usize, code: &[TS]) -> CResult<String> {
@@ -909,6 +1008,20 @@ fn collect_slots_expr(e: &TExpr, out: &mut HashMap<u32, Type>, global: bool, pro
             }
         }
         TK::Match(m) => collect_slots_match(m, out, global, prog),
+        TK::Lambda { caps, bu, .. } => {
+            for x in caps {
+                go(x);
+            }
+            if let Some(b) = bu {
+                go(b);
+            }
+        }
+        TK::CallValue(fe, args) => {
+            go(fe);
+            for x in args {
+                collect_slots_expr(x, out, global, prog);
+            }
+        }
         _ => {}
     }
 }

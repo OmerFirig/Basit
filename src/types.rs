@@ -24,6 +24,8 @@ pub enum Type {
     Dict(Box<Type>, Box<Type>),
     Union(Vec<Type>),
     Named(TypeId),
+    /// Fonksiyon değeri: parametre tipleri, dönüş tipi
+    Func(Vec<Type>, Box<Type>),
     /// Hiçbir zaman değer üretmeyen ifadeler (dur, döndür...)
     Never,
 }

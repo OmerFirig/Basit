@@ -1,0 +1,3 @@
+HATA (64_lambda_h3.kolay, satır 1): Bu bir isimsiz fonksiyon (lambda), tek başına bir şey yapmaz. Bir liste üzerinde dönmek için: liste içindeki her x için yap { }
+  1 | her x için x * 2
+    | ^^^^^^^^^^^^^^^^

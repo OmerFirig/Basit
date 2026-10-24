@@ -1,0 +1,3 @@
+HATA (65_lambda_h4.kolay, satır 2): Burada 1 değer alan bir fonksiyon bekleniyordu, ama lambda 2 parametreli.
+  2 | yazdır(l.dönüşüm(her (a, b) için a))
+    |                  ^^^^^^^^^^^^^^^^^

@@ -1,0 +1,2 @@
+ata n = 1
+ata f = her (x: Tam(64)) için yap { n = x; döndür x }

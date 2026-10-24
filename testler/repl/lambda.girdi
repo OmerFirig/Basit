@@ -1,0 +1,10 @@
+ata f = her (x: Tam(64)) için x * 10
+ata l = [f, f]
+f(2)
+fonksiyon g(a: Tam(64)) -> Tam(64) { döndür a + 1000 }
+f(2)
+l[1](3)
+ata h = g
+fonksiyon k() { }
+h(1)
+:tip [1, 2].dönüşüm(her x için x > 1)

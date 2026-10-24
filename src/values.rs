@@ -183,6 +183,15 @@ pub fn apply_slice<T: Clone>(items: &[T], b: Option<(usize, usize, bool)>) -> Ve
     }
 }
 
+/// Fonksiyon değeri: lambda (yakaladığı değerlerle) ya da isimli fonksiyon
+#[derive(Debug, Clone)]
+pub struct FuncV {
+    pub fid: usize,
+    pub caps: Vec<Value>,
+    /// metot içinde oluşturulmuş ve nesneyi kullanan lambda: nesnenin kopyası
+    pub bu: Option<Value>,
+}
+
 #[derive(Clone, Debug)]
 pub enum Value {
     Int(Int),
@@ -194,6 +203,7 @@ pub enum Value {
     Dict(Rc<DictV>),
     Obj(Rc<ObjV>),
     Var(Rc<VarV>),
+    Func(Rc<FuncV>),
     Uninit,
 }
 
@@ -400,6 +410,7 @@ pub fn values_eq(a: &Value, b: &Value) -> bool {
         (Value::Obj(x), Value::Obj(y)) => {
             x.ty == y.ty && x.fields.len() == y.fields.len() && x.fields.iter().zip(&y.fields).all(|(a, b)| values_eq(a, b))
         }
+        (Value::Func(x), Value::Func(y)) => Rc::ptr_eq(x, y),
         (Value::Var(x), Value::Var(y)) => {
             x.ty == y.ty && x.idx == y.idx && x.fields.iter().zip(&y.fields).all(|(a, b)| values_eq(a, b))
         }
@@ -471,6 +482,14 @@ pub fn type_display(t: &Type, prog: &Program) -> String {
         Type::Dict(k, v) => format!("Sözlük<{}, {}>", type_display(k, prog), type_display(v, prog)),
         Type::Union(v) => v.iter().map(|t| type_display(t, prog)).collect::<Vec<_>>().join(" veya "),
         Type::Named(id) => prog.types[*id].name.clone(),
+        Type::Func(ps, r) => {
+            let ps: Vec<String> = ps.iter().map(|t| type_display(t, prog)).collect();
+            if **r == Type::Hic {
+                format!("Fonksiyon({})", ps.join(", "))
+            } else {
+                format!("Fonksiyon({}) -> {}", ps.join(", "), type_display(r, prog))
+            }
+        }
     }
 }
 
@@ -485,6 +504,7 @@ pub fn kind_name(v: &Value, prog: &Program) -> String {
         Value::Dict(_) => "Sözlük".into(),
         Value::Obj(o) => prog.types[o.ty].name.clone(),
         Value::Var(v) => prog.types[v.ty].name.clone(),
+        Value::Func(_) => "Fonksiyon".into(),
         Value::Uninit => "belirsiz".into(),
     }
 }
@@ -525,7 +545,7 @@ pub fn write_value(out: &mut String, v: &Value, ty: Option<&Type>, prog: &Progra
     // Liste<Yazı>) ilki kullanılır, bu da sadece ondalık elemanların yazılışını etkiler.
     if let Some(Type::Union(ms)) = ty {
         let m = ms.iter().find(|m| match (v, m) {
-            (Value::Float(_), Type::Float(_)) | (Value::List(_), Type::List(..)) | (Value::Dict(_), Type::Dict(..)) => true,
+            (Value::Float(_), Type::Float(_)) | (Value::List(_), Type::List(..)) | (Value::Dict(_), Type::Dict(..)) | (Value::Func(_), Type::Func(..)) => true,
             _ => false,
         });
         if let Some(m) = m {
@@ -607,6 +627,10 @@ pub fn write_value(out: &mut String, v: &Value, ty: Option<&Type>, prog: &Progra
                 out.push(')');
             }
         }
+        Value::Func(_) => match ty {
+            Some(t @ Type::Func(..)) => out.push_str(&type_display(t, prog)),
+            _ => out.push_str("Fonksiyon"),
+        },
         Value::Uninit => out.push_str("<belirsiz>"),
     }
 }

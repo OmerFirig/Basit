@@ -259,6 +259,36 @@ Liste *kolay_aralik_liste(int64_t s, int64_t e, _Bool dahil, int64_t k, const Ti
     return l;
 }
 
+/// sırala(göre: f) / sıralı(göre: f): anahtarlar (f'nin her elemana sonucu) önceden hesaplanır;
+/// elemanlar anahtara göre kararlı sıralanmış yeni liste olarak döner.
+Liste *kolay_liste_anahtarla(Liste *l, Liste *anahtar) {
+    int64_t n = l->uzunluk, eb = eleman_boy(l), kb = eleman_boy(anahtar);
+    const Tip *kt = anahtar->b.tip->e1;
+    int64_t *sira = bellek((size_t)(n ? n : 1) * 8), *tmp = bellek((size_t)(n ? n : 1) * 8);
+    for (int64_t i = 0; i < n; i++) sira[i] = i;
+    // aşağıdan yukarı birleştirme sıralaması (kararlı)
+    for (int64_t w = 1; w < n; w *= 2) {
+        for (int64_t a = 0; a < n; a += 2 * w) {
+            int64_t m = a + w < n ? a + w : n, e = a + 2 * w < n ? a + 2 * w : n, i = a, j = m, k = a;
+            while (i < m && j < e) {
+                if (deger_kars(anahtar->veri + sira[j] * kb, anahtar->veri + sira[i] * kb, kt) < 0) tmp[k++] = sira[j++];
+                else tmp[k++] = sira[i++];
+            }
+            while (i < m) tmp[k++] = sira[i++];
+            while (j < e) tmp[k++] = sira[j++];
+        }
+        memcpy(sira, tmp, (size_t)n * 8);
+    }
+    Liste *k = kolay_liste_yeni(l->b.tip, n);
+    for (int64_t i = 0; i < n; i++) {
+        memcpy(k->veri + i * eb, l->veri + sira[i] * eb, (size_t)eb);
+        kolay_deger_tut(k->veri + i * eb, l->b.tip->e1);
+    }
+    free(sira);
+    free(tmp);
+    return k;
+}
+
 /// liste.sıralı(): sıralanmış yeni liste
 Liste *kolay_liste_sirali(Liste *l) {
     Liste *k = liste_kopya(l);

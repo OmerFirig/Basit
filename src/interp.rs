@@ -798,6 +798,29 @@ impl<'p> Interp<'p> {
                     Value::string(line)
                 }
             },
+            TK::Lambda { func, caps, bu } => {
+                let mut cs = Vec::with_capacity(caps.len());
+                for c in caps {
+                    cs.push(self.eval(c, f)?);
+                }
+                let bu = match bu {
+                    Some(b) => Some(self.eval(b, f)?),
+                    None => None,
+                };
+                Value::Func(Rc::new(FuncV { fid: *func, caps: cs, bu }))
+            }
+            TK::FuncRef(fid) => Value::Func(Rc::new(FuncV { fid: *fid, caps: vec![], bu: None })),
+            TK::CallValue(fe, args) => {
+                let Value::Func(fv) = self.eval(fe, f)? else { unreachable!() };
+                let mut vals = self.pool.pop().unwrap_or_default();
+                for a in args {
+                    vals.push(self.eval(a, f)?);
+                }
+                self.call_value(&fv, vals, e.loc)?
+            }
+            TK::BMethod { recv, m, args } if is_hof(*m) || matches!(m, BM::Toplam | BM::EnBuyuk | BM::EnKucuk) => {
+                self.list_hof(recv, *m, args, &e.ty, e.loc, f)?
+            }
             TK::BMethod { recv, m, args } => {
                 let mut vals = Vec::with_capacity(args.len());
                 for a in args {
@@ -1001,6 +1024,137 @@ impl<'p> Interp<'p> {
         slots.clear();
         self.pool.push(slots);
         Ok((r?, bu))
+    }
+
+    /// Fonksiyon değerini çağırır (lambda ise yakaladığı değerler kendi yuvalarına yazılır).
+    pub(crate) fn call_value(&mut self, fv: &FuncV, args: Vec<Value>, loc: Loc) -> R<Value> {
+        let Some(caps) = &self.prog.funcs[fv.fid].caps else {
+            return self.call_plain(fv.fid, args, loc);
+        };
+        if self.depth >= MAX_DEPTH {
+            return rt(loc, "Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.");
+        }
+        let ch: *const crate::vm::Chunk<'p> = &self.chunks[fv.fid];
+        let ch = unsafe { &*ch };
+        let mut slots = args;
+        fill_slots(&mut slots, ch.nregs);
+        for ((slot, _), v) in caps.iter().zip(&fv.caps) {
+            slots[*slot as usize] = v.clone();
+        }
+        let bu = BuRef::Val(fv.bu.clone().unwrap_or(Value::Hic));
+        let mut frame = Frame { slots, bu };
+        self.depth += 1;
+        let r = self.run_chunk(ch, &mut frame);
+        self.depth -= 1;
+        let mut slots = frame.slots;
+        slots.clear();
+        self.pool.push(slots);
+        r
+    }
+
+    /// Fonksiyon alan liste metotları ve toplam/en_büyük/en_küçük
+    #[allow(clippy::too_many_arguments)]
+    fn list_hof(&mut self, recv: &Recv, m: BM, args: &[TExpr], ty: &Type, loc: Loc, f: &mut Frame) -> R<Value> {
+        let fv = match args.first() {
+            Some(a) => match self.eval(a, f)? {
+                Value::Func(fv) => Some(fv),
+                _ => unreachable!(),
+            },
+            None => None,
+        };
+        let list = match recv {
+            Recv::Value(x) => self.eval(x, f)?,
+            Recv::Place(p) => {
+                let rp = self.resolve_place(p, f)?;
+                let prog = self.prog;
+                let root = Self::root_mut(&mut self.globals, f, rp.0, loc)?;
+                let v = walk_ref(root, &rp.1, loc, prog)?.clone();
+                self.recycle(rp.1);
+                v
+            }
+        };
+        let Value::List(l) = list else { unreachable!() };
+        let call = |me: &mut Self, x: &Value| -> R<Value> {
+            let mut a = me.pool.pop().unwrap_or_default();
+            a.push(x.clone());
+            me.call_value(fv.as_ref().unwrap(), a, loc)
+        };
+        let yeni = |items: Vec<Value>| Value::List(Rc::new(ListV { items }));
+        Ok(match m {
+            BM::Donusum => {
+                let mut out = Vec::with_capacity(l.items.len());
+                for x in &l.items {
+                    out.push(call(self, x)?);
+                }
+                yeni(out)
+            }
+            BM::Filtre => {
+                let mut out = Vec::new();
+                for x in &l.items {
+                    if let Value::Bool(true) = call(self, x)? {
+                        out.push(x.clone());
+                    }
+                }
+                yeni(out)
+            }
+            BM::Hepsi | BM::Herhangi => {
+                let aranan = m == BM::Herhangi;
+                for x in &l.items {
+                    if let Value::Bool(b) = call(self, x)? {
+                        if b == aranan {
+                            return Ok(Value::Bool(aranan));
+                        }
+                    }
+                }
+                Value::Bool(!aranan)
+            }
+            BM::SiralaGore | BM::SiraliGore => {
+                let mut keys = Vec::with_capacity(l.items.len());
+                for x in &l.items {
+                    keys.push(call(self, x)?);
+                }
+                // anahtara göre kararlı sıralama (eşit anahtarlarda eski sıra korunur)
+                let mut idx: Vec<usize> = (0..l.items.len()).collect();
+                if keys.iter().all(|k| matches!(k, Value::Str(_))) {
+                    let sk: Vec<_> = keys.iter().map(|k| if let Value::Str(s) = k { tr_sort_key(s) } else { unreachable!() }).collect();
+                    idx.sort_by(|a, b| sk[*a].cmp(&sk[*b]));
+                } else {
+                    idx.sort_by(|a, b| cmp_values(&keys[*a], &keys[*b]));
+                }
+                let sirali = yeni(idx.iter().map(|&i| l.items[i].clone()).collect());
+                match (m, recv) {
+                    (BM::SiralaGore, Recv::Place(p)) => {
+                        self.assign_place(p, sirali, f, loc)?;
+                        Value::Hic
+                    }
+                    (BM::SiralaGore, _) => Value::Hic,
+                    _ => sirali,
+                }
+            }
+            BM::Toplam => {
+                let mut acc = match ty {
+                    Type::Float(_) => Value::Float(0.0),
+                    _ => Value::int(0),
+                };
+                for x in &l.items {
+                    acc = self.arith(BinOp::Add, acc, x.clone(), ty, loc)?;
+                }
+                acc
+            }
+            _ => {
+                let buyuk = m == BM::EnBuyuk;
+                let Some(mut best) = l.items.first().cloned() else {
+                    return rt(loc, if buyuk { "Liste boş; en büyük eleman yok." } else { "Liste boş; en küçük eleman yok." });
+                };
+                for x in &l.items[1..] {
+                    let o = cmp_values(x, &best);
+                    if (buyuk && o == Ordering::Greater) || (!buyuk && o == Ordering::Less) {
+                        best = x.clone();
+                    }
+                }
+                best
+            }
+        })
     }
 
     /// Metot olmayan fonksiyon çağrısı (en sık durum): `call` ile aynı, ama nesne (`bu`) taşımadığı
@@ -1375,6 +1529,7 @@ pub fn value_matches(v: &Value, ty: &Type, prog: &Program) -> bool {
         (Value::Dict(_), Type::Dict(..)) => true,
         (Value::Obj(o), Type::Named(t)) => prog.is_subtype(o.ty, *t),
         (Value::Var(x), Type::Named(t)) => prog.is_subtype(x.ty, *t),
+        (Value::Func(_), Type::Func(..)) => true,
         _ => false,
     }
 }

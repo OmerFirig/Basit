@@ -1,0 +1,1 @@
+ata f = her (x: Tam(64)) için yap { eğer x > 0 { döndür 1 } }

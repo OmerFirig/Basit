@@ -9,7 +9,7 @@ const KEYWORDS = [
   "seçenek", "eşleştir", "veya", "ve", "değil", "dahil et", "olarak", "Hiç", "adıyla",
   "dış kütüphane", "kütüphanesindeki",
 ];
-const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük"];
+const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Fonksiyon"];
 const FUNCS = [
   ["yazdır", "yazdır(${1})", "Ekrana yazar"],
   ["oku", "oku(\"${1:Soru: }\")", "Klavyeden bir satır okur (Yazı)"],
@@ -29,6 +29,13 @@ const METHODS = {
     ["tersi", "", "Ters sıralı yeni liste"],
     ["temizle", "", "Tüm elemanları siler"],
     ["adım", "n", "Her n. eleman (yeni liste); eksi n sondan başlar"],
+    ["dönüşüm", "her x için x", "Her elemana fonksiyonu uygular (yeni liste)"],
+    ["filtre", "her x için x > 0", "Koşula uyan elemanlar (yeni liste)"],
+    ["hepsi", "her x için x > 0", "Bütün elemanlar koşula uyuyor mu?"],
+    ["herhangi", "her x için x > 0", "Koşula uyan bir eleman var mı?"],
+    ["toplam", "", "Elemanların toplamı"],
+    ["en_büyük", "", "En büyük eleman"],
+    ["en_küçük", "", "En küçük eleman"],
     ["yazıya", "", "Yazıya çevirir"],
   ],
   sözlük: [

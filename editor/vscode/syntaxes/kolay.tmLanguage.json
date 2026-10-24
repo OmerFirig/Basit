@@ -45,7 +45,7 @@
         },
         {
           "name": "support.type.kolay",
-          "match": "(?<![\\p{L}\\p{N}_])(?:Tam|Ondalık|Ondalik|Yazı|Yazi|Mantık|Mantik|Liste|Sözlük|Sozluk)(?![\\p{L}\\p{N}_])"
+          "match": "(?<![\\p{L}\\p{N}_])(?:Tam|Ondalık|Ondalik|Yazı|Yazi|Mantık|Mantik|Liste|Sözlük|Sozluk|Fonksiyon)(?![\\p{L}\\p{N}_])"
         },
         {
           "name": "support.function.kolay",
@@ -60,7 +60,7 @@
           }
         },
         {
-          "match": "(?<=\\.)(ekle|araya_ekle|çıkar|cikar|sil|temizle|içerir|icerir|bul|konum|sırala|sirala|sıralı|sirali|ters_çevir|ters_cevir|tersi|uzunluk|parça|karakter|böl|bol|kırp|kirp|büyük_harf|buyuk_harf|küçük_harf|kucuk_harf|ondalığa|ondaliga|yazıya|yaziya|tama|anahtarlar|değerler|degerler|adım|adim)(?=\\s*\\()",
+          "match": "(?<=\\.)(ekle|araya_ekle|çıkar|cikar|sil|temizle|içerir|icerir|bul|konum|sırala|sirala|sıralı|sirali|ters_çevir|ters_cevir|tersi|uzunluk|parça|karakter|böl|bol|kırp|kirp|büyük_harf|buyuk_harf|küçük_harf|kucuk_harf|ondalığa|ondaliga|yazıya|yaziya|tama|anahtarlar|değerler|degerler|adım|adim|dönüşüm|donusum|filtre|hepsi|herhangi|toplam|en_büyük|en_buyuk|en_küçük|en_kucuk)(?=\\s*\\()",
           "captures": {
             "1": {
               "name": "support.function.method.kolay"

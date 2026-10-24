@@ -275,6 +275,13 @@
     ],
     "description": "Tip dönüşümü"
   },
+  "Lambda": {
+    "prefix": "lambda",
+    "body": [
+      "her ${1:x} için ${2:x * 2}"
+    ],
+    "description": "İsimsiz fonksiyon (her x için ...)"
+  },
   "Veya tipi": {
     "prefix": "veya",
     "body": [

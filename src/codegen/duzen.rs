@@ -18,6 +18,7 @@ const T_SOZLUK: i64 = 8;
 const T_TUR: i64 = 9;
 const T_SECENEK: i64 = 10;
 const T_ARAYUZ: i64 = 11;
+pub(super) const T_FONK: i64 = 15;
 const T_VEYA: i64 = 12;
 
 /// Depolama biçimi: LLVM tipi, boyut, hizalama
@@ -49,7 +50,7 @@ pub(super) fn is_fixed_int(t: &Type) -> bool {
 }
 
 pub(super) fn is_ptr_type(t: &Type) -> bool {
-    matches!(t, Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_))
+    matches!(t, Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..))
 }
 
 fn int_storage_bits(w: u32) -> u32 {
@@ -72,7 +73,7 @@ impl<'p> Gen<'p> {
             Type::Float(32) => "float".into(),
             Type::Float(_) => "double".into(),
             Type::Bool => "i1".into(),
-            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => "ptr".into(),
+            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..) => "ptr".into(),
             Type::Union(_) => "%veya".into(),
             Type::Hic | Type::Never => "void".into(),
         }
@@ -91,7 +92,7 @@ impl<'p> Gen<'p> {
             Type::Float(32) => s("float", 4, 4),
             Type::Float(_) => s("double", 8, 8),
             Type::Bool => s("i8", 1, 1),
-            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => s("ptr", 8, 8),
+            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..) => s("ptr", 8, 8),
             Type::Union(_) => s("%veya", 24, 8),
             Type::Hic | Type::Never => s("i8", 1, 1),
         }
@@ -101,7 +102,7 @@ impl<'p> Gen<'p> {
         match t {
             Type::Float(_) => "0.0".into(),
             Type::Bool => "false".into(),
-            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => "null".into(),
+            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..) => "null".into(),
             Type::Union(_) => "zeroinitializer".into(),
             _ => "0".into(),
         }
@@ -234,7 +235,7 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{z} = zext i1 {v} to i64"));
                 (z, "0".into())
             }
-            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => {
+            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..) => {
                 let z = self.tmp();
                 self.emit(&format!("{z} = ptrtoint ptr {v} to i64"));
                 (z, "0".into())
@@ -306,7 +307,7 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{t} = icmp ne i64 {w0}, 0"));
                 t
             }
-            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) => {
+            Type::Str | Type::List(..) | Type::Dict(..) | Type::Named(_) | Type::Func(..) => {
                 let t = self.tmp();
                 self.emit(&format!("{t} = inttoptr i64 {w0} to ptr"));
                 t
@@ -530,9 +531,19 @@ impl<'p> Gen<'p> {
                 let arr = self.ptr_array(&name, &items);
                 self.emit_tip(&name, T_VEYA, 0, &st, 0, 0, -1, "null", "null", &ad, ms.len() as i64, &arr, "null", "null", "null", 0);
             }
+            Type::Func(..) => self.emit_tip(&name, T_FONK, 0, &st, 0, 0, -1, "null", "null", &ad, 0, "null", "null", "null", "null", 0),
             Type::Str | Type::Named(_) => unreachable!(),
         }
         name
+    }
+
+    /// Fonksiyon değeri nesnesinin başlık tipi: tür T_FONK, adı değerin tipi, yakalananlar (tipler, ofsetler)
+    pub(super) fn emit_fonk_tip(&mut self, name: &str, ty: &Type, tips: &[String], offs: &[i64]) {
+        let st = Stor { ll: "ptr".into(), size: 8, align: 8 };
+        let ad = type_display(ty, self.prog);
+        let tarr = self.ptr_array(name, tips);
+        let oarr = self.i64_array(name, offs);
+        self.emit_tip(name, T_FONK, 0, &st, 0, 0, -1, "null", "null", &ad, tips.len() as i64, &tarr, "null", &oarr, "null", 0);
     }
 
     /// Tür / seçenek / arayüz tanımı (@tur.N) ve değer taşımayan seçenekler için sabit nesneler.

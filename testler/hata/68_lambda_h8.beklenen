@@ -1,0 +1,3 @@
+HATA (68_lambda_h8.kolay, satır 1): Lambda içinde nesne (bu) bir kopyadır, değeri değiştirilemez.
+  1 | tür A(v: Tam(64)) { fonksiyon f() { ata g = her (x: Tam(64)) için yap { v = x } } }
+    |                                                                         ^^^^^
