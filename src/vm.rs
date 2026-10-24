@@ -88,6 +88,12 @@ pub(crate) enum Ins<'p> {
     Index(u32, A, A),
     Len(u32, A),
     Push(Slot, A),
+    /// Değişkendeki sözlüğe yazma: d[k] = v (anahtar, değer)
+    SetKey(Slot, A, A),
+    /// d[k] += v (anahtar, işlem, sağ taraf, tip numarası); anahtar yoksa hata
+    CompoundKey(Slot, A, BinOp, A, u32),
+    /// d.içerir(k): hedef, sözlük, anahtar
+    DictHas(u32, A, A),
     New(u32, TypeId, u32, u32),
     Variant(u32, TypeId, u32, u32, u32),
     Concat(u32, A, A),
@@ -264,15 +270,24 @@ impl<'p> Comp<'p> {
     }
 
     /// İfadeyi hesaplar; değeri tutan işleneni döndürür (yerel değişken ve sabitlerde kopya yok).
+    /// Değişkeni okur; dosya değişkeni bu dosyanın değilse önce atanmış mı kontrol edilir.
+    fn slot_oku(&mut self, slot: Slot) -> A {
+        match slot {
+            Slot::Local(i) => A::R(i),
+            Slot::Global(g) => {
+                if !self.own_globals.contains(&g) {
+                    self.emit(Ins::CheckG(g));
+                }
+                A::G(g)
+            }
+        }
+    }
+
     fn expr(&mut self, e: &'p TExpr) -> A {
         match &e.kind {
-            TK::Var(Slot::Local(i)) => return A::R(*i),
-            TK::Var(Slot::Global(g)) => {
+            TK::Var(s) => {
                 self.loc = e.loc;
-                if !self.own_globals.contains(g) {
-                    self.emit(Ins::CheckG(*g));
-                }
-                return A::G(*g);
+                return self.slot_oku(*s);
             }
             TK::Int(n, small) => {
                 return match small {
@@ -429,6 +444,15 @@ impl<'p> Comp<'p> {
             TK::BMethod { recv: Recv::Value(x), m: BM::Uzunluk | BM::DUzunluk | BM::SUzunluk, .. } => {
                 let a = self.expr(x);
                 self.emit(Ins::Len(d, a));
+            }
+            TK::BMethod { recv, m: BM::DIcerir, args } if matches!(recv, Recv::Value(_) | Recv::Place(TPlace::Var(_))) => {
+                let a = match recv {
+                    Recv::Value(x) => self.expr(x),
+                    Recv::Place(TPlace::Var(s)) => self.slot_oku(*s),
+                    _ => unreachable!(),
+                };
+                let k = self.expr(&args[0]);
+                self.emit(Ins::DictHas(d, a, k));
             }
             TK::BMethod { recv: Recv::Place(TPlace::Var(s)), m: BM::Ekle, args } => {
                 let a = self.expr(&args[0]);
@@ -587,6 +611,12 @@ impl<'p> Comp<'p> {
                         self.loc = *loc;
                         self.emit(Ins::SetFieldBu(*fid, a));
                     }
+                    TPlace::DictKey(b, k) if matches!(**b, TPlace::Var(_)) => {
+                        let TPlace::Var(slot) = **b else { unreachable!() };
+                        let v = self.exprs(&[e, k]);
+                        self.loc = *loc;
+                        self.emit(Ins::SetKey(slot, v[1], v[0]));
+                    }
                     _ => {
                         let a = self.expr(e);
                         let a = self.materialize(a);
@@ -616,6 +646,13 @@ impl<'p> Comp<'p> {
                     let t = self.ty(ty);
                     self.emit(Ins::Arith(*op, *i, A::R(*i), b, t));
                 }
+            }
+            TS::Compound(TPlace::DictKey(bp, k), op, e, ty, loc) if matches!(**bp, TPlace::Var(_)) => {
+                let TPlace::Var(slot) = **bp else { unreachable!() };
+                let v = self.exprs(&[e, k]);
+                self.loc = *loc;
+                let t = self.ty(ty);
+                self.emit(Ins::CompoundKey(slot, v[1], *op, v[0], t));
             }
             TS::Compound(p, op, e, ty, loc) => {
                 let b = self.expr(e);
@@ -849,6 +886,20 @@ impl<'p> Interp<'p> {
     }
 
     #[inline(always)]
+    /// Değişkenin yeri (yazmak için); dosya değişkeni henüz atanmamışsa Türkçe hata
+    fn yuva<'a>(globals: &'a mut [Value], f: &'a mut Frame, slot: Slot, loc: Loc) -> R<&'a mut Value> {
+        match slot {
+            Slot::Local(s) => Ok(&mut f.slots[s as usize]),
+            Slot::Global(g) => {
+                let t = &mut globals[g as usize];
+                if matches!(t, Value::Uninit) {
+                    return rtk(hata_turu::YAKALANAMAZ, loc, crate::interp::BELIRSIZ);
+                }
+                Ok(t)
+            }
+        }
+    }
+
     fn gr<'a>(&'a self, ch: &'a Chunk<'p>, f: &'a Frame, a: A) -> &'a Value {
         match a {
             A::R(r) | A::T(r) => &f.slots[r as usize],
@@ -1298,19 +1349,50 @@ impl<'p> Interp<'p> {
                 }
                 Ins::Push(slot, a) => {
                     let v = self.take(ch, f, *a);
+                    let Value::List(rc) = Self::yuva(&mut self.globals, f, *slot, ch.locs[pc - 1])? else { unreachable!() };
+                    Rc::make_mut(rc).items.push(v);
+                }
+                Ins::SetKey(slot, k, v) => {
+                    let v = self.take(ch, f, *v);
+                    let kv = self.take(ch, f, *k);
                     let loc = ch.locs[pc - 1];
-                    let target = match slot {
-                        Slot::Local(s) => &mut f.slots[*s as usize],
-                        Slot::Global(g) => {
-                            let t = &mut self.globals[*g as usize];
-                            if matches!(t, Value::Uninit) {
-                                return rtk(hata_turu::YAKALANAMAZ, loc, crate::interp::BELIRSIZ);
-                            }
-                            t
+                    let key = crate::interp::key_of(&kv, loc)?;
+                    let Value::Dict(rc) = Self::yuva(&mut self.globals, f, *slot, loc)? else { unreachable!() };
+                    Rc::make_mut(rc).map.insert(key, (kv, v));
+                }
+                Ins::CompoundKey(slot, k, op, rhs, t) => {
+                    let rhs = self.take(ch, f, *rhs);
+                    let kv = self.take(ch, f, *k);
+                    let loc = ch.locs[pc - 1];
+                    let key = crate::interp::key_of(&kv, loc)?;
+                    // eski değer alınır, hesaplanır, geri yazılır (hata olursa eski değer korunur)
+                    let cur = {
+                        let Value::Dict(rc) = Self::yuva(&mut self.globals, f, *slot, loc)? else { unreachable!() };
+                        match Rc::make_mut(rc).map.get_mut(&key) {
+                            Some(e) => std::mem::replace(&mut e.1, Value::Hic),
+                            None => return Err(crate::interp::missing_key(prog, &kv, loc)),
                         }
                     };
-                    let Value::List(rc) = target else { unreachable!() };
-                    Rc::make_mut(rc).items.push(v);
+                    let (yeni, hata) = match self.compound_value(*op, cur, rhs, &ch.types[*t as usize], loc) {
+                        Ok(v) => (v, None),
+                        Err((e, eski)) => (eski, Some(e)),
+                    };
+                    let Value::Dict(rc) = Self::yuva(&mut self.globals, f, *slot, loc)? else { unreachable!() };
+                    if let Some(e) = Rc::make_mut(rc).map.get_mut(&key) {
+                        e.1 = yeni;
+                    }
+                    if let Some(e) = hata {
+                        return Err(e);
+                    }
+                }
+                Ins::DictHas(d, a, k) => {
+                    let var = match (self.gr(ch, f, *a), self.gr(ch, f, *k)) {
+                        (Value::Dict(dv), kv) => kv.key().is_some_and(|key| dv.map.contains_key(&key)),
+                        _ => unreachable!(),
+                    };
+                    Self::clr(f, *a);
+                    Self::clr(f, *k);
+                    f.slots[*d as usize] = Value::Bool(var);
                 }
                 Ins::New(d, tid, base, n) => {
                     let fs = Self::take_regs(f, *base, *n);

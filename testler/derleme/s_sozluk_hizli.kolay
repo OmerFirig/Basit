@@ -1,0 +1,23 @@
+ata d: Sözlük<Yazı, Tam(64)> = {"a": 1}
+ata e = d
+e["a"] += 10
+e["b"] = 5
+yazdır(d, e, d.içerir("b"), e.içerir("b"))
+fonksiyon say(l: Liste<Yazı>) -> Sözlük<Yazı, Tam(64)> {
+    ata s: Sözlük<Yazı, Tam(64)>
+    l içindeki her x için yap { eğer s.içerir(x) { s[x] += 1 } değilse { s[x] = 1 } }
+    döndür s
+}
+yazdır(say(["x", "y", "x"]))
+ata t: Sözlük<Tam(64), Tam(8)> = {1: 120}
+dene { t[1] += 10 } yakala h { yazdır(h) }
+yazdır(t)
+dene { t[2] += 1 } yakala h { yazdır(h) }
+ata o: Sözlük<Yazı, Yazı> = {"k": "a"}
+o["k"] += "b"
+yazdır(o)
+seçenek R { A, B }
+ata r: Sözlük<R, Ondalık>
+r[R.A] = 1
+r[R.A] += 0.5
+yazdır(r, r.içerir(R.B))

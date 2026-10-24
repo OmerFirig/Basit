@@ -98,7 +98,8 @@ pub enum Key {
 
 #[derive(Clone, Debug, Default)]
 pub struct DictV {
-    pub map: IndexMap<Key, (Value, Value)>,
+    /// Anahtar sırası korunur (eklenme sırası); hızlı karıştırma (FxHash, derleyicideki gibi)
+    pub map: IndexMap<Key, (Value, Value), std::hash::BuildHasherDefault<crate::tir::FxHasher>>,
 }
 
 #[derive(Clone, Debug)]

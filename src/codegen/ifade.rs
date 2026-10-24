@@ -481,7 +481,7 @@ impl<'p> Gen<'p> {
                 self.own(t, &e.ty)
             }
             TK::Lambda { func, caps, bu } => {
-                // nesne: başlık, fonksiyon adresi, yakalanan değerlerin kopyaları
+                // nesne: başlık, fonksiyon adresi, dene içi adresi (bkz. mod.rs dene_adresi), yakalanan değerlerin kopyaları
                 let (offs, bu_off, size) = self.lambda_layout(*func);
                 let tip = self.lambda_tip(*func, &e.ty);
                 let mut vals = Vec::new();
@@ -497,6 +497,10 @@ impl<'p> Gen<'p> {
                 let fp = self.tmp();
                 self.emit(&format!("{fp} = getelementptr i8, ptr {o}, i64 16"));
                 self.emit(&format!("store ptr @f{func}, ptr {fp}"));
+                let d = self.dene_adresi(*func, &format!("@f{func}"));
+                let fpd = self.tmp();
+                self.emit(&format!("{fpd} = getelementptr i8, ptr {o}, i64 24"));
+                self.emit(&format!("store ptr {d}, ptr {fpd}"));
                 let all: Vec<(i64, (String, Type))> = offs.into_iter().zip(vals).chain(bu_off.zip(buv)).collect();
                 for (off, (v, t)) in all {
                     let p = self.tmp();
@@ -514,7 +518,8 @@ impl<'p> Gen<'p> {
                 let fv = self.expr(fe)?;
                 let (vals, temps) = self.call_args(args, &ps)?;
                 let (fpp, fp) = (self.tmp(), self.tmp());
-                self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 16"));
+                let off = self.cagri_adresi_ofset();
+                self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 {off}"));
                 self.emit(&format!("{fp} = load ptr, ptr {fpp}"));
                 let mut all = vec![format!("ptr {fv}")];
                 all.extend(vals);
@@ -613,15 +618,24 @@ impl<'p> Gen<'p> {
             all.push(format!("ptr {b}"));
         }
         all.extend(vals.iter().cloned());
+        // dene bloğunun içindeysek fonksiyonun temizlik kaydı tutan kopyası çağrılır (bkz. mod.rs temizlik_kaydi)
+        let ad = if (self.f.dene_modu || !self.f.deneler.is_empty()) && self.prog.funcs[fid].dis.is_none() {
+            if self.dene_kopya.insert(fid) {
+                self.dene_istek.push(fid);
+            }
+            format!("@f{fid}.d")
+        } else {
+            format!("@f{fid}")
+        };
         // notail: kendini çağıran fonksiyonlar döngüye çevrilmesin; sonsuz özyineleme
         // yorumlayıcıdaki gibi "çok derin özyineleme" hatasıyla dursun.
         if *ret == Type::Hic {
-            self.emit(&format!("notail call void @f{fid}({})", all.join(", ")));
+            self.emit(&format!("notail call void {ad}({})", all.join(", ")));
             String::new()
         } else {
             let lt = self.llty(ret);
             let t = self.tmp();
-            self.emit(&format!("{t} = notail call {lt} @f{fid}({})", all.join(", ")));
+            self.emit(&format!("{t} = notail call {lt} {ad}({})", all.join(", ")));
             t
         }
     }

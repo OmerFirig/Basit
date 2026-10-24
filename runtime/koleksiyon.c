@@ -419,7 +419,7 @@ static _Noreturn void anahtar_yok(Sozluk *d, void *anahtar, const char *konum, c
     Yazi *y = yazi_ayir(0);
     deger_yaz(&y, anahtar, d->b.tip->e1, 0, 0);
     yazi_ekle_c(&y, " anahtarı sözlükte yok.", strlen(" anahtarı sözlükte yok."));
-    kolay_hata_tur(HT_ANAHTAR, y->d, konum, kod);
+    kolay_hata_tur_yazi(HT_ANAHTAR, y, konum, kod);
 }
 
 void *kolay_sozluk_al(void *dp, void *anahtar, const char *konum, const char *kod) {

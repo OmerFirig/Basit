@@ -113,7 +113,8 @@ impl<'p> Gen<'p> {
     /// Fonksiyon değerini çağırır (ilk argüman nesnenin kendisi). Dönen değer sahiplidir.
     pub(super) fn closure_call(&mut self, fv: &str, args: &[(String, Type)], ret: &Type) -> String {
         let (fpp, fp) = (self.tmp(), self.tmp());
-        self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 16"));
+        let off = self.cagri_adresi_ofset();
+        self.emit(&format!("{fpp} = getelementptr i8, ptr {fv}, i64 {off}"));
         self.emit(&format!("{fp} = load ptr, ptr {fpp}"));
         let mut all = vec![format!("ptr {fv}")];
         for (v, t) in args {

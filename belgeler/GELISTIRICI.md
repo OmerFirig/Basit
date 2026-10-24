@@ -71,7 +71,7 @@ Kurallar ve öneriler:
 - **Hataları açık verin:** Yanlış kullanım için `doğrula(koşul, "mesaj")` ya da `fırlat Hata(mesaj: "...")`. Başarısız olabilen işlemlerde `-> T veya Hata` döndürmek kullanıcıya seçim bırakır (bkz. kurs, Hata yönetimi).
 - **Generic yazın:** Bir fonksiyon her tiple aynı şeyi yapıyorsa `<T>` ile bir kez yazın. Hata olursa mesaj hem kütüphanedeki satırı hem kullanıcının çağrısını (dosya adıyla) gösterir.
 - **Yollar dahil eden dosyaya göredir:** `dahil et("./alt/kutuphane.kolay")`. Her dosya bir kez yüklenir; döngüsel dahil etme hata verir.
-- **Klavye modu dosya başınadır:** Kütüphane `tr` modunda yazılsa da `klavye("us")` kullanan bir dosya onu dahil edebilir.
+- **Klavye modu dosya başınadır:** Kütüphane `tr` modunda yazılsa da `klavye("us")` kullanan bir dosya onu dahil edebilir ve Türkçe harfli adları harfsiz yazar (`m.karekok` → `karekök`, src/us_adlar.rs). Harfsiz yazılınca aynı olan iki ad (`şeker`, `seker`) koymayın: us modundan kullanılamazlar.
 
 ---
 

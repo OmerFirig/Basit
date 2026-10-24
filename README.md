@@ -248,7 +248,7 @@ Derlenmiş programlarda:
 - Değerler yazmaçlarda durur; yazı, liste, sözlük ve nesneler referans sayımıyla tutulur ve
   kullanılmayınca bellekleri hemen geri verilir (çöp toplayıcı yok). Değer semantiği "yazınca
   kopyala" ile sağlanır: paylaşılan bir liste ancak değiştirilirken kopyalanır.
-- `dene` bloğu girişte setjmp yapar; hata (çalışma hatası ya da `fırlat`) longjmp ile yakala dalına döner.
+- `dene` bloğu girişte setjmp yapar; hata (çalışma hatası ya da `fırlat`) longjmp ile yakala dalına döner. Dene içinden çağrılan fonksiyonların temizlik kaydı tutan bir kopyası kullanılır; atlanan fonksiyonların değişkenleri böylece bırakılır (dene dışındaki koda maliyeti yok).
 - Metotlar mümkünse doğrudan, birden fazla aday varsa türe göre `switch` ile çağrılır.
 - Hata mesajları yorumlayıcıdakiyle aynıdır (dosya, satır ve kaynak satırı dahil).
 - Program 1 GB'lık yığında çalışır (yorumlayıcıyla aynı). Sonsuz özyineleme Türkçe "Çok derin özyineleme" hatasıyla durur. Fark: yorumlayıcı 100.000 iç içe çağrıda durur ve hatalı çağrının satırını gösterir; derlenmiş program yığın dolunca durur ve fonksiyonun tanımlandığı satırı gösterir.

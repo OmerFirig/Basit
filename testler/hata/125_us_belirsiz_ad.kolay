@@ -1,0 +1,3 @@
+klavye("us")
+s adiyla dahil et("../moduller/us_sekil.kolay")
+yazdir(s.seker())

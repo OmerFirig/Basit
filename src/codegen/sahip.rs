@@ -95,6 +95,11 @@ impl<'p> Gen<'p> {
             self.emit(&format!("{v} = load {ll}, ptr {p}"));
             self.release(&v, &t);
         }
+        if self.f.dene_modu {
+            // temizlik kaydı zincirden çıkarılır (bkz. mod.rs temizlik_kaydi; değişkenler sonradan da
+            // eklenebildiği için, değişkeni olmayan kopyada da kayıt tutulur)
+            self.emit("store ptr %tz.u, ptr @kolay_temizlik_ust");
+        }
     }
 
     /// Döngü boyunca yaşaması gereken gizli değişken (örneğin üzerinde dönülen liste).

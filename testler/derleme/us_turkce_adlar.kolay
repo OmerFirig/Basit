@@ -1,0 +1,22 @@
+klavye("us")
+// us modunda, tr modundaki dosyaların Türkçe harfli adları sadeleştirilerek yazılır (karekok → karekök)
+m adiyla dahil et("matematik")
+s adiyla dahil et("../moduller/us_sekil.kolay")
+yazdir(m.karekok(16.0), m.buyugu(3, 7))
+ata d = s.Daire(yaricap: 2.0)
+yazdir(d.alani(), d.yaricap)
+yazdir(s.buyut(d, kat: 3.0).yaricap)
+// dosyanın kendi 'sayac' değişkeni s.sayac'ı gizlemez
+ata sayac = 5
+yazdir(s.sayac, sayac)
+ata r: s.Renk = s.Renk.Kirmizi
+eslestir r {
+    s.Renk.Kirmizi -> yazdir("kirmizi")
+    s.Renk.Yesil -> yazdir("yesil")
+}
+// tr arayüzünü uygulayan metot: ciz → çiz
+tur Kare[s.Cizilen](kenar: Ondalik) {
+    fonksiyon ciz() -> Yazi { dondur "kare" }
+}
+ata c: s.Cizilen = Kare(2.0)
+yazdir(c.ciz())

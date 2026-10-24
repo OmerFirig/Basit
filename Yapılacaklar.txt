@@ -134,6 +134,8 @@ Kurallar (kullanıcı kararı, hepsi kabul edildi):
 [x] 6. Yakalanmayan değer: "ÇALIŞMA HATASI: Yakalanmamış değer fırlatıldı: -5 (Tam(64))."
 [x] Hazır metotlar: yazı.tama() ve yazı.ondalığa() "T veya Hata.Dönüşüm" döndürür. Testler
     güncellendi. Liste boşken en_büyük()/en_küçük() Hata.İndeks fırlatır.
+[ ] oku() girdi bitince hep "" döndürüyor; "doğru girene kadar sor" döngüsü dosyadan okurken
+    sonsuza kadar döner. Öneri: girdi bitince yakalanabilir 'Girdi bitti.' Hata'sı. (Not alındı, 2026-10-25)
 [?] oku(): şu an Yazı döndürüyor (değişmedi). "Yazı veya Hata" olması için hangi durumun hata
     sayılacağı sorulacak (girdi bitti mi? ileride Hata.Dosya ile mi?).
 [x] h.satır alanı YOK (kullanıcı kararı: gerek yok). Satır sadece yakalanmayan hatanın mesajında.
@@ -143,8 +145,14 @@ Uygulama (yapıldı):
     yakalayıcı yığını (vm.rs run_chunk) var; dene içindeki döngüler de hızlı kalır.
 [x] Derleyici: dene girişinde _setjmp, çerçeve zinciri runtime/cekirdek.c (DeneCerceve). Hata
     olunca longjmp. Dene bloğu olan fonksiyonlarda yerel değişkenler kolay_kacir ile belleğe
-    zorlanır (yoksa LLVM yazmaçta tutar, yakala dalı eski değeri görürdü). Atlanan geçici
-    nesnelerin belleği geri verilmez (sadece hata anında küçük sızıntı).
+    zorlanır (yoksa LLVM yazmaçta tutar, yakala dalı eski değeri görürdü).
+[x] Atlanan fonksiyonların değişkenleri bırakılır (2026-10-25): dene içinden çağrılan fonksiyonların
+    "dene içi" kopyası (@fN.d) temizlik kaydı tutar (codegen/mod.rs temizlik_kaydi, runtime Temizlik);
+    lambdalar nesnedeki ikinci adresle bu kopyaya gider. Dene dışındaki kodun maliyeti yok, dene
+    içinde çağrı başına ~%12. 500 bin hatada bellek 345 MB → 13 MB.
+[ ] Kalan küçük sızıntı: atlanan fonksiyonların yazmaçtaki geçici değerleri (örneğin [1, 2][9]
+    içindeki liste, a() + b() içinde b fırlatınca a'nın sonucu). Çözümü: dene içi kopyalarda çağrı
+    öncesi canlı geçicileri kayda yazmak; dene bloğunun kendi geçicileri için yakala girişinde bırakmak.
 [x] Hata ve alt türleri hazır 'tür' olarak (mesaj: Yazı) her dosyada tanımlı (check.rs).
 [x] Fırlatma analizi (src/firlat.rs): fonksiyonların fırlatabildikleri, yakala dallarının
     kaynakları, tipsiz dalın tipi ve uyarılar. Tipsiz dal varsa program birkaç geçişte denetlenir.

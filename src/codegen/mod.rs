@@ -63,6 +63,7 @@ declare void @kolay_dene_birak(ptr)
 declare void @kolay_dene_bitti(ptr)
 declare void @kolay_dene_yeniden(ptr) noreturn
 declare void @kolay_kacir(ptr)
+@kolay_temizlik_ust = external global ptr
 declare i32 @_setjmp(ptr) returns_twice
 declare void @kolay_hata_sayi(ptr, i64, ptr, ptr, ptr) noreturn
 declare void @kolay_tasma(ptr, ptr, i128, i128, i32, ptr, ptr, ptr, i32, ptr, ptr) noreturn
@@ -319,6 +320,8 @@ pub(super) struct FnState {
     rc_slots: Vec<(String, Type)>,
     /// Fonksiyon mu (değilse bir dosyanın üst düzey kodu)
     is_func: bool,
+    /// Fonksiyonun "dene içi" kopyası mı (temizlik kaydı tutar, bkz. temizlik_kaydi)
+    dene_modu: bool,
     module: usize,
     /// Metotlarda nesnenin bulunduğu yerin adresi
     bu: Option<String>,
@@ -350,6 +353,11 @@ pub(super) struct Gen<'p> {
     dispatch: HashMap<(TypeId, u32), Vec<(TypeId, FuncId)>>,
     /// değer olarak kullanılan isimli fonksiyonlar
     fref_used: HashSet<FuncId>,
+    /// "Dene içi" kopyası istenen fonksiyonlar: üretilecekler ve hepsi (bkz. temizlik_kaydi)
+    dene_istek: Vec<FuncId>,
+    dene_kopya: HashSet<FuncId>,
+    /// Programda dene bloğu var mı (yoksa "dene içi" kopyalar hiç üretilmez)
+    dene_kullanilir: bool,
     label: u32,
     f: FnState,
 }
@@ -381,6 +389,9 @@ impl<'p> Gen<'p> {
             variant_sizes: Vec::new(),
             dispatch,
             fref_used: HashSet::new(),
+            dene_istek: Vec::new(),
+            dene_kopya: HashSet::new(),
+            dene_kullanilir: prog.funcs.iter().any(|f| komut::dene_var(&f.body)) || prog.modules.iter().any(|m| komut::dene_var(m)),
             label: 0,
             f: Self::fresh_fn(Type::Hic, false, 0, None),
         }
@@ -403,6 +414,7 @@ impl<'p> Gen<'p> {
             owned_tys: HashMap::new(),
             rc_slots: Vec::new(),
             is_func,
+            dene_modu: false,
             module,
             bu: if owner.is_some() { Some("%bu".into()) } else { None },
             owner,
@@ -588,11 +600,15 @@ impl<'p> Gen<'p> {
             let _ = writeln!(globals_ir, "@g{i}_h = internal global i1 false");
         }
         for (fid, func) in prog.funcs.iter().enumerate() {
-            funcs_ir.push_str(&self.function(fid, func)?);
+            funcs_ir.push_str(&self.function(fid, func, false)?);
         }
         for (mi, code) in prog.modules.iter().enumerate() {
             let _ = writeln!(globals_ir, "@m{mi}_ran = internal global i1 false");
             funcs_ir.push_str(&self.module_fn(mi, code)?);
+        }
+        // dene bloklarının içinden çağrılan fonksiyonların kopyaları (onlar da başkalarını isteyebilir)
+        while let Some(fid) = self.dene_istek.pop() {
+            funcs_ir.push_str(&self.function(fid, &prog.funcs[fid], true)?);
         }
         funcs_ir.push_str(&self.fref_wrappers());
         let n = self.fn_table.len();
@@ -649,6 +665,25 @@ impl<'p> Gen<'p> {
         s
     }
 
+    /// "Dene içi" kopyada (dene_modu), hata atlamasında (longjmp) fonksiyon atlanırsa yerel değişkenlerinin
+    /// bırakılması için temizlik kaydı (bkz. runtime/cekirdek.c Temizlik). Dene bloklarının içindeki
+    /// doğrudan çağrılar bu kopyaları çağırır (emit_call); böylece dene dışındaki kodun maliyeti yoktur.
+    fn temizlik_kaydi(&mut self, fid: FuncId) {
+        let slots = self.f.rc_slots.clone();
+        let n = slots.len();
+        let tips: Vec<String> = slots.iter().map(|(_, t)| format!("ptr {}", self.tip(t))).collect();
+        let _ = writeln!(self.tip_defs, "@tz.{fid} = internal constant {{ i64, [{n} x ptr] }} {{ i64 {n}, [{n} x ptr] [{}] }}", tips.join(", "));
+        let kt = format!("{{ ptr, ptr, [{n} x ptr] }}");
+        let a = &mut self.f.allocas;
+        let _ = writeln!(a, "  %tz = alloca {kt}, align 16");
+        let _ = writeln!(a, "  %tz.u = load ptr, ptr @kolay_temizlik_ust\n  store ptr %tz.u, ptr %tz");
+        let _ = writeln!(a, "  %tz.t = getelementptr inbounds {kt}, ptr %tz, i32 0, i32 1\n  store ptr @tz.{fid}, ptr %tz.t");
+        for (i, (p, _)) in slots.iter().enumerate() {
+            let _ = writeln!(a, "  %tz.y{i} = getelementptr inbounds {kt}, ptr %tz, i32 0, i32 2, i32 {i}\n  store ptr {p}, ptr %tz.y{i}");
+        }
+        let _ = writeln!(a, "  store ptr %tz, ptr @kolay_temizlik_ust");
+    }
+
     /// Dış (C) fonksiyon için sarmalayıcı: Kolay değerlerini C'ye çevirip çağırır.
     fn dis_wrapper(&mut self, fid: FuncId, func: &TFunc, d: &DisInfo) -> String {
         let cty = |t: &Type| -> &'static str {
@@ -698,11 +733,13 @@ impl<'p> Gen<'p> {
         out
     }
 
-    fn function(&mut self, fid: FuncId, func: &TFunc) -> CResult<String> {
+    /// `dene`: dene bloklarının içinden çağrılan, temizlik kaydı tutan kopya (@fN.d, bkz. temizlik_kaydi)
+    fn function(&mut self, fid: FuncId, func: &TFunc, dene: bool) -> CResult<String> {
         if let Some(d) = &func.dis {
             return Ok(self.dis_wrapper(fid, func, d));
         }
         self.f = Self::fresh_fn(func.ret.clone(), true, 0, func.owner);
+        self.f.dene_modu = dene;
         let mut slots = HashMap::new();
         for (i, t) in func.params.iter().enumerate() {
             slots.insert(i as u32, t.clone());
@@ -779,18 +816,23 @@ impl<'p> Gen<'p> {
                 self.term("unreachable");
             }
         }
+        if dene {
+            self.temizlik_kaydi(fid);
+        }
         // Fonksiyonlar "kolay_kod" bölümüne konur: yığın taşınca çalışma kütüphanesi, hatanın
         // hangi fonksiyonda olduğunu bu bölümdeki adreslerden bulur (çalışma anında maliyeti yok).
         let (k, c) = self.where_(func.loc);
-        self.fn_table.push(format!("{{ ptr, ptr, ptr }} {{ ptr @f{fid}, ptr {k}, ptr {c} }}"));
-        Ok(self.finish_fn(&format!("define internal {ret} @f{fid}({}) section \"kolay_kod\"", params.join(", "))))
+        let ad = if dene { format!("@f{fid}.d") } else { format!("@f{fid}") };
+        self.fn_table.push(format!("{{ ptr, ptr, ptr }} {{ ptr {ad}, ptr {k}, ptr {c} }}"));
+        Ok(self.finish_fn(&format!("define internal {ret} {ad}({}) section \"kolay_kod\"", params.join(", "))))
     }
 
     /// Lambda nesnesinin düzeni: yakalananların ofsetleri, nesnenin (bu) ofseti, toplam boyut.
-    /// Nesne: başlık (16), fonksiyon adresi (8), yakalananlar.
+    /// Nesne: başlık (16), fonksiyon adresi (8), dene bloğu içinden çağrılınca kullanılan adres (8,
+    /// bkz. dene_adresi), yakalananlar.
     pub(super) fn lambda_layout(&self, fid: FuncId) -> (Vec<i64>, Option<i64>, i64) {
         let f = &self.prog.funcs[fid];
-        let mut off = 24;
+        let mut off = 32;
         let mut offs = Vec::new();
         for (_, t) in f.caps.as_deref().unwrap_or(&[]) {
             let st = self.stor(t);
@@ -804,7 +846,24 @@ impl<'p> Gen<'p> {
             off += 8;
             o
         });
-        (offs, bu, duzen::align(off.max(24), 16))
+        (offs, bu, duzen::align(off.max(32), 16))
+    }
+
+    /// Fonksiyon değeri nesnesindeki ikinci adres: programda dene bloğu varsa fonksiyonun "dene içi"
+    /// kopyası (bkz. temizlik_kaydi), yoksa kendisi. `ad`: "@fN" ya da "@fN.deger".
+    pub(super) fn dene_adresi(&mut self, fid: FuncId, ad: &str) -> String {
+        if !self.dene_kullanilir {
+            return ad.to_string();
+        }
+        if self.dene_kopya.insert(fid) {
+            self.dene_istek.push(fid);
+        }
+        format!("{ad}.d")
+    }
+
+    /// Fonksiyon değerini çağırırken kullanılacak adresin nesnedeki yeri (bkz. dene_adresi)
+    pub(super) fn cagri_adresi_ofset(&self) -> i64 {
+        if self.f.dene_modu || !self.f.deneler.is_empty() { 24 } else { 16 }
     }
 
     /// Lambdanın başlık tipi (@lam.N): yakalanan değerlerin tipleri ve ofsetleri (bırakmak için)
@@ -832,7 +891,8 @@ impl<'p> Gen<'p> {
             self.fref_used.insert(fid);
             let tip = format!("@fref.{fid}.tip");
             self.emit_fonk_tip(&tip, ty, &[], &[]);
-            let _ = writeln!(self.tip_defs, "{name} = internal global {{ i64, ptr, ptr }} {{ i64 -1, ptr {tip}, ptr @f{fid}.deger }}, align 16");
+            let d = self.dene_adresi(fid, &format!("@f{fid}.deger"));
+            let _ = writeln!(self.tip_defs, "{name} = internal global {{ i64, ptr, ptr, ptr }} {{ i64 -1, ptr {tip}, ptr @f{fid}.deger, ptr {d} }}, align 16");
         }
         name
     }
@@ -847,9 +907,11 @@ impl<'p> Gen<'p> {
             let ret = self.llty(&f.ret);
             let ps: Vec<String> = f.params.iter().enumerate().map(|(i, t)| format!("{} %p{i}", self.llty(t))).collect();
             let args: Vec<String> = f.params.iter().enumerate().map(|(i, t)| format!("{} %p{i}", self.llty(t))).collect();
-            let call = format!("call {ret} @f{fid}({})", args.join(", "));
-            let body = if f.ret == Type::Hic { format!("  {call}\n  ret void") } else { format!("  %r = {call}\n  ret {ret} %r") };
-            let _ = writeln!(out, "define internal {ret} @f{fid}.deger(ptr %env{}{}) {{\n{body}\n}}\n", if ps.is_empty() { "" } else { ", " }, ps.join(", "));
+            for son in if self.dene_kullanilir { &["", ".d"][..] } else { &[""] } {
+                let call = format!("call {ret} @f{fid}{son}({})", args.join(", "));
+                let body = if f.ret == Type::Hic { format!("  {call}\n  ret void") } else { format!("  %r = {call}\n  ret {ret} %r") };
+                let _ = writeln!(out, "define internal {ret} @f{fid}.deger{son}(ptr %env{}{}) {{\n{body}\n}}\n", if ps.is_empty() { "" } else { ", " }, ps.join(", "));
+            }
         }
         out
     }

@@ -1,0 +1,7 @@
+{"a": 1} {"a": 11, "b": 5} yanlış doğru
+{"x": 2, "y": 1}
+Hata.Taşma(mesaj: "Tam(8) taştı. 120 + 10 = 130, ama Tam(8) en fazla 127 tutabilir.")
+{1: 120}
+Hata.Anahtar(mesaj: "2 anahtarı sözlükte yok.")
+{"k": "ab"}
+{R.A: 1.5} yanlış

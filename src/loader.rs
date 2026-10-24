@@ -22,6 +22,7 @@ pub fn load(main: &Path, default_mode: Mode, sources: &mut Sources) -> CResult<V
     let mut by_path = HashMap::new();
     let mut stack = Vec::new();
     load_one(main, default_mode, sources, &mut mods, &mut by_path, &mut stack, None, None, None)?;
+    crate::us_adlar::coz(&mut mods)?;
     Ok(mods)
 }
 
@@ -32,6 +33,7 @@ pub fn load_text(path: &Path, text: String, default_mode: Mode, sources: &mut So
     let mut by_path = HashMap::new();
     let mut stack = Vec::new();
     load_one(path, default_mode, sources, &mut mods, &mut by_path, &mut stack, None, None, Some(text))?;
+    crate::us_adlar::coz(&mut mods)?;
     Ok(mods)
 }
 

@@ -17,7 +17,12 @@ impl Hasher for FxHasher {
         self.0
     }
     fn write(&mut self, bytes: &[u8]) {
-        for &b in bytes {
+        // 8'er bayt (uzun yazı anahtarlarında bayt bayt işlemekten çok daha hızlı)
+        let mut parcalar = bytes.chunks_exact(8);
+        for p in &mut parcalar {
+            self.write_u64(u64::from_le_bytes(p.try_into().expect("8 bayt")));
+        }
+        for &b in parcalar.remainder() {
             self.write_u64(b as u64);
         }
     }

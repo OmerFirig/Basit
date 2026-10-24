@@ -1,0 +1,13 @@
+// tr modunda yazılmış, Türkçe harfli adları olan dosya (testler/derleme/us_turkce_adlar.kolay ve
+// testler/hata/125_us_belirsiz_ad.kolay dahil eder)
+arayüz Çizilen {
+    fonksiyon çiz() -> Yazı
+}
+tür Daire(yarıçap: Ondalık) {
+    fonksiyon alanı() -> Ondalık { döndür 3.0 * yarıçap * yarıçap }
+}
+seçenek Renk { Kırmızı, Yeşil }
+ata sayaç = 0
+fonksiyon büyüt(d: Daire, kat: Ondalık = 2.0) -> Daire { döndür Daire(d.yarıçap * kat) }
+fonksiyon şeker() -> Yazı { döndür "şeker" }
+fonksiyon seker() -> Yazı { döndür "seker" }

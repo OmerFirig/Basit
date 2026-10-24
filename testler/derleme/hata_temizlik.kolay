@@ -1,0 +1,50 @@
+// Hata atlamasında atlanan fonksiyonların değişkenleri bırakılır (derleyici: temizlik kayıtları).
+// Kayıt zinciri her dönüş yolunda doğru çözülmeli; bozulursa sonraki hatalarda program çöker.
+tür Yığın(öğeler: Liste<Yazı>) {
+    fonksiyon çek() -> Yazı {
+        ata son = öğeler[öğeler.uzunluk() - 1]
+        öğeler.sil(öğeler.uzunluk() - 1)
+        döndür son
+    }
+}
+fonksiyon erken(n: Tam(64), ad: Yazı) -> Yazı {
+    ata l = [ad, ad]
+    eğer n % 2 == 0 { döndür l[0] }
+    l içindeki her s için yap {
+        eğer s.uzunluk() > 3 { döndür "uzun" }
+    }
+    döndür ad + "!"
+}
+fonksiyon derin(n: Tam(64), y: Yazı) -> Tam(64) {
+    ata s = y + "."
+    eğer n == 0 { döndür [1, 2][s.uzunluk()] }
+    döndür derin(n - 1, s)
+}
+fonksiyon iç_dene(n: Tam(64)) -> Yazı {
+    ata d = {"a": [n]}
+    dene {
+        döndür erken(n, "x") + derin(n, "").yazıya()
+    } yakala h: Hata.İndeks {
+        d["b"] = [n, n]
+        fırlat f"iç {n} {d.uzunluk()}"
+    }
+}
+ata y = Yığın(["a", "b", "c"])
+ata toplam = 0
+1000 kere yap {
+    dene {
+        toplam += erken(toplam, "abcd").uzunluk()
+        toplam += erken(toplam + 1, "ab").uzunluk()
+        toplam += iç_dene(toplam % 3).uzunluk()
+    } yakala m: Yazı {
+        toplam += m.uzunluk()
+    }
+    dene {
+        y.öğeler.ekle(y.çek())
+        ata f = her x: Tam(64) için derin(x, "")
+        toplam += f(1)
+    } yakala h {
+        toplam += 1
+    }
+}
+yazdır(toplam, y.öğeler)

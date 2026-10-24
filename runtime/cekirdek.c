@@ -30,11 +30,31 @@ void *bellek_sifir(size_t n) {
 // Her `dene` bloğu girişte bir DeneCerceve'yi zincire ekler ve setjmp yapar (derleyici, codegen/komut.rs).
 // Hata olunca (çalışma hatası ya da `fırlat`) değer en içteki çerçeveye yazılır, çerçeve zincirden
 // çıkarılır ve longjmp ile bloğun yakala kısmına dönülür. Çerçeve yoksa mesaj yazılıp program biter.
-// Atlanan fonksiyonların geçici nesneleri geri verilmez (sadece hata anında küçük sızıntı).
+//
+// Temizlik kayıtları: dene bloğu içinden çağrılan fonksiyonlar, derleyicinin ürettiği "dene içi"
+// kopyalarıdır (codegen/mod.rs temizlik_kaydi). Bu kopyalar girişte yığınlarındaki bir Temizlik kaydını
+// zincire ekler, dönerken çıkarır. Hata atlamasından önce, dene bloğuna girildikten sonra eklenen
+// kayıtlardaki (yani atlanan fonksiyonların) değişkenler bırakılır. Bırakılmayanlar: atlanan
+// fonksiyonların yazmaçtaki geçici değerleri ve lambda/fonksiyon değeri olarak çağrılan fonksiyonların
+// değişkenleri (hata başına küçük bir sızıntı olabilir).
+
+typedef struct TemizlikTablo {
+    int64_t n;
+    const Tip *tipler[];
+} TemizlikTablo;
+
+typedef struct Temizlik {
+    struct Temizlik *ust;
+    const TemizlikTablo *tablo;
+    void *yerler[]; // değişkenlerin adresleri (depolama biçiminde, sahipli ya da sıfır)
+} Temizlik;
+
+Temizlik *kolay_temizlik_ust;
 
 typedef struct DeneCerceve {
     jmp_buf jb;
     struct DeneCerceve *ust;
+    Temizlik *temizlik;          // girişteki temizlik zinciri
     const Tip *tip;              // fırlatılan değerin (statik) tipi
     _Alignas(16) char deger[32]; // değer, depolama biçiminde (sahipliği çerçevededir)
     char *msg;                   // yakalanmazsa yazılacak mesaj
@@ -52,6 +72,7 @@ extern const char kolay_altmi[];
 
 void kolay_dene_gir(DeneCerceve *c) {
     c->ust = dene_ust;
+    c->temizlik = kolay_temizlik_ust;
     dene_ust = c;
 }
 
@@ -83,6 +104,12 @@ static _Noreturn void firlat_ic(const Tip *t, const void *deger, char *msg, cons
     c->msg = msg;
     c->konum = konum;
     c->kod = kod;
+    // atlanan fonksiyonların değişkenleri (değer önce çerçeveye taşındı: atlanan bir fonksiyonun yığınında olabilir)
+    while (kolay_temizlik_ust != c->temizlik) {
+        Temizlik *k = kolay_temizlik_ust;
+        kolay_temizlik_ust = k->ust;
+        for (int64_t i = 0; i < k->tablo->n; i++) kolay_deger_birak(k->yerler[i], k->tablo->tipler[i]);
+    }
     longjmp(c->jb, 1);
 }
 
@@ -112,6 +139,15 @@ _Noreturn void kolay_hata_tur(int tur, const char *msg, const char *konum, const
     Baslik *o = kolay_nesne_yeni(t, t->nesne_boyut);
     *(Yazi **)((char *)o + t->ofsetler[0]) = yazi_c(msg);
     firlat_ic(t, &o, kopya_c(msg), konum, kod);
+}
+
+/// kolay_hata_tur gibi, ama mesaj oluşturulmuş bir Kolay yazısı (sahipliği alınır; hata nesnesinin mesajı olur).
+_Noreturn void kolay_hata_tur_yazi(int tur, Yazi *y, const char *konum, const char *kod) {
+    if (tur == HT_YAKALANAMAZ || !dene_ust) kolay_hata_tur(tur, y->d, konum, kod);
+    const Tip *t = kolay_hata_tipleri[tur];
+    Baslik *o = kolay_nesne_yeni(t, t->nesne_boyut);
+    *(Yazi **)((char *)o + t->ofsetler[0]) = y;
+    firlat_ic(t, &o, kopya_c(y->d), konum, kod);
 }
 
 _Noreturn void kolay_hata(const char *msg, const char *konum, const char *kod) { kolay_hata_tur(HT_GENEL, msg, konum, kod); }

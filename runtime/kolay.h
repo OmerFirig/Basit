@@ -54,7 +54,7 @@ enum {
     T_ARAYUZ = 11,
     T_VEYA = 12,
     T_BUYUK = 14,  // büyük tam sayı nesnesi (sadece yığın nesnelerinin tipi olarak)
-    T_FONK = 15,   // fonksiyon değeri: Baslik, fonksiyon adresi, yakalanan değerler (ofsetler Tip içinde)
+    T_FONK = 15,   // fonksiyon değeri: Baslik, fonksiyon adresi, dene içi adresi, yakalanan değerler (ofsetler Tip içinde)
 };
 
 // Çalışma hatalarının türü (yakalanınca hangi Hata.X olacağı; Rust'taki tir::hata_turu ile aynı)
@@ -123,6 +123,7 @@ extern const Tip kolay_buyuk_tipi;
 // cekirdek.c
 _Noreturn void kolay_hata(const char *msg, const char *konum, const char *kod);
 _Noreturn void kolay_hata_tur(int tur, const char *msg, const char *konum, const char *kod);
+_Noreturn void kolay_hata_tur_yazi(int tur, Yazi *y, const char *konum, const char *kod);
 void *kolay_nesne_yeni(const Tip *t, int64_t boyut);
 void *bellek(size_t n);
 void *bellek_sifir(size_t n);

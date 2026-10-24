@@ -18,6 +18,7 @@ mod parser;
 mod repl;
 mod tir;
 mod types;
+mod us_adlar;
 mod values;
 mod varsayilan;
 mod vm;

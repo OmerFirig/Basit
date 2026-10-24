@@ -4998,6 +4998,16 @@ eger k.yas >= 18 {
 - Kendi isimleriniz için Türkçe harf kullanmak yine serbesttir.
 - Bir dosyada iki yazım karıştırılamaz.
 - Her dosya kendi modunu seçer; `us` modunda yazılmış bir dosya `tr` modundaki bir dosyayı dahil edebilir.
+- `tr` modundaki bir dosyanın Türkçe harfli adlarını `us` modunda Türkçe harfsiz yazarsınız; Kolay doğru adı bulur:
+
+```kolay
+klavye("us")
+m adiyla dahil et("matematik")
+yazdir(m.karekok(16.0))      // matematik kütüphanesindeki karekök
+yazdir(m.buyugu(3, 7))       // büyüğü
+```
+
+  Bu, dahil edilen dosyanın fonksiyon, tür, alan, metot, seçenek ve parametre adları için geçerlidir. Kendi dosyanızdaki adlar hiç değişmez. İki ad Türkçe harfsiz aynı oluyorsa (`şeker` ve `seker`) Kolay tahmin yapmaz, hata verir; o zaman `klavye("us")` satırını kaldırıp doğru adı yazın.
 - `kolay çevir dosya.kolay --klavye us` bir dosyayı otomatik olarak diğer moda çevirir. `tr` modunda `dondur` gibi bir adı değişken olarak kullandıysanız, bu ad `us` modunda anahtar kelime olduğu için çeviri yapılmaz: `'dondur' us klavye modunda bir anahtar kelime ('döndür'). Çevirmeden önce bu adı değiştirin.`
 
 ---
