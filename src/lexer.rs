@@ -372,7 +372,9 @@ impl<'a> Lexer<'a> {
 
     fn here(&self) -> Span {
         let b = self.base_byte + self.byte() as u32;
-        Span { file: self.file, line: self.line, col: self.col, start: b, end: b + 1 }
+        // bitiş, karakterin bayt uzunluğu kadar ileride (Türkçe harfler 2 bayt)
+        let n = self.peek().map_or(1, |c| c.len_utf8()) as u32;
+        Span { file: self.file, line: self.line, col: self.col, start: b, end: b + n }
     }
 
     pub fn tokenize(mut self) -> CResult<Vec<Token>> {

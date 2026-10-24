@@ -78,12 +78,11 @@ impl Sources {
             out.push_str(&format!("  {num} | {line_text}\n"));
             let col = d.span.col.max(1) as usize;
             let line_start = line_start_byte(&f.text, d.span.line);
-            let width = if d.span.end > d.span.start
-                && (d.span.end as usize) <= line_start + line_text.len()
-            {
-                f.text[d.span.start as usize..d.span.end as usize].chars().count().max(1)
-            } else {
-                1
+            let width = match f.text.get(d.span.start as usize..d.span.end as usize) {
+                Some(t) if d.span.end > d.span.start && (d.span.end as usize) <= line_start + line_text.len() => {
+                    t.chars().count().max(1)
+                }
+                _ => 1,
             };
             let indent: String = line_text
                 .chars()

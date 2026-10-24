@@ -1,0 +1,3 @@
+HATA (126_sayi_turkce_harf.kolay, satır 2): Sayının hemen ardından harf gelemez. (Bilimsel yazım için: 1.5e-7)
+  2 | ata g = 1ı
+    |          ^
