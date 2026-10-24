@@ -434,9 +434,13 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{t} = call zeroext i1 @kolay_liste_icerir(ptr {v}, ptr {p})"));
                 t
             }
-            BM::Bul => {
-                let p = self.spill(&a[0], &args[0].ty);
-                self.emit(&format!("{t} = call i64 @kolay_liste_bul(ptr {v}, ptr {p})"));
+            BM::Bul | BM::SBul => {
+                if m == BM::Bul {
+                    let p = self.spill(&a[0], &args[0].ty);
+                    self.emit(&format!("{t} = call i64 @kolay_liste_bul(ptr {v}, ptr {p})"));
+                } else {
+                    self.emit(&format!("{t} = call i64 @kolay_yazi_bul(ptr {v}, ptr {})", a[0]));
+                }
                 // sonuç: Tam(64) veya Hiç (bulunamazsa Hiç)
                 let Type::Union(ms) = ret else { unreachable!() };
                 let ti = ms.iter().position(|x| *x == TAM64).unwrap();
@@ -483,9 +487,42 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{t} = call ptr @{f}(ptr {v})"));
                 self.own(t, &Type::Str)
             }
-            BM::SIcerir => {
-                self.emit(&format!("{t} = call zeroext i1 @kolay_icerir(ptr {v}, ptr {})", a[0]));
+            BM::SIcerir | BM::Baslar | BM::Biter => {
+                let f = match m {
+                    BM::SIcerir => "kolay_icerir",
+                    BM::Baslar => "kolay_baslar",
+                    _ => "kolay_biter",
+                };
+                self.emit(&format!("{t} = call zeroext i1 @{f}(ptr {v}, ptr {})", a[0]));
                 t
+            }
+            BM::Degistir => {
+                self.emit(&format!("{t} = call ptr @kolay_degistir(ptr {v}, ptr {}, ptr {}, ptr {k}, ptr {kd})", a[0], a[1]));
+                self.own(t, &Type::Str)
+            }
+            BM::Say => {
+                self.emit(&format!("{t} = call i64 @kolay_say(ptr {v}, ptr {}, ptr {k}, ptr {kd})", a[0]));
+                t
+            }
+            BM::Tekrar => {
+                self.emit(&format!("{t} = call ptr @kolay_tekrar(ptr {v}, i64 {}, ptr {k}, ptr {kd})", a[0]));
+                self.own(t, &Type::Str)
+            }
+            BM::Hassas => {
+                self.emit(&format!("{t} = call ptr @kolay_hassas(double {v}, i64 {})", a[0]));
+                self.own(t, &Type::Str)
+            }
+            BM::Grupla => {
+                self.emit(&format!("{t} = call ptr @kolay_grupla(ptr {v})"));
+                self.own(t, &Type::Str)
+            }
+            BM::Hizala => {
+                self.emit(&format!("{t} = call ptr @kolay_hizala(ptr {v}, i64 {}, ptr {}, i64 {})", a[0], a[1], a[2]));
+                self.own(t, &Type::Str)
+            }
+            BM::Birlesik => {
+                self.emit(&format!("{t} = call ptr @kolay_birlesik(ptr {v}, ptr {})", a[0]));
+                self.own(t, &Type::Str)
             }
             BM::Karakter => {
                 self.emit(&format!("{t} = call ptr @kolay_karakter(ptr {v}, i64 {}, ptr {k}, ptr {kd})", a[0]));

@@ -1,0 +1,2 @@
+ata ad = "Ali"
+yazdır(f"{ad:.2}")

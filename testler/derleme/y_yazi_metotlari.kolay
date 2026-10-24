@@ -1,0 +1,16 @@
+ata s = "Merhaba dünya, merhaba Kolay"
+yazdır(s.değiştir("erhaba", "ERHABA"))
+yazdır(s.başlar("Mer"), s.biter("Kolay"), s.başlar("x"))
+yazdır(s.bul("dünya"), s.bul("yok"), s.bul(""))
+yazdır(s.say("a"), s.say("merhaba"))
+yazdır("ab".tekrar(3), "-".tekrar(0), "ğ".tekrar(2))
+yazdır(["a", "b", "c"].birleşik(", "), [] olarak Liste<Yazı>)
+ata kelimeler = "bir iki üç".böl(" ")
+yazdır(kelimeler.birleşik("-"))
+eşleştir "çiçek".bul("ek") {
+    n: Tam(64) -> yazdır("buldum:", n)
+    Hiç -> yazdır("yok")
+}
+dene { yazdır("a".tekrar(-1)) } yakala h: Hata { yazdır(h.mesaj) }
+dene { yazdır("a".değiştir("", "x")) } yakala h { yazdır(h) }
+yazdır("a".say(""))

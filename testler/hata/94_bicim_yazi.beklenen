@@ -1,0 +1,3 @@
+HATA (94_bicim_yazi.kolay, satır 2): Basamak ('.2') sadece sayılarda kullanılabilir, ama Yazı verildi.
+  2 | yazdır(f"{ad:.2}")
+    |              ^^

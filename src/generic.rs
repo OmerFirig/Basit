@@ -277,6 +277,7 @@ impl Checker {
             dis: None,
             generics: vec![],
             inst: Some(Inst { kalip: Kalip::Fonksiyon(fid), binds, call: span }),
+            ortak_of: None,
         });
         self.mutates.push(false);
         self.instances.insert((fid, tipler), inst);

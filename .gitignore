@@ -1,3 +1,31 @@
+# Rust derleme çıktısı
 /target
+
+# VS Code eklentisi
 *.vsix
 node_modules/
+
+# kolay derle çıktıları: ara kod ve derlenmiş programlar
+*.ll
+*.bc
+*.o
+a.out
+# örneklerin ve testlerin yanında derlenen programlar (uzantısız dosyalar)
+/ornekler/*
+!/ornekler/*.kolay
+/testler/**/*
+!/testler/**/
+!/testler/**/*.kolay
+!/testler/**/*.beklenen
+!/testler/**/*.girdi
+!/testler/calistir.sh
+
+# yerel notlar (depoya girmez)
+CLAUDE.md
+
+# editör ve sistem dosyaları
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

@@ -1,0 +1,14 @@
+fonksiyon topla(a: Tam(64), b: Tam(64)) -> Tam(64) { döndür a + b }
+doğrula(topla(2, 3) == 5)
+dene {
+    doğrula(1 > 2, "bir ikiden büyük olmalı")
+} yakala h: Hata {
+    yazdır("yakalandı:", h.mesaj)
+}
+fonksiyon ortalama(l: Liste<Ondalık>) -> Ondalık {
+    doğrula(l.uzunluk() > 0, "Boş listenin ortalaması alınamaz.")
+    döndür l.toplam() / l.uzunluk()
+}
+yazdır(ortalama([1.0, 2.0]))
+doğrula(topla(2, 2) == 5)
+yazdır("buraya gelmez")

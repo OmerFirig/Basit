@@ -1,0 +1,13 @@
+klavye("us")
+tur Sayac(ad: Yazi) {
+    ortak ata toplam = 0
+    fonksiyon artir() { toplam += 1 }
+    ortak fonksiyon goster() -> Yazi { dondur f"{toplam:>4}|" }
+}
+Sayac("a").artir()
+yazdir(Sayac.goster())
+ata s = "elma armut"
+yazdir(s.degistir("a", "A"), s.baslar("el"), s.biter("t"), s.bul("armut"), s.say("a"))
+yazdir(s.bol(" ").birlesik("+"), "=".tekrar(3))
+dogrula(s.uzunluk() == 10)
+yazdir(f"{1234.5:,.2}")

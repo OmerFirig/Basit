@@ -1,0 +1,3 @@
+HATA (96_ortak_sabit.kolay, satır 4): 'S.EN' sabit, değeri değiştirilemez.
+  4 | S.EN = 4
+    | ^^^^^^^^

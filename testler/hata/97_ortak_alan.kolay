@@ -1,0 +1,3 @@
+tür S(ad: Yazı) {
+    ortak fonksiyon f() { yazdır(ad) }
+}

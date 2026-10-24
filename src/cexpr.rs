@@ -38,7 +38,7 @@ pub(crate) struct BInfo {
     pub resizes: bool,
 }
 
-const BUILTIN_FUNCS: &[&str] = &["yazdır", "oku"];
+const BUILTIN_FUNCS: &[&str] = &["yazdır", "oku", "doğrula"];
 
 const LAMBDA_BU: &str = "Lambda içinde nesne (bu) bir kopyadır";
 
@@ -73,13 +73,74 @@ impl Checker {
                 return Some(v.clone());
             }
         }
+        // türün metodunda ya da ortak fonksiyonunda: türün (ve ebeveynlerinin) ortak değerleri
+        for t in self.ortak_turleri() {
+            let gizli = format!("{}.{name}", self.types[t].name);
+            let v = self.cx.scopes.first().and_then(|s| s.get(&gizli)).or_else(|| self.cx.snapshot.as_ref().and_then(|s| s.get(&gizli)));
+            if let Some(v) = v {
+                return Some(v.clone());
+            }
+        }
         self.cx.snapshot.as_ref().and_then(|s| s.get(name).cloned())
+    }
+
+    /// Ortak değerlerine adıyla erişilebilen türler: içinde bulunulan tür ve ebeveynleri
+    pub(crate) fn ortak_turleri(&self) -> Vec<TypeId> {
+        let Some(t) = self.cx.ortak_tur.or(self.cx.owner) else { return vec![] };
+        let mut v = vec![t];
+        if let TypeDefKind::Tur { ancestors, .. } = &self.types[t].kind {
+            v.extend(ancestors);
+        }
+        v
+    }
+
+    /// `Tür.ad` ortak değeri (türün ya da ebeveynlerinin). Tanımlı ama henüz oluşmamışsa hata.
+    pub(crate) fn ortak_var(&mut self, tid: TypeId, name: &str, span: Span) -> CResult<Option<VarInfo>> {
+        let mut turler = vec![tid];
+        if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
+            turler.extend(ancestors);
+        }
+        for t in turler {
+            if !self.ortak_adlar.get(&t).is_some_and(|a| a.iter().any(|x| x == name)) {
+                continue;
+            }
+            let gizli = format!("{}.{name}", self.types[t].name);
+            if let Some(v) = self.lookup_var(&gizli, span)? {
+                self.check_readable(&gizli, &v, span)?;
+                return Ok(Some(v));
+            }
+            if let Some(v) = self.mods[self.type_decls[t].0].globals.get(&gizli) {
+                return Ok(Some(v.clone()));
+            }
+            return err(span, format!("'{gizli}' burada henüz tanımlı değil; türün tanımından sonra kullanılabilir."));
+        }
+        Ok(None)
+    }
+
+    /// `ad` türün (ya da bir ebeveyninin) ortak değeri ya da fonksiyonu mu? Öyleyse ait olduğu tür.
+    pub(crate) fn ortak_sahibi(&self, tid: TypeId, name: &str) -> Option<TypeId> {
+        let mut turler = vec![tid];
+        if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
+            turler.extend(ancestors);
+        }
+        turler.into_iter().find(|t| {
+            self.ortak_adlar.get(t).is_some_and(|a| a.iter().any(|x| x == name)) || self.ortak_fonk.contains_key(&(*t, name.to_string()))
+        })
+    }
+
+    /// `Tür.f()` ortak fonksiyonu (türün ya da ebeveynlerinin)
+    pub(crate) fn ortak_fonk_bul(&self, tid: TypeId, name: &str) -> Option<FuncId> {
+        let mut turler = vec![tid];
+        if let TypeDefKind::Tur { ancestors, .. } = &self.types[tid].kind {
+            turler.extend(ancestors);
+        }
+        turler.into_iter().find_map(|t| self.ortak_fonk.get(&(t, name.to_string())).copied())
     }
 
     /// Bu ad bir değişken mi? (lambdanın dışındakiler dahil; yakalamadan)
     pub(crate) fn var_exists(&self, name: &str) -> bool {
         let in_ctx = |c: &Ctx| c.scopes.iter().any(|s| s.contains_key(name)) || c.snapshot.as_ref().is_some_and(|s| s.contains_key(name));
-        in_ctx(&self.cx) || self.lambda_stack.iter().any(|f| in_ctx(&f.outer))
+        in_ctx(&self.cx) || self.lambda_stack.iter().any(|f| in_ctx(&f.outer)) || self.local_var(name).is_some()
     }
 
     /// Değişkeni bulur. Lambda içindeyse ve değişken dışarıdaysa onu kopya olarak yakalar.
@@ -189,6 +250,15 @@ impl Checker {
     }
 
     pub(crate) fn unknown_name(&self, name: &str, span: Span) -> Diag {
+        if let Some(t) = self.cx.ortak_tur {
+            if self.fields_of(t).iter().any(|f| &*f.name == name) || self.types[t].methods.contains_key(name) {
+                let tn = &self.types[t].name;
+                return Diag::new(
+                    span,
+                    format!("'{name}' {tn} nesnelerine ait; ortak fonksiyonda nesne olmadığı için kullanılamaz. Nesneyi parametre olarak alın: ortak fonksiyon f(n: {tn})"),
+                );
+            }
+        }
         if self.mode() == Mode::Tr {
             for (tr, us) in BUILTIN_NAMES {
                 if name == *us {
@@ -405,6 +475,13 @@ impl Checker {
                             }
                             out.push(TFPart::Expr(t));
                         }
+                        FPartE::Bicimli(x, b, bsp) => {
+                            let t = self.expr(x, None)?;
+                            if t.ty == Type::Hic && !matches!(t.kind, TK::Hic) {
+                                return Err(self.mismatch(&t, &Type::Str, x.span));
+                            }
+                            out.push(TFPart::Expr(self.bicimle(t, b, *bsp)?));
+                        }
                     }
                 }
                 self.mk(TK::FStr(out), Type::Str, span)
@@ -413,7 +490,11 @@ impl Checker {
             ExprKind::Hic => self.mk(TK::Hic, Type::Hic, span),
             ExprKind::Bu => {
                 let Some(o) = self.cx.owner else {
-                    return err(span, "'bu' sadece bir tür ya da seçenek içindeki fonksiyonlarda kullanılabilir.");
+                    return err(span, if self.cx.ortak_tur.is_some() {
+                        "Ortak fonksiyonlarda 'bu' yoktur: ortak fonksiyon tek bir nesneye değil, türe aittir."
+                    } else {
+                        "'bu' sadece bir tür ya da seçenek içindeki fonksiyonlarda kullanılabilir."
+                    });
                 };
                 self.use_bu();
                 self.mk(TK::Bu, Type::Named(o), span)
@@ -590,6 +671,7 @@ impl Checker {
             dis: None,
             generics: vec![],
             inst: None,
+            ortak_of: None,
         });
         self.mutates.push(false);
         let inner = Ctx {
@@ -600,6 +682,7 @@ impl Checker {
             ret_infer: if infer { Some(Vec::new()) } else { None },
             fname: "isimsiz fonksiyon".into(),
             func: Some(fid),
+            ortak_tur: self.cx.ortak_tur,
             ..Default::default()
         };
         let outer = std::mem::replace(&mut self.cx, inner);
@@ -823,7 +906,7 @@ impl Checker {
         if t.ty == Type::Bool || t.ty == Type::Never {
             return Ok(t);
         }
-        let extra = if t.ty.is_int() { " Bir işi N kez tekrarlamak için '5 kere yap' yazın." } else { "" };
+        let extra = if t.ty.is_int() && (what.contains("sürece") || what.contains("surece")) { " Bir işi N kez tekrarlamak için '5 kere yap' yazın." } else { "" };
         err(
             span,
             format!("{what} bir Mantık (doğru/yanlış) değeri bekler, ama {} verildi.{extra}", self.type_name(&t.ty)),
@@ -1257,6 +1340,11 @@ impl Checker {
                         return self.method_call(&bu, name, callee.span, args, span);
                     }
                 }
+                if let Some(t) = self.cx.ortak_tur.or(self.cx.owner) {
+                    if let Some(fid) = self.ortak_fonk_bul(t, name) {
+                        return self.call_func(fid, args, span);
+                    }
+                }
                 let m = self.cx.module;
                 if let Some(&fid) = self.mods[m].funcs.get(name) {
                     return self.call_func(fid, args, span);
@@ -1279,6 +1367,10 @@ impl Checker {
                         }
                         Ok(self.mk(TK::Builtin(Builtin::Yazdir, vals), Type::Hic, span))
                     }
+                    "doğrula" => err(
+                        span,
+                        format!("'{}' bir değer vermez, tek başına bir satır olarak yazılır: {}(koşul)", self.shown("doğrula"), self.shown("doğrula")),
+                    ),
                     "oku" => {
                         if args.len() > 1 {
                             return err(span, "'oku' en fazla bir değer alır: oku(\"Adınız: \")");
@@ -1310,6 +1402,9 @@ impl Checker {
                         return err(*nspan, format!("'{}' dosyasında '{name}' diye bir fonksiyon ya da tür yok.", self.mods[mi].name));
                     }
                     Some(PathRes::Type(tid)) => {
+                        if let Some(fid) = self.ortak_fonk_bul(tid, name) {
+                            return self.call_func(fid, args, span);
+                        }
                         if matches!(self.types[tid].kind, TypeDefKind::Secenek { .. }) {
                             return self.variant(tid, name, *nspan, Some(args), span);
                         }
@@ -1470,6 +1565,23 @@ impl Checker {
                         rooted_bu: false,
                     }));
                 }
+                if let Some(PathRes::Type(tid)) = self.static_path(b) {
+                    let Some(v) = self.ortak_var(tid, n, e.span)? else { return Ok(None) };
+                    let tn = self.types[tid].name.clone();
+                    return Ok(Some(PlaceInfo {
+                        place: TPlace::Var(v.slot),
+                        expr: self.mk(TK::Var(v.slot), v.ty.clone(), e.span),
+                        ty: v.ty.clone(),
+                        immut: if v.yakalanan {
+                            Some(format!("'{tn}.{n}' lambdanın dışında tanımlı (lambda onun kopyasını kullanır)"))
+                        } else if v.sabit {
+                            Some(format!("'{tn}.{n}' sabit"))
+                        } else {
+                            None
+                        },
+                        rooted_bu: false,
+                    }));
+                }
                 let Some(pb) = self.place_of(b)? else { return Ok(None) };
                 let Type::Named(tid) = pb.ty else { return Ok(None) };
                 let Some(f) = self.fields_of(tid).iter().find(|f| &*f.name == n).cloned() else { return Ok(None) };
@@ -1608,6 +1720,19 @@ impl Checker {
             return Ok(self.mk(TK::Slice { base: Box::new(b), start: Some(s), end: Some(e), inclusive: true }, Type::Str, span));
         }
         let Some(bi) = self.builtin_method(&recv_ty, name) else {
+            if name == "birleşik" && matches!(recv_ty, Type::List(..)) {
+                return err(
+                    nspan,
+                    format!(
+                        "'{}' sadece yazı listelerinde çalışır ({} verildi). Önce yazıya çevirin: liste.{}(her x için x.{}()).{}(\", \")",
+                        self.shown("birleşik"),
+                        self.type_name(&recv_ty),
+                        self.shown("dönüşüm"),
+                        self.shown("yazıya"),
+                        self.shown("birleşik")
+                    ),
+                );
+            }
             if name == "ters" && matches!(recv_ty, Type::List(..)) {
                 return err(
                     nspan,
@@ -1628,6 +1753,10 @@ impl Checker {
             if let Type::Named(tid) = recv_ty {
                 if self.fields_of(tid).iter().any(|f| &*f.name == name) {
                     return err(nspan, format!("'{name}' bir alan, fonksiyon değil; parantez olmadan yazın."));
+                }
+                if let Some(t) = self.ortak_sahibi(tid, name) {
+                    let ot = self.types[t].name.clone();
+                    return err(nspan, format!("'{name}' {ot} türünün ortak fonksiyonu, nesne üzerinden çağrılmaz. Şöyle yazın: {ot}.{name}()"));
                 }
                 let names: Vec<String> = self.types[tid].methods.keys().cloned().collect();
                 let hint = closest(name, names.iter()).map(|c| format!(" '{c}' mı demek istediniz?")).unwrap_or_default();
@@ -1675,11 +1804,62 @@ impl Checker {
         Ok(self.mk(TK::BMethod { recv, m: bi.bm, args: vals }, bi.ret, span))
     }
 
+    /// f-yazıdaki biçimli değer (`{x:.2}`) yazıya çevrilir: basamak -> gruplama -> hizalama
+    fn bicimle(&mut self, t: TExpr, b: &Bicim, sp: Span) -> CResult<TExpr> {
+        let sayi = t.ty.is_num();
+        if !sayi {
+            let ne = if b.basamak.is_some() {
+                Some("Basamak ('.2')")
+            } else if b.grup {
+                Some("Gruplama (',')")
+            } else if b.sifir {
+                Some("Sıfırla doldurma ('0')")
+            } else {
+                None
+            };
+            if let Some(ne) = ne {
+                return err(sp, format!("{ne} sadece sayılarda kullanılabilir, ama {} verildi.", self.type_name(&t.ty)));
+            }
+        }
+        if b.hiza.is_some() && b.genislik.is_none() {
+            return err(sp, "Hizalama için genişlik de yazılmalı: {ad:<10}");
+        }
+        let int = |me: &Self, v: i64| me.mk(TK::Int(v.into(), Some(v)), TAM64, sp);
+        let bm = |me: &Self, recv: TExpr, m: BM, args: Vec<TExpr>| me.mk(TK::BMethod { recv: Recv::Value(Box::new(recv)), m, args }, Type::Str, sp);
+        let mut s = if let Some(n) = b.basamak {
+            let f = if t.ty == Type::Float(64) { t } else { self.mk(TK::Olarak(Box::new(t)), Type::Float(64), sp) };
+            let n = int(self, n as i64);
+            bm(self, f, BM::Hassas, vec![n])
+        } else if t.ty == Type::Str {
+            t
+        } else {
+            bm(self, t, BM::Yaziya, vec![])
+        };
+        if b.grup {
+            s = bm(self, s, BM::Grupla, vec![]);
+        }
+        if let Some(w) = b.genislik {
+            let kip = if b.sifir {
+                3
+            } else {
+                match b.hiza {
+                    Some('<') => 0,
+                    Some('>') => 1,
+                    Some('^') => 2,
+                    _ => if sayi { 1 } else { 0 },
+                }
+            };
+            let args = vec![int(self, w as i64), self.mk(TK::Str(std::rc::Rc::new(b.dolgu.to_string())), Type::Str, sp), int(self, kip)];
+            s = bm(self, s, BM::Hizala, args);
+        }
+        Ok(s)
+    }
+
     fn builtin_method_names(&self, t: &Type) -> Vec<&'static str> {
         match t {
-            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "dönüşüm", "filtre", "hepsi", "herhangi", "toplam", "en_büyük", "en_küçük", "yazıya"],
+            Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "dönüşüm", "filtre", "hepsi", "herhangi", "toplam", "en_büyük", "en_küçük", "birleşik", "yazıya"],
             Type::Dict(..) => vec!["uzunluk", "içerir", "sil", "anahtarlar", "değerler", "temizle", "yazıya"],
-            Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "tama", "ondalığa", "tersi", "yazıya"],
+            Type::Str => vec!["uzunluk", "büyük_harf", "küçük_harf", "karakter", "içerir", "böl", "kırp", "değiştir", "başlar", "biter", "bul", "say", "tekrar", "tama", "ondalığa", "tersi", "yazıya"],
             Type::Float(_) => vec!["tama", "yazıya"],
             _ => vec!["yazıya"],
         }
@@ -1707,7 +1887,8 @@ impl Checker {
                     "ters_çevir" => mk(BM::TersCevir, vec![], Type::Hic, true, false),
                     "tersi" => mk(BM::Tersi, vec![], Type::List(Box::new(e.clone()), None), false, false),
                     "temizle" => mk(BM::Temizle, vec![], Type::Hic, true, true),
-                    "adım" => mk(BM::LAdim, vec![p("adım", TAM64)], Type::List(Box::new(e), None), false, false),
+                    "adım" => mk(BM::LAdim, vec![p("adım", TAM64)], Type::List(Box::new(e.clone()), None), false, false),
+                    "birleşik" if e == Type::Str => mk(BM::Birlesik, vec![p("ayraç", Type::Str)], Type::Str, false, false),
                     _ => None,
                 }
             }
@@ -1731,6 +1912,12 @@ impl Checker {
                 "içerir" => mk(BM::SIcerir, vec![p("parça", Type::Str)], Type::Bool, false, false),
                 "böl" => mk(BM::Bol, vec![p("ayraç", Type::Str)], Type::list(Type::Str), false, false),
                 "kırp" => mk(BM::Kirp, vec![], Type::Str, false, false),
+                "değiştir" => mk(BM::Degistir, vec![p("eski", Type::Str), p("yeni", Type::Str)], Type::Str, false, false),
+                "başlar" => mk(BM::Baslar, vec![p("parça", Type::Str)], Type::Bool, false, false),
+                "biter" => mk(BM::Biter, vec![p("parça", Type::Str)], Type::Bool, false, false),
+                "bul" => mk(BM::SBul, vec![p("parça", Type::Str)], Type::Union(vec![TAM64, Type::Hic]), false, false),
+                "say" => mk(BM::Say, vec![p("parça", Type::Str)], TAM64, false, false),
+                "tekrar" => mk(BM::Tekrar, vec![p("sayı", TAM64)], Type::Str, false, false),
                 // yazıdan sayıya çevirme başarısız olabilir: değer ya da Hata.Dönüşüm
                 "tama" => mk(BM::Tama, vec![], Type::Union(vec![TAM64, Type::Named(self.hata_turleri[hata_turu::DONUSUM as usize])]), false, false),
                 "ondalığa" => mk(BM::Ondaliga, vec![], Type::Union(vec![Type::Float(64), Type::Named(self.hata_turleri[hata_turu::DONUSUM as usize])]), false, false),
@@ -1756,6 +1943,9 @@ impl Checker {
                 return err(nspan, format!("'{}' dosyasında '{name}' diye bir değişken yok.", self.mods[mi].name));
             }
             Some(PathRes::Type(tid)) => {
+                if let Some(v) = self.ortak_var(tid, name, nspan)? {
+                    return Ok(self.mk(TK::Var(v.slot), v.ty, span));
+                }
                 if matches!(self.types[tid].kind, TypeDefKind::Secenek { .. }) {
                     return self.variant(tid, name, nspan, None, span);
                 }
@@ -1781,6 +1971,10 @@ impl Checker {
                 return err(nspan, format!("'{name}' bir fonksiyon; çağırmak için {name}() yazın."));
             }
             let tn = self.types[tid].name.clone();
+            if let Some(t) = self.ortak_sahibi(tid, name) {
+                let ot = self.types[t].name.clone();
+                return err(nspan, format!("'{name}' {ot} türünün ortak değeri, tek bir nesnenin değil. Şöyle yazın: {ot}.{name}"));
+            }
             return err(nspan, match &self.types[tid].kind {
                 TypeDefKind::Secenek { .. } => format!("'{tn}' bir seçenek; içindeki değerlere eşleştir ile erişilir."),
                 TypeDefKind::Arayuz { .. } => format!("'{tn}' bir arayüz; arayüzlerin alanı olmaz, sadece fonksiyonları vardır."),

@@ -1,0 +1,3 @@
+HATA (100_ortak_once.kolay, satır 1): 'S.sayı' burada henüz tanımlı değil; türün tanımından sonra kullanılabilir.
+  1 | yazdır(S.sayı)
+    |          ^^^^

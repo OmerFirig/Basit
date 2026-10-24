@@ -7,12 +7,13 @@ const KEYWORDS = [
   "ata", "sabit", "fonksiyon", "döndür", "eğer", "değilse", "yap", "içindeki", "her", "için",
   "sürece", "kere", "dur", "devam", "doğru", "yanlış", "tür", "yeniden", "bu", "arayüz",
   "seçenek", "eşleştir", "veya", "ve", "değil", "dahil et", "olarak", "Hiç", "adıyla",
-  "dış kütüphane", "kütüphanesindeki", "dene", "yakala", "fırlat",
+  "dış kütüphane", "kütüphanesindeki", "dene", "yakala", "fırlat", "ortak",
 ];
 const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Fonksiyon", "Hata"];
 const FUNCS = [
   ["yazdır", "yazdır(${1})", "Ekrana yazar"],
   ["oku", "oku(\"${1:Soru: }\")", "Klavyeden bir satır okur (Yazı)"],
+  ["doğrula", "doğrula(${1:koşul})", "Koşul yanlışsa program durur (kendi kodunu test etmek için)"],
 ];
 const METHODS = {
   liste: [
@@ -36,6 +37,7 @@ const METHODS = {
     ["toplam", "", "Elemanların toplamı"],
     ["en_büyük", "", "En büyük eleman"],
     ["en_küçük", "", "En küçük eleman"],
+    ["birleşik", "ayraç", "Yazı listesini tek yazıda birleştirir: [\"a\", \"b\"].birleşik(\", \")"],
     ["yazıya", "", "Yazıya çevirir"],
   ],
   sözlük: [
@@ -55,6 +57,13 @@ const METHODS = {
     ["içerir", "parça", "Parçayı içeriyor mu?"],
     ["böl", "ayraç", "Ayraçtan bölüp liste yapar"],
     ["kırp", "", "Baştaki ve sondaki boşlukları siler"],
+    ["değiştir", "eski, yeni", "Bütün eski parçaları yeni ile değiştirir (yeni yazı)"],
+    ["başlar", "parça", "Bu parçayla mı başlıyor?"],
+    ["biter", "parça", "Bu parçayla mı bitiyor?"],
+    ["bul", "parça", "Parçanın ilk geçtiği karakter sırası, yoksa Hiç"],
+    ["say", "parça", "Parça kaç kez geçiyor?"],
+    ["tekrar", "sayı", "Yazıyı n kez art arda yazar: \"ab\".tekrar(3)"],
+    ["tersi", "", "Ters çevrilmiş yeni yazı"],
     ["tama", "", "Sayıya çevirir (Tam)"],
     ["ondalığa", "", "Sayıya çevirir (Ondalık)"],
     ["yazıya", "", "Yazıya çevirir"],
@@ -85,8 +94,8 @@ function scan(text) {
   const tparams = new Set(); // generic tip parametreleri: <T, Eleman>
   const clean = text.replace(/\/<[\s\S]*?>\//g, "").replace(/\/\/.*$/gm, "");
 
-  for (const m of clean.matchAll(new RegExp(`ata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
-    vars.set(m[1], (m[2] || m[3] || "").trim());
+  for (const m of clean.matchAll(new RegExp(`(ortak\\s+)?ata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
+    if (!m[1]) vars.set(m[2], (m[3] || m[4] || "").trim());
   }
   for (const m of clean.matchAll(new RegExp(`her\\s+(${ID})(?:\\s*,\\s*(${ID}))?\\s+(?:için|icin)`, "gu"))) {
     vars.set(m[1], vars.get(m[1]) || "");
@@ -126,11 +135,12 @@ function scan(text) {
       if (n.trim()) fieldTypes.set(n.trim(), t.join(":").split("=")[0].trim());
     }
     const fields = [...fieldTypes.keys()];
-    const methods = [];
-    for (const x of body.matchAll(new RegExp(`(?:fonksiyon|yeniden)\\s+(${ID})\\s*\\(`, "gu"))) {
-      methods.push([x[1], paren(body, x.index + x[0].length - 1)]);
+    const methods = [], ortak = [], ortakFonk = [];
+    for (const x of body.matchAll(new RegExp(`(ortak\\s+)?(?:fonksiyon|yeniden)\\s+(${ID})\\s*\\(`, "gu"))) {
+      (x[1] ? ortakFonk : methods).push([x[2], paren(body, x.index + x[0].length - 1)]);
     }
-    types.set(m[1], { parents, fields, fieldTypes, methods, params, generics });
+    for (const x of body.matchAll(new RegExp(`ortak\\s+ata\\s+(?:sabit\\s+)?(${ID})`, "gu"))) ortak.push(x[1]);
+    types.set(m[1], { parents, fields, fieldTypes, methods, params, generics, ortak, ortakFonk });
   }
   for (const m of clean.matchAll(new RegExp(`(?:seçenek|secenek)\\s+(${ID})\\s*\\{`, "gu"))) {
     const body = block(clean, m.index + m[0].length);
@@ -279,7 +289,13 @@ function complete(doc, pos) {
       return out;
     }
     let k = recv === '"' ? "yazı" : recv === "]" ? "liste" : kindOf(info.vars.get(recv), info);
-    if (info.types.has(recv)) k = recv; // Ebeveyn.metot()
+    if (info.types.has(recv)) {
+      // Tür.toplam, Tür.sıfırla(): ortak değerler ve fonksiyonlar
+      const ti = info.types.get(recv);
+      for (const o of ti.ortak) out.push(item(o, K.Variable, null, `${recv} ortak değeri`, false));
+      for (const [n, p] of ti.ortakFonk) out.push(item(n, K.Function, paramSnippet(n, p), `${recv} ortak fonksiyonu`, false));
+      k = recv; // Ebeveyn.metot()
+    }
     if (recv === "bu") k = enclosingType(text, doc.offsetAt(pos));
     else if (!info.vars.has(recv) && !info.types.has(recv)) {
       // tür içinde alan adı: ad.
@@ -326,6 +342,9 @@ function complete(doc, pos) {
     const m = members(info, cur);
     for (const f of m.fields) out.push(item(f, K.Field, null, `${cur} alanı`, false));
     for (const [n, p] of m.methods) out.push(item(n, K.Method, paramSnippet(n, p), `${cur} metodu`, false));
+    const ti = info.types.get(cur);
+    for (const o of ti.ortak) out.push(item(o, K.Variable, null, `${cur} ortak değeri`, false));
+    for (const [n, p] of ti.ortakFonk) out.push(item(n, K.Function, paramSnippet(n, p), `${cur} ortak fonksiyonu`, false));
   }
   for (const [v, hint] of info.vars) out.push(item(v, K.Variable, null, hint || "değişken", false));
   for (const [f, p] of info.funcs) out.push(item(f, K.Function, paramSnippet(f, p), `fonksiyon(${p})`, false));

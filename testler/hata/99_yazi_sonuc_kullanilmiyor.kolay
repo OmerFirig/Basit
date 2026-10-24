@@ -1,0 +1,3 @@
+ata s = "abc"
+s.değiştir("a", "b")
+yazdır(s)

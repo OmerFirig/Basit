@@ -1,0 +1,3 @@
+HATA (97_ortak_alan.kolay, satır 2): 'ad' S nesnelerine ait; ortak fonksiyonda nesne olmadığı için kullanılamaz. Nesneyi parametre olarak alın: ortak fonksiyon f(n: S)
+  2 |     ortak fonksiyon f() { yazdır(ad) }
+    |                                  ^^

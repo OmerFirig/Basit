@@ -1,0 +1,3 @@
+HATA (98_birlesik_tam.kolay, satır 1): 'birleşik' sadece yazı listelerinde çalışır (Liste<Tam(64)> verildi). Önce yazıya çevirin: liste.dönüşüm(her x için x.yazıya()).birleşik(", ")
+  1 | yazdır([1, 2, 3].birleşik(", "))
+    |                  ^^^^^^^^

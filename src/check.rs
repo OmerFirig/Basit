@@ -70,6 +70,8 @@ pub(crate) struct FuncInfo {
     /// tiplerle ayrı bir kopyası (`inst`) oluşturulup o denetlenir.
     pub generics: Vec<String>,
     pub inst: Option<Inst>,
+    /// `ortak fonksiyon` ise ait olduğu tür (nesnesi yok, türün ortak değerlerine adıyla erişir)
+    pub ortak_of: Option<TypeId>,
 }
 
 /// Generic bir fonksiyonun somut tiplerle oluşturulmuş kopyası
@@ -124,6 +126,8 @@ pub(crate) struct Ctx {
     pub ret_infer: Option<Vec<(Type, Span)>>,
     /// İç içe `dene` blokları (yakala dalları sayılmaz): `T veya Hata` döndüren çağrılar açılır
     pub dene_depth: u32,
+    /// `ortak fonksiyon` içindeyse türü (metotlarda `owner` yeterli)
+    pub ortak_tur: Option<TypeId>,
 }
 
 pub(crate) struct PendingMut {
@@ -182,6 +186,10 @@ pub struct Checker {
     pub(crate) tur_snapshot: HashMap<TypeId, Rc<HashMap<String, VarInfo>>>,
     /// Kalıtım tabloları kuruldu mu (sonra oluşan tür kopyaları kendi tablolarını hemen kurar)
     pub(crate) miras_hazir: bool,
+    /// Türe ait ortak değerlerin adları ve ortak fonksiyonlar. Ortak değer, `Tür.ad` adlı gizli bir
+    /// dosya değişkenidir; `.` kullanıcı adlarında olmadığı için çakışmaz.
+    pub(crate) ortak_adlar: HashMap<TypeId, Vec<String>>,
+    pub(crate) ortak_fonk: HashMap<(TypeId, String), FuncId>,
 }
 
 /// Tipsiz `yakala` dalının değişken tipi, fırlatılabilen değerlere bağlıdır; bunlar ise bütün program
@@ -258,6 +266,8 @@ fn check_pass(
         tur_instances: HashMap::new(),
         tur_snapshot: HashMap::new(),
         miras_hazir: false,
+        ortak_adlar: HashMap::new(),
+        ortak_fonk: HashMap::new(),
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -480,7 +490,7 @@ impl Checker {
             } else {
                 (vec![(vec!["Hata".to_string()], sp)], vec![])
             };
-            let d = TurDecl { name: name.to_string(), span: sp, generics: vec![], parents, fields, methods: vec![] };
+            let d = TurDecl { name: name.to_string(), span: sp, generics: vec![], parents, fields, methods: vec![], ortak: vec![], ortak_fonk: vec![] };
             let tid = self.types.len();
             self.types.push(TypeDef {
                 name: name.to_string(),
@@ -529,10 +539,62 @@ impl Checker {
             TypeDecl::Secenek(_) => TypeDefKind::Secenek { variants: vec![] },
         };
         self.types.push(TypeDef { name: name.to_string(), kind, interfaces: vec![], methods: HashMap::new() });
+        let tur = match decl.as_ref().unwrap_or_else(|| &self.tur_kalip[&tid].1) {
+            TypeDecl::Tur(d) => Some(d.clone()),
+            _ => None,
+        };
         self.type_decls.push((mi, span, decl));
         self.own_fields.push(Vec::new());
         self.type_methods.push(Vec::new());
         self.mods[mi].types.insert(name.to_string(), tid);
+        if let Some(d) = tur {
+            self.declare_ortak(mi, tid, &d)?;
+        }
+        Ok(())
+    }
+
+    /// `ortak ata` adları ve `ortak fonksiyon`lar
+    fn declare_ortak(&mut self, mi: usize, tid: TypeId, d: &TurDecl) -> CResult<()> {
+        if d.ortak.is_empty() && d.ortak_fonk.is_empty() {
+            return Ok(());
+        }
+        if !d.generics.is_empty() {
+            let sp = d.ortak.first().map(|s| s.span).unwrap_or_else(|| d.ortak_fonk[0].span);
+            return err(sp, "Generic türlerde ortak değer ya da ortak fonksiyon olamaz (her tip için ayrı mı olacağı belli değil).");
+        }
+        let mut adlar: Vec<String> = Vec::new();
+        for s in &d.ortak {
+            let StmtKind::Ata { name, name_span, .. } = &s.kind else { unreachable!("ortak ata") };
+            if adlar.contains(name) {
+                return err(*name_span, format!("'{name}' bu türde iki kez tanımlanmış."));
+            }
+            adlar.push(name.clone());
+        }
+        for f in &d.ortak_fonk {
+            if adlar.contains(&f.name) || self.ortak_fonk.contains_key(&(tid, f.name.clone())) {
+                return err(f.span, format!("'{}' bu türde iki kez tanımlanmış.", f.name));
+            }
+            let fid = self.funcs.len();
+            self.funcs.push(FuncInfo {
+                name: f.name.clone(),
+                module: mi,
+                owner: None,
+                params: vec![],
+                param_sabit: vec![],
+                ret: Type::Hic,
+                span: f.span,
+                yeniden: Yeniden::Yok,
+                generics: vec![],
+                decl: Some(f.clone()),
+                snapshot: None,
+                body: None,
+                dis: None,
+                inst: None,
+                ortak_of: Some(tid),
+            });
+            self.ortak_fonk.insert((tid, f.name.clone()), fid);
+        }
+        self.ortak_adlar.insert(tid, adlar);
         Ok(())
     }
 
@@ -562,6 +624,7 @@ impl Checker {
             body: None,
             dis: None,
             inst: None,
+            ortak_of: None,
         });
         Ok(())
     }
@@ -957,6 +1020,11 @@ impl Checker {
                     *ps = parents;
                 }
                 self.types[tid].interfaces = interfaces;
+                for o in self.ortak_adlar.get(&tid).into_iter().flatten().chain(d.ortak_fonk.iter().map(|f| &f.name)) {
+                    if fields.iter().any(|f| *f.name == **o) || d.methods.iter().any(|m| m.name == *o) {
+                        return err(d.span, format!("'{o}' hem ortak hem de alan ya da fonksiyon adı olarak kullanılmış."));
+                    }
+                }
                 self.own_fields[tid] = fields;
                 for m in &d.methods {
                     let fid = self.add_method(tid, mi, m.clone())?;
@@ -1063,6 +1131,7 @@ impl Checker {
             dis: None,
             generics: vec![],
             inst: None,
+            ortak_of: None,
         });
         Ok(fid)
     }

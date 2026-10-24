@@ -1,0 +1,4 @@
+yakalandı: Doğrulama başarısız: bir ikiden büyük olmalı
+1.5
+ÇALIŞMA HATASI (d_dogrula.kolay, satır 13): Doğrulama başarısız: topla(2, 2) == 5
+  13 | doğrula(topla(2, 2) == 5)

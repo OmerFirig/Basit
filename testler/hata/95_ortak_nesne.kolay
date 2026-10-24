@@ -1,0 +1,5 @@
+tür S(ad: Yazı) {
+    ortak ata sayı = 0
+}
+ata s = S("a")
+yazdır(s.sayı)

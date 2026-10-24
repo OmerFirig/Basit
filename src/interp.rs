@@ -1771,6 +1771,63 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
             Value::List(Rc::new(ListV { items }))
         }
         (BM::Kirp, Value::Str(s)) => Value::str(s.trim()),
+        (BM::Degistir, Value::Str(s)) => {
+            let (Value::Str(eski), Value::Str(yeni)) = (&args[0], &args[1]) else { unreachable!() };
+            if eski.is_empty() {
+                return rt(loc, "Değiştirilecek parça boş olamaz.");
+            }
+            Value::string(s.replace(eski.as_str(), yeni))
+        }
+        (BM::Baslar, Value::Str(s)) => {
+            let Value::Str(p) = &args[0] else { unreachable!() };
+            Value::Bool(s.starts_with(p.as_str()))
+        }
+        (BM::Biter, Value::Str(s)) => {
+            let Value::Str(p) = &args[0] else { unreachable!() };
+            Value::Bool(s.ends_with(p.as_str()))
+        }
+        // karakter sırası (bayt değil); yoksa Hiç
+        (BM::SBul, Value::Str(s)) => {
+            let Value::Str(p) = &args[0] else { unreachable!() };
+            match s.find(p.as_str()) {
+                Some(b) => Value::int(s[..b].chars().count() as i64),
+                None => Value::Hic,
+            }
+        }
+        (BM::Say, Value::Str(s)) => {
+            let Value::Str(p) = &args[0] else { unreachable!() };
+            if p.is_empty() {
+                return rt(loc, "Aranan parça boş olamaz.");
+            }
+            Value::int(s.matches(p.as_str()).count() as i64)
+        }
+        (BM::Tekrar, Value::Str(s)) => {
+            let n = arg_i64(&args[0], loc)?;
+            if n < 0 {
+                return rt(loc, format!("Tekrar sayısı eksi olamaz: {n}."));
+            }
+            if (s.len() as u128) * (n as u128) > YAZI_SINIRI as u128 {
+                return rtk(hata_turu::YAKALANAMAZ, loc, "Bellek yetmedi.");
+            }
+            Value::string(s.repeat(n as usize))
+        }
+        (BM::Hassas, Value::Float(x)) => {
+            let n = arg_i64(&args[0], loc)? as usize;
+            Value::string(if x.is_finite() { format!("{x:.n$}") } else { fmt_float(*x, 64) })
+        }
+        (BM::Grupla, Value::Str(s)) => Value::string(grupla_tr(s)),
+        (BM::Hizala, Value::Str(s)) => {
+            let (Value::Str(dolgu), kip) = (&args[1], arg_i64(&args[2], loc)?) else { unreachable!() };
+            Value::string(hizala(s, arg_i64(&args[0], loc)? as usize, dolgu, kip))
+        }
+        (BM::Birlesik, Value::List(l)) => {
+            let Value::Str(ayrac) = &args[0] else { unreachable!() };
+            let parcalar: Vec<&str> = l.items.iter().map(|x| match x {
+                Value::Str(y) => y.as_str(),
+                _ => unreachable!("yazı listesi"),
+            }).collect();
+            Value::string(parcalar.join(ayrac.as_str()))
+        }
         // başarısızsa Hata.Dönüşüm değeri döner (dene içinde fırlatılır)
         (BM::Tama, Value::Str(s)) => match s.trim().parse::<i64>() {
             Ok(n) => Value::int(n),
@@ -1809,6 +1866,57 @@ pub(crate) fn range_list(plan: RangePlan, loc: Loc) -> R<Value> {
     items.extend((0..plan.count).map(|i| Value::int(plan.get(i))));
     Ok(Value::List(Rc::new(ListV { items })))
 }
+
+/// f-yazıda `{n:,}`: sayı yazısının tam kısmı noktayla gruplanır, ondalık ayırıcı virgül olur (Türk usulü):
+/// "-1234567.5" -> "-1.234.567,5". Sayı olmayan yazılar ("TanımsızSayı") değişmez.
+/// Derlenmiş programda: runtime/yazilar.c kolay_grupla
+pub(crate) fn grupla_tr(s: &str) -> String {
+    let (isaret, govde) = match s.strip_prefix('-') {
+        Some(g) => ("-", g),
+        None => ("", s),
+    };
+    let (tam, kesir) = match govde.split_once('.') {
+        Some((t, k)) => (t, Some(k)),
+        None => (govde, None),
+    };
+    if tam.is_empty() || !tam.bytes().all(|c| c.is_ascii_digit()) {
+        return s.to_string();
+    }
+    let mut out = String::from(isaret);
+    for (i, c) in tam.chars().enumerate() {
+        if i > 0 && (tam.len() - i) % 3 == 0 {
+            out.push('.');
+        }
+        out.push(c);
+    }
+    if let Some(k) = kesir {
+        out.push(',');
+        out.push_str(k);
+    }
+    out
+}
+
+/// f-yazıda genişlik: kip 0 sola, 1 sağa, 2 ortaya (artan sağa), 3 sıfırla (eksi işaretinden sonra).
+/// Genişlik karakter sayısıdır. Derlenmiş programda: runtime/yazilar.c kolay_hizala
+pub(crate) fn hizala(s: &str, genislik: usize, dolgu: &str, kip: i64) -> String {
+    let n = s.chars().count();
+    if n >= genislik {
+        return s.to_string();
+    }
+    let bos = genislik - n;
+    match kip {
+        0 => format!("{s}{}", dolgu.repeat(bos)),
+        1 => format!("{}{s}", dolgu.repeat(bos)),
+        2 => format!("{}{s}{}", dolgu.repeat(bos / 2), dolgu.repeat(bos - bos / 2)),
+        _ => match s.strip_prefix('-') {
+            Some(r) => format!("-{}{r}", "0".repeat(bos)),
+            None => format!("{}{s}", "0".repeat(bos)),
+        },
+    }
+}
+
+/// tekrar() ile oluşturulabilecek en uzun yazı (bayt); derlenmiş programda da aynı (runtime/yazilar.c)
+pub(crate) const YAZI_SINIRI: u64 = 1 << 32;
 
 /// Değer olarak oluşturulabilecek en büyük aralık listesi (2^30 eleman, 8 GB)
 pub(crate) const MAX_ARALIK: u64 = 1 << 30;

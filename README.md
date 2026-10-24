@@ -79,7 +79,7 @@ Hepsi hem yorumlayıcıyla hem derleyiciyle çalışır.
 
 ## Dil özeti
 
-Tasarım kararlarının tamamı ve gerekçeleri: `../Notes_Claude.md`
+Dili sıfırdan öğreten kurs (alıştırmalar ve çözümleriyle): [`belgeler/Kolay.md`](belgeler/Kolay.md)
 
 ```
 // tek satırlık yorum
@@ -101,6 +101,9 @@ fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }    // generic: T her çağrıd
 tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
 ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
+yazdır(f"{pi:.2} {ad:<10} {n:06} {büyük:,}")   // f-yazı biçimleri: 3.14  Ali  000042  1.234.567
+"elma".değiştir("a", "e")  s.başlar("x")  s.bul("ma")  s.say("a")  "-".tekrar(5)  l.birleşik(", ")
+doğrula(topla(2, 3) == 5)        // yanlışsa program durur (kendi kodunu test etmek için)
 ata sabit pi = 3.14159           // değiştirilemez
 ata sabit mesaj: Yazı            // değeri sonra, bir kez atanır
 x: Yazı = "artık yazı"           // tip değiştirme (gölgeleme)
@@ -120,6 +123,8 @@ koşul sürece yap { }
 // dur, devam
 
 tür Öğrenci[Kişi, Sporcu](sabit numara: Tam(32, +)) {
+    ortak ata sayı = 0                           // türe ait: Öğrenci.sayı
+    ortak fonksiyon özet() -> Yazı { döndür f"{sayı} öğrenci" }
     yeniden tanıt() { Kişi.tanıt() }
 }
 arayüz Konuşabilir { fonksiyon konuş() -> Yazı }

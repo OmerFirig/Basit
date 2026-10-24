@@ -114,6 +114,19 @@ pub enum BM {
     Kirp,
     Tama,
     Ondaliga,
+    /// değiştir(eski, yeni), başlar(p), biter(p), bul(p) -> Tam veya Hiç, say(p), tekrar(n)
+    Degistir,
+    Baslar,
+    Biter,
+    SBul,
+    Say,
+    Tekrar,
+    /// Liste<Yazı>.birleşik(ayraç)
+    Birlesik,
+    /// f-yazı biçimleri: {x:.2} (Ondalık -> Yazı), {n:,} (sayı yazısını grupla), {ad:<10} (genişlik, dolgu, kip)
+    Hassas,
+    Grupla,
+    Hizala,
     // Ondalık
     FTama,
     // Her tip

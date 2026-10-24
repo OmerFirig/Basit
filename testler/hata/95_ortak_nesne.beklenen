@@ -1,0 +1,3 @@
+HATA (95_ortak_nesne.kolay, satır 5): 'sayı' S türünün ortak değeri, tek bir nesnenin değil. Şöyle yazın: S.sayı
+  5 | yazdır(s.sayı)
+    |          ^^^^

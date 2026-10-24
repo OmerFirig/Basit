@@ -1,0 +1,4 @@
+tür S(ad: Yazı) {
+    ortak ata sabit EN = 3
+}
+S.EN = 4

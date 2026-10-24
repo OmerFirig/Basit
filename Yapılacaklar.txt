@@ -25,7 +25,7 @@ Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılaca
 
 
 ------------------------------------------------------------------------------
-1. GENERIC  (fonksiyonlar ve türler UYGULANDI 2026-10-24; karşılaştır kuralı ve generic lambda kaldı)
+1. GENERIC  (fonksiyonlar ve türler UYGULANDI 2026-10-24; generic lambda kaldı)
 ------------------------------------------------------------------------------
 Yazım:
     fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }
@@ -44,12 +44,8 @@ Kurallar (kullanıcı kararı):
 [x] Tip parametreleri büyük harfle başlar; tek harf (T) ya da Türkçe ad (Eleman) serbest.
 [x] Tip, argümanlardan çıkarılır: en_büyük([1, 2]) -> T = Tam(64). Açıkça yazma (<Tam(8)>) yok
     (kullanıcı kararı). Çıkarılamazsa hata, çözüm önerilir (argümana tip vermek: [] olarak Liste<Tam(8)>).
-[ ] Karşılaştırma kuralı: türde
-        fonksiyon karşılaştır(diğer: Tür) -> Tam(8)     // -1, 0, 1
-    varsa <, >, <=, >=, sırala(), sıralı(), en_büyük(), en_küçük() o türde de çalışır.
-    (YAPILMADI. Fikir: a < b -> a.karşılaştır(b) < 0 tip denetleyicide çevrilir; sırala() için
-    vm.rs ve codegen'e karşılaştırma fonksiyonu alan bir sıralama gerekir.)
-    Yoksa: "Kişi karşılaştırılamaz: türe 'karşılaştır(diğer: Kişi) -> Tam(8)' fonksiyonu ekleyin."
+[x] Karşılaştırma kuralı YOK (kullanıcı kararı 2026-10-24: yeni özelliğe gerek yok; alanlarla
+    karşılaştırılır: a.not < b.not, sırala(göre: her ö için ö.not)).
 Uygulama notları:
 [x] check.rs: fonksiyon/tür bildirimine tip parametreleri (ast.rs FnDecl.generics, TurDecl.generics).
 [x] Gövde ilk geçişte denetlenmez; her farklı tip ataması için (T=Tam(64), ...) bir kopya
@@ -207,13 +203,17 @@ Değişmesi gerekenler:
 ------------------------------------------------------------------------------
 4. BEKLEYEN DİĞER KONULAR (konuşuldu, şimdilik ertelendi)
 ------------------------------------------------------------------------------
-[ ] Yazı metotları: değiştir, başlar, biter, bul (Tam veya Hiç), say, tekrar;
-    liste.birleşik(", "). Yazılar değişmez: metotları hep yeni yazı verir; sonucu
-    kullanılmayan çağrıya uyarı ("s = s.değiştir(...) yazın").
-[ ] f-yazı biçimleri: {x:.2}  {ad:<10}  {n:>6}  {n:06}  {büyük:,} (Türk usulü 1.234.567)
+[x] Yazı metotları: değiştir, başlar, biter, bul (Tam veya Hiç), say, tekrar;
+    liste.birleşik(", "). Sonucu kullanılmayan çağrıya uyarı. (2026-10-24)
+[x] f-yazı biçimleri: {x:.2}  {ad:<10}  {n:>6}  {n:06}  {büyük:,}  {ad:*^9} (2026-10-24;
+    tip denetleyicide BM::Hassas / Grupla / Hizala çağrılarına çevrilir)
+[x] Türe ait ortak değerler: ortak ata toplam = 0, ortak fonksiyon sıfırla(), Sayaç.toplam
+    (2026-10-24; gizli dosya değişkeni 'Sayaç.toplam', ortak fonksiyon normal fonksiyon)
+[x] doğrula(koşul) / doğrula(koşul, "mesaj") (2026-10-24; yanlışsa Hata fırlatılır)
+[x] Listede sıra numarasıyla dolaşma için yeni özellik YOK (kullanıcı kararı 2026-10-24):
+    0..liste.uzunluk() içindeki her i için yap { ... liste[i] ... }
 [ ] Küme<T> ({1, 2, 3}; birleşim, kesişim, fark), demet ((Tam, Yazı); sadece açma:
-    ata (a, b) = f()), listede sıra numarasıyla dönme (liste içindeki her (i, x) için).
-[ ] Türe ait ortak değerler: ortak ata toplam = 0, ortak fonksiyon sıfırla(), Sayaç.toplam
+    ata (a, b) = f()).
 [ ] Varsayılan değerler: tür Kişi(ad: Yazı, yaş: Tam = 0), fonksiyon selam(ad: Yazı = "dünya")
 [ ] Standart kütüphane: dosya okuma/yazma, rastgele sayı, karekök/üs/zaman, bekle(),
     komut satırı argümanları.

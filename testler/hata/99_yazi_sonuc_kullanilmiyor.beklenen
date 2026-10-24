@@ -1,0 +1,4 @@
+Uyarı (99_yazi_sonuc_kullanilmiyor.kolay, satır 2): 'değiştir' yazıyı değiştirmez, yeni bir yazı verir; burada sonuç kullanılmıyor. Şöyle yazın: s = s.değiştir(...)
+  2 | s.değiştir("a", "b")
+    |   ^^^^^^^^
+abc

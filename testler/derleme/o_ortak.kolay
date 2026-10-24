@@ -1,0 +1,33 @@
+tür Öğrenci(ad: Yazı) {
+    ortak ata sayı = 0
+    ortak ata sabit OKUL = "Atatürk Lisesi"
+
+    fonksiyon kaydet() {
+        sayı += 1
+        yazdır(f"{ad} kaydedildi ({OKUL}), toplam {sayı}")
+    }
+    ortak fonksiyon özet() -> Yazı {
+        döndür f"{OKUL}: {sayı} öğrenci"
+    }
+    ortak fonksiyon sıfırla() { sayı = 0 }
+}
+
+Öğrenci("Ali").kaydet()
+ata a = Öğrenci("Ayşe")
+a.kaydet()
+yazdır(Öğrenci.sayı, Öğrenci.özet())
+Öğrenci.sayı = 10
+yazdır(Öğrenci.özet())
+Öğrenci.sıfırla()
+yazdır(Öğrenci.sayı)
+fonksiyon say() -> Tam(64) { döndür Öğrenci.sayı }
+yazdır(say())
+ata f = her (x: Tam(64)) için x + Öğrenci.sayı
+Öğrenci.sayı = 5
+yazdır(f(1))
+
+tür Lise[Öğrenci](sınıf: Tam(64)) {
+    fonksiyon göster() { yazdır(f"{ad}, {sınıf}. sınıf, okul sayısı: {sayı}") }
+}
+Lise("Can", 9).göster()
+yazdır(Lise.sayı, Lise.özet())

@@ -69,6 +69,23 @@ impl BinOp {
 pub enum FPartE {
     Lit(String),
     Expr(Expr),
+    /// `{x:.2}`: değer ve biçimi
+    Bicimli(Expr, Bicim, Span),
+}
+
+/// f-yazı biçimi: `{x:.2}` `{ad:<10}` `{n:>6}` `{n:06}` `{sayı:,}` `{ad:*^9}`
+#[derive(Debug, Clone)]
+pub struct Bicim {
+    pub dolgu: char,
+    /// '<' sola, '>' sağa, '^' ortaya; yazılmazsa sayılar sağa, diğerleri sola
+    pub hiza: Option<char>,
+    /// `0`: eksi işaretinden sonra sıfırla doldur
+    pub sifir: bool,
+    pub genislik: Option<u32>,
+    /// `,`: basamakları Türk usulü grupla (1.234.567,89)
+    pub grup: bool,
+    /// `.2`: virgülden sonraki basamak sayısı
+    pub basamak: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -236,6 +253,9 @@ pub struct TurDecl {
     pub parents: Vec<(Vec<String>, Span)>,
     pub fields: Vec<Param>,
     pub methods: Vec<FnDecl>,
+    /// Türe ait ortak değerler (`ortak ata toplam = 0`, her biri bir `Ata` komutu) ve fonksiyonlar
+    pub ortak: Vec<Stmt>,
+    pub ortak_fonk: Vec<FnDecl>,
 }
 
 #[derive(Debug, Clone)]

@@ -51,6 +51,7 @@ pub enum Kw {
     Dene,
     Yakala,
     Firlat,
+    Ortak,
 }
 
 /// (anahtar kelime, tr yazımı, us yazımı)
@@ -86,6 +87,7 @@ pub const KEYWORDS: &[(Kw, &str, &str)] = &[
     (Kw::Dene, "dene", "dene"),
     (Kw::Yakala, "yakala", "yakala"),
     (Kw::Firlat, "fırlat", "firlat"),
+    (Kw::Ortak, "ortak", "ortak"),
 ];
 
 /// Dilin hazır isimleri (tipler, fonksiyonlar, metotlar): (tr yazımı, us yazımı).
@@ -96,6 +98,10 @@ pub const BUILTIN_NAMES: &[(&str, &str)] = &[
     ("Mantık", "Mantik"),
     ("Sözlük", "Sozluk"),
     ("yazdır", "yazdir"),
+    ("doğrula", "dogrula"),
+    ("değiştir", "degistir"),
+    ("başlar", "baslar"),
+    ("birleşik", "birlesik"),
     ("çıkar", "cikar"),
     ("içerir", "icerir"),
     ("sırala", "sirala"),
@@ -137,7 +143,8 @@ pub fn kw_text(kw: Kw, mode: Mode) -> &'static str {
 #[derive(Clone, Debug, PartialEq)]
 pub enum FPart {
     Lit(String),
-    Expr { src: String, line: u32, col: u32, byte: u32 },
+    /// `bicim`: `{x:.2}` yazımında ':' sonrası ve yeri (satır, sütun, baştaki ve sondaki bayt)
+    Expr { src: String, line: u32, col: u32, byte: u32, bicim: Option<(String, u32, u32, u32, u32)> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -669,12 +676,18 @@ impl<'a> Lexer<'a> {
                     let (line, col, byte) = (self.line, self.col, self.base_byte + self.byte() as u32);
                     let begin = self.byte();
                     let mut depth = 0;
+                    // parantez içindeki ':' (adlı değer, lambda tipi) biçim ayıracı değildir
+                    let mut paren = 0;
+                    let mut ayrac: Option<(usize, u32, u32)> = None;
                     loop {
                         match self.peek() {
                             None | Some('\n') => return err(open, "f-yazıda '{' açıldı ama '}' ile kapatılmadı."),
                             Some('{') => depth += 1,
                             Some('}') if depth == 0 => break,
                             Some('}') => depth -= 1,
+                            Some('(' | '[') => paren += 1,
+                            Some(')' | ']') => paren -= 1,
+                            Some(':') if depth == 0 && paren == 0 && ayrac.is_none() => ayrac = Some((self.byte(), self.line, self.col + 1)),
                             Some('"') => {
                                 let here = self.here();
                                 self.string(here)?;
@@ -684,12 +697,19 @@ impl<'a> Lexer<'a> {
                         }
                         self.bump();
                     }
-                    let src = self.src[begin..self.byte()].to_string();
+                    let (src, bicim) = match ayrac {
+                        Some((b, bl, bc)) => {
+                            let son = self.byte();
+                            let yer = (self.base_byte + b as u32 + 1, self.base_byte + son as u32);
+                            (self.src[begin..b].to_string(), Some((self.src[b + 1..son].to_string(), bl, bc, yer.0, yer.1)))
+                        }
+                        None => (self.src[begin..self.byte()].to_string(), None),
+                    };
                     self.bump(); // }
                     if src.trim().is_empty() {
                         return err(open, "f-yazıda '{}' boş olamaz. İçine bir değer yazın, örneğin {ad}.");
                     }
-                    parts.push(FPart::Expr { src, line, col, byte });
+                    parts.push(FPart::Expr { src, line, col, byte, bicim });
                 }
                 Some(c) => {
                     lit.push(c);
@@ -814,7 +834,7 @@ fn collect_edits(
             }
             Tok::FStr(parts) => {
                 for p in parts {
-                    if let FPart::Expr { src: esrc, line, col, byte } = p {
+                    if let FPart::Expr { src: esrc, line, col, byte, .. } = p {
                         let mut inner = Vec::new();
                         collect_edits(esrc, from, to, *line, *col, *byte, &mut inner)?;
                         edits.extend(inner);

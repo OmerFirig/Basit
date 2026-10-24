@@ -1,0 +1,3 @@
+HATA (93_bicim_python.kolay, satır 2): '.2f' geçerli bir f-yazı biçimi değil. Python'daki 'f' yazılmaz: {x:.2} Örnekler: {x:.2} (2 basamak), {ad:<10} (sola yasla), {n:>6} (sağa yasla), {ad:^9} (ortala), {n:06} (sıfırla doldur), {sayı:,} (1.234.567)
+  2 | yazdır(f"{x:.2f}")
+    |             ^^^

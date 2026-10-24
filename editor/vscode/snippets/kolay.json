@@ -166,6 +166,22 @@
     ],
     "description": "İçindeki tipi sonradan belli olan tür: Kutu<Tam>, Kutu<Yazı>"
   },
+  "Ortak değer": {
+    "prefix": "ortak",
+    "body": [
+      "ortak ata ${1:toplam} = ${2:0}"
+    ],
+    "description": "Türe ait, bütün nesnelerin paylaştığı değer: Tür.toplam"
+  },
+  "Ortak fonksiyon": {
+    "prefix": "ortakf",
+    "body": [
+      "ortak fonksiyon ${1:ad}() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Türe ait fonksiyon (nesnesi yok): Tür.ad()"
+  },
   "Arayüz": {
     "prefix": "arayüz",
     "body": [
@@ -208,6 +224,13 @@
       "yazdır(f\"${1:metin} {${2:değer}}\")"
     ],
     "description": "Değer içeren yazı yazdır"
+  },
+  "Biçimli f-yazı": {
+    "prefix": "yazdırb",
+    "body": [
+      "yazdır(f\"${1:metin} {${2:değer}:${3:.2}}\")"
+    ],
+    "description": "Biçimli: {x:.2} {ad:<10} {n:>6} {n:06} {sayı:,}"
   },
   "Oku": {
     "prefix": "oku",
@@ -335,6 +358,13 @@
       "fırlat ${1:Hata}(mesaj: \"${2:açıklama}\")"
     ],
     "description": "Hata (ya da herhangi bir değer) fırlatır"
+  },
+  "Doğrula": {
+    "prefix": "doğrula",
+    "body": [
+      "doğrula(${1:koşul}, \"${2:mesaj}\")"
+    ],
+    "description": "Koşul yanlışsa program durur"
   },
   "Hata döndüren fonksiyon": {
     "prefix": "fonksiyonh",

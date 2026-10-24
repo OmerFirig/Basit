@@ -611,6 +611,7 @@ impl Parser {
             );
         }
         let mut methods = Vec::new();
+        let (mut ortak, mut ortak_fonk) = (Vec::new(), Vec::new());
         if self.at(&Tok::LBrace) {
             self.advance();
             loop {
@@ -620,11 +621,36 @@ impl Parser {
                 if self.eat(&Tok::RBrace) {
                     break;
                 }
-                methods.push(self.method()?);
+                if self.at_kw(Kw::Ortak) {
+                    let os = self.advance().span;
+                    if self.at_kw(Kw::Ata) {
+                        ortak.push(self.ata()?);
+                    } else if self.eat_kw(Kw::Fonksiyon) {
+                        let d = self.fn_rest(os, Yeniden::Yok)?;
+                        if let Some((_, sp)) = d.generics.first() {
+                            return err(*sp, "Ortak fonksiyonlar tip parametresi alamaz.");
+                        }
+                        ortak_fonk.push(d);
+                    } else {
+                        return err(
+                            self.span(),
+                            format!(
+                                "'{}' sonrasında '{}' ya da '{}' yazılır: {} {} toplam = 0",
+                                self.kw(Kw::Ortak),
+                                self.kw(Kw::Ata),
+                                self.kw(Kw::Fonksiyon),
+                                self.kw(Kw::Ortak),
+                                self.kw(Kw::Ata)
+                            ),
+                        );
+                    }
+                } else {
+                    methods.push(self.method()?);
+                }
                 self.end_stmt()?;
             }
         }
-        Ok(TurDecl { name, span: start, generics, parents, fields, methods })
+        Ok(TurDecl { name, span: start, generics, parents, fields, methods, ortak, ortak_fonk })
     }
 
     fn method(&mut self) -> CResult<FnDecl> {
@@ -662,9 +688,10 @@ impl Parser {
             _ => err(
                 self.span(),
                 format!(
-                    "Tür içinde sadece '{}' ya da '{}' yazılabilir, ama {} bulundu. Alanlar tür adından sonra parantez içinde yazılır.",
+                    "Tür içinde sadece '{}', '{}' ya da '{}' yazılabilir, ama {} bulundu. Alanlar tür adından sonra parantez içinde yazılır.",
                     self.kw(Kw::Fonksiyon),
                     self.kw(Kw::Yeniden),
+                    self.kw(Kw::Ortak),
                     self.found()
                 ),
             ),
@@ -1129,14 +1156,20 @@ impl Parser {
                 for p in parts {
                     match p {
                         FPart::Lit(s) => out.push(FPartE::Lit(s)),
-                        FPart::Expr { src, line, col, byte } => {
+                        FPart::Expr { src, line, col, byte, bicim } => {
                             let toks = Lexer::with_base(&src, self.file, self.mode, line, col, byte).tokenize()?;
                             let mut sub = Parser { toks, pos: 0, mode: self.mode, file: self.file };
                             let e = sub.expr()?;
                             if !sub.at(&Tok::Eof) {
                                 return err(sub.span(), format!("f-yazı içindeki ifadede beklenmeyen {}.", sub.found()));
                             }
-                            out.push(FPartE::Expr(e));
+                            match bicim {
+                                None => out.push(FPartE::Expr(e)),
+                                Some((b, bl, bc, bs, be)) => {
+                                    let sp = Span { file: self.file, line: bl, col: bc, start: bs, end: be };
+                                    out.push(FPartE::Bicimli(e, bicim_coz(&b, sp)?, sp));
+                                }
+                            }
                         }
                     }
                 }
@@ -1344,4 +1377,56 @@ pub fn turkish_upper_char(c: char) -> String {
         'ı' => "I".into(),
         _ => c.to_uppercase().collect(),
     }
+}
+
+const BICIM_ORNEK: &str = "Örnekler: {x:.2} (2 basamak), {ad:<10} (sola yasla), {n:>6} (sağa yasla), {ad:^9} (ortala), {n:06} (sıfırla doldur), {sayı:,} (1.234.567)";
+
+/// f-yazıdaki ':' sonrası: [dolgu][<>^][0][genişlik][,][.basamak]
+fn bicim_coz(s: &str, sp: Span) -> CResult<Bicim> {
+    let c: Vec<char> = s.chars().collect();
+    let mut b = Bicim { dolgu: ' ', hiza: None, sifir: false, genislik: None, grup: false, basamak: None };
+    let mut i = 0;
+    if c.len() >= 2 && matches!(c[1], '<' | '>' | '^') {
+        b.dolgu = c[0];
+        b.hiza = Some(c[1]);
+        i = 2;
+    } else if !c.is_empty() && matches!(c[0], '<' | '>' | '^') {
+        b.hiza = Some(c[0]);
+        i = 1;
+    }
+    if c.get(i) == Some(&'0') && c.get(i + 1).is_some_and(|x| x.is_ascii_digit()) {
+        b.sifir = true;
+        i += 1;
+    }
+    let sayi = |i: &mut usize| -> Option<u32> {
+        let bas = *i;
+        while c.get(*i).is_some_and(|x| x.is_ascii_digit()) {
+            *i += 1;
+        }
+        (*i > bas).then(|| c[bas..*i].iter().collect::<String>().parse().unwrap_or(u32::MAX))
+    };
+    b.genislik = sayi(&mut i);
+    if c.get(i) == Some(&',') {
+        b.grup = true;
+        i += 1;
+    }
+    if c.get(i) == Some(&'.') {
+        i += 1;
+        match sayi(&mut i) {
+            Some(n) if n <= 50 => b.basamak = Some(n),
+            Some(_) => return err(sp, "f-yazıda en fazla 50 basamak istenebilir."),
+            None => return err(sp, format!("'.' sonrasına basamak sayısı yazılmalı: {{x:.2}}. {BICIM_ORNEK}")),
+        }
+    }
+    if i != c.len() || c.is_empty() {
+        let ipucu = if s.ends_with('f') { " Python'daki 'f' yazılmaz: {x:.2}" } else { "" };
+        return err(sp, format!("'{s}' geçerli bir f-yazı biçimi değil.{ipucu} {BICIM_ORNEK}"));
+    }
+    if b.genislik.is_some_and(|w| w > 1000) {
+        return err(sp, "f-yazıda genişlik en fazla 1000 olabilir.");
+    }
+    if b.sifir && b.hiza.is_some() {
+        return err(sp, "Sıfırla doldurma (0) ile hizalama (<, >, ^) birlikte yazılamaz.");
+    }
+    Ok(b)
 }

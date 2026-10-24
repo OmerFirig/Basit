@@ -257,6 +257,141 @@ _Bool kolay_icerir(Yazi *s, Yazi *p) {
     return memmem(s->d, (size_t)s->uzunluk, p->d, (size_t)p->uzunluk) != NULL;
 }
 
+/// Bütün `eski` parçalarını `yeni` ile değiştirir (yeni yazı).
+Yazi *kolay_degistir(Yazi *s, Yazi *eski, Yazi *yeni, const char *konum, const char *kod) {
+    if (eski->uzunluk == 0) kolay_hata_tur(HT_GENEL, "Değiştirilecek parça boş olamaz.", konum, kod);
+    Yazi *y = yazi_ayir(0);
+    const char *p = s->d, *son = s->d + s->uzunluk;
+    for (;;) {
+        const char *q = memmem(p, (size_t)(son - p), eski->d, (size_t)eski->uzunluk);
+        if (!q) {
+            yazi_ekle_c(&y, p, (size_t)(son - p));
+            return y;
+        }
+        yazi_ekle_c(&y, p, (size_t)(q - p));
+        yazi_ekle_c(&y, yeni->d, (size_t)yeni->uzunluk);
+        p = q + eski->uzunluk;
+    }
+}
+
+_Bool kolay_baslar(Yazi *s, Yazi *p) {
+    return p->uzunluk <= s->uzunluk && memcmp(s->d, p->d, (size_t)p->uzunluk) == 0;
+}
+
+_Bool kolay_biter(Yazi *s, Yazi *p) {
+    return p->uzunluk <= s->uzunluk && memcmp(s->d + s->uzunluk - p->uzunluk, p->d, (size_t)p->uzunluk) == 0;
+}
+
+/// Parçanın ilk geçtiği yerin karakter sırası; yoksa -1.
+int64_t kolay_yazi_bul(Yazi *s, Yazi *p) {
+    if (p->uzunluk == 0) return 0;
+    const char *q = memmem(s->d, (size_t)s->uzunluk, p->d, (size_t)p->uzunluk);
+    if (!q) return -1;
+    int64_t n = 0;
+    for (const char *c = s->d; c < q; c++)
+        if ((*c & 0xC0) != 0x80) n++;
+    return n;
+}
+
+/// Parçanın kaç kez geçtiği (örtüşmeyen)
+int64_t kolay_say(Yazi *s, Yazi *p, const char *konum, const char *kod) {
+    if (p->uzunluk == 0) kolay_hata_tur(HT_GENEL, "Aranan parça boş olamaz.", konum, kod);
+    int64_t n = 0;
+    const char *c = s->d, *son = s->d + s->uzunluk;
+    const char *q;
+    while ((q = memmem(c, (size_t)(son - c), p->d, (size_t)p->uzunluk))) {
+        n++;
+        c = q + p->uzunluk;
+    }
+    return n;
+}
+
+/// tekrar() ile oluşturulabilecek en uzun yazı (yorumlayıcıdaki YAZI_SINIRI ile aynı)
+#define YAZI_SINIRI ((int64_t)1 << 32)
+
+Yazi *kolay_tekrar(Yazi *s, int64_t n, const char *konum, const char *kod) {
+    if (n < 0) {
+        char msg[100];
+        snprintf(msg, sizeof msg, "Tekrar sayısı eksi olamaz: %lld.", (long long)n);
+        kolay_hata_tur(HT_GENEL, msg, konum, kod);
+    }
+    if (s->uzunluk > 0 && n > YAZI_SINIRI / s->uzunluk) kolay_hata_tur(HT_YAKALANAMAZ, "Bellek yetmedi.", konum, kod);
+    Yazi *y = yazi_ayir(s->uzunluk * n);
+    for (int64_t i = 0; i < n; i++) memcpy(y->d + i * s->uzunluk, s->d, (size_t)s->uzunluk);
+    return y;
+}
+
+/// f-yazıda {x:.2}: virgülden sonra n basamak (yorumlayıcıda format!("{x:.n$}"))
+Yazi *kolay_hassas(double x, int64_t n) {
+    if (!isfinite(x)) {
+        char buf[32];
+        ondalik_yaz(x, 64, buf);
+        return yazi_c(buf);
+    }
+    int k = snprintf(NULL, 0, "%.*f", (int)n, x);
+    Yazi *y = yazi_ayir(k);
+    snprintf(y->d, (size_t)k + 1, "%.*f", (int)n, x);
+    return y;
+}
+
+/// f-yazıda {n:,}: "-1234567.5" -> "-1.234.567,5" (yorumlayıcıda interp::grupla_tr)
+Yazi *kolay_grupla(Yazi *s) {
+    const char *p = s->d, *son = s->d + s->uzunluk;
+    int isaret = p < son && *p == '-';
+    const char *tam = p + isaret, *nokta = memchr(tam, '.', (size_t)(son - tam));
+    const char *tam_son = nokta ? nokta : son;
+    if (tam == tam_son) return yazi_yap(s->d, (size_t)s->uzunluk);
+    for (const char *c = tam; c < tam_son; c++)
+        if (*c < '0' || *c > '9') return yazi_yap(s->d, (size_t)s->uzunluk);
+    Yazi *y = yazi_ayir(0);
+    if (isaret) yazi_ekle_c(&y, "-", 1);
+    int64_t n = tam_son - tam;
+    for (int64_t i = 0; i < n; i++) {
+        if (i > 0 && (n - i) % 3 == 0) yazi_ekle_c(&y, ".", 1);
+        yazi_ekle_c(&y, tam + i, 1);
+    }
+    if (nokta) {
+        yazi_ekle_c(&y, ",", 1);
+        yazi_ekle_c(&y, nokta + 1, (size_t)(son - nokta - 1));
+    }
+    return y;
+}
+
+/// f-yazıda genişlik: kip 0 sola, 1 sağa, 2 ortaya, 3 sıfırla (yorumlayıcıda interp::hizala)
+Yazi *kolay_hizala(Yazi *s, int64_t genislik, Yazi *dolgu, int64_t kip) {
+    int64_t n = kolay_yazi_uzunluk(s);
+    if (n >= genislik) return yazi_yap(s->d, (size_t)s->uzunluk);
+    int64_t bos = genislik - n, sol = kip == 0 ? 0 : kip == 2 ? bos / 2 : bos;
+    Yazi *y = yazi_ayir(0);
+    const char *d = s->d;
+    size_t dn = (size_t)s->uzunluk;
+    if (kip == 3) {
+        if (dn > 0 && *d == '-') {
+            yazi_ekle_c(&y, "-", 1);
+            d++;
+            dn--;
+        }
+        for (int64_t i = 0; i < bos; i++) yazi_ekle_c(&y, "0", 1);
+        yazi_ekle_c(&y, d, dn);
+        return y;
+    }
+    for (int64_t i = 0; i < sol; i++) yazi_ekle_c(&y, dolgu->d, (size_t)dolgu->uzunluk);
+    yazi_ekle_c(&y, d, dn);
+    for (int64_t i = 0; i < bos - sol; i++) yazi_ekle_c(&y, dolgu->d, (size_t)dolgu->uzunluk);
+    return y;
+}
+
+/// Liste<Yazı>.birleşik(ayraç): ["a", "b"] -> "a, b"
+Yazi *kolay_birlesik(Liste *l, Yazi *ayrac) {
+    Yazi *y = yazi_ayir(0);
+    for (int64_t i = 0; i < l->uzunluk; i++) {
+        Yazi *e = *(Yazi **)(l->veri + i * (int64_t)sizeof(Yazi *));
+        if (i > 0) yazi_ekle_c(&y, ayrac->d, (size_t)ayrac->uzunluk);
+        yazi_ekle_c(&y, e->d, (size_t)e->uzunluk);
+    }
+    return y;
+}
+
 Yazi *kolay_karakter(Yazi *s, int64_t i, const char *konum, const char *kod) {
     int64_t n = kolay_yazi_uzunluk(s);
     int64_t real = i < 0 ? i + n : i;

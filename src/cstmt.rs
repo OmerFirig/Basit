@@ -167,8 +167,15 @@ impl Checker {
             StmtKind::Expr(Expr { kind: ExprKind::Lambda { .. }, span }) => {
                 return err(*span, "Bu bir isimsiz fonksiyon (lambda), tek başına bir şey yapmaz. Bir liste üzerinde dönmek için: liste içindeki her x için yap { }");
             }
+            StmtKind::Expr(Expr { kind: ExprKind::Call { callee, args }, span })
+                if matches!(&callee.kind, ExprKind::Ident(n) if n == "doğrula")
+                    && !self.var_exists("doğrula") =>
+            {
+                (vec![self.dogrula(args, *span)?], false)
+            }
             StmtKind::Expr(e) => {
                 let t = self.expr(e, None)?;
+                self.kullanilmayan_yazi(e, &t);
                 let div = t.ty == Type::Never;
                 (vec![TS::Expr(t)], div)
             }
@@ -356,6 +363,59 @@ impl Checker {
             }
             StmtKind::Dene { body, catches } => self.dene(body, catches, span)?,
         })
+    }
+
+    /// Yazılar değişmez: `s.değiştir(...)` tek başına yazılırsa hiçbir şey olmaz, uyarı verilir.
+    fn kullanilmayan_yazi(&mut self, e: &Expr, t: &TExpr) {
+        let ExprKind::Call { callee, args } = &e.kind else { return };
+        let ExprKind::Field(base, name, nspan) = &callee.kind else { return };
+        let yeni_yazi = match &t.kind {
+            TK::BMethod { m, .. } => matches!(m, BM::Degistir | BM::BuyukHarf | BM::KucukHarf | BM::Kirp | BM::Tekrar),
+            TK::Slice { .. } => name == "tersi",
+            _ => false,
+        };
+        if !yeni_yazi || t.ty != Type::Str {
+            return;
+        }
+        let sp = base.span;
+        let alici = self.texts.get(sp.file as usize).and_then(|x| x.get(sp.start as usize..sp.end as usize)).unwrap_or("yazı").to_string();
+        let ad = self.shown(name);
+        self.warn(
+            *nspan,
+            format!("'{ad}' yazıyı değiştirmez, yeni bir yazı verir; burada sonuç kullanılmıyor. Şöyle yazın: {alici} = {alici}.{ad}({})", if args.is_empty() { "" } else { "..." }),
+        );
+    }
+
+    /// `doğrula(koşul)` ya da `doğrula(koşul, "mesaj")`: koşul yanlışsa `Hata` fırlatılır
+    /// (`eğer değil koşul { fırlat Hata(mesaj: ...) }` ile aynı). Mesaj verilmezse koşulun yazılışı kullanılır.
+    fn dogrula(&mut self, args: &[Arg], span: Span) -> CResult<TS> {
+        let ad = self.shown("doğrula");
+        if args.is_empty() || args.len() > 2 {
+            return err(span, format!("'{ad}' bir koşul ve isteğe bağlı bir mesaj alır: {ad}(x > 0) ya da {ad}(x > 0, \"x pozitif olmalı\")"));
+        }
+        if let Some((n, s)) = args.iter().find_map(|a| a.name.as_ref()) {
+            return err(*s, format!("'{ad}' adlı değer almaz ('{n}:' yazmayın)."));
+        }
+        let c = self.expr(&args[0].value, Some(&Type::Bool))?;
+        let c = self.bool_cond(c, args[0].value.span, &format!("'{ad}'"))?;
+        let on = self.mk(TK::Str(Rc::new("Doğrulama başarısız: ".to_string())), Type::Str, span);
+        let mesaj = match args.get(1) {
+            Some(a) => {
+                let t = self.expr(&a.value, Some(&Type::Str))?;
+                let t = self.coerce(t, &Type::Str, a.value.span)?;
+                self.mk(TK::Concat(Box::new(on), Box::new(t)), Type::Str, span)
+            }
+            None => {
+                let sp = args[0].value.span;
+                let yazilan = self.texts.get(sp.file as usize).and_then(|t| t.get(sp.start as usize..sp.end as usize)).unwrap_or("koşul");
+                let tam = format!("Doğrulama başarısız: {yazilan}");
+                self.mk(TK::Str(Rc::new(tam)), Type::Str, span)
+            }
+        };
+        let hata = self.hata_turleri[0];
+        let nesne = self.mk(TK::New(hata, vec![mesaj]), Type::Named(hata), span);
+        let degil = self.mk(TK::Not(Box::new(c)), Type::Bool, span);
+        Ok(TS::If(vec![(degil, vec![TS::Throw(nesne)])], None))
     }
 
     /// `dene { } yakala ...`. Hata gövdenin herhangi bir yerinde olabileceği için yakala dalları,
@@ -991,7 +1051,23 @@ impl Checker {
                 }
                 StmtKind::Tur(TurDecl { name, .. }) | StmtKind::Secenek(SecenekDecl { name, .. }) => {
                     let tid = self.mods[mi].types[name];
+                    // ortak değerler tanımın yerinde, `Tür.ad` adlı dosya değişkeni olarak oluşur
+                    if let StmtKind::Tur(d) = &s.kind {
+                        for o in &d.ortak {
+                            let mut o = o.clone();
+                            if let StmtKind::Ata { name: n, .. } = &mut o.kind {
+                                *n = format!("{name}.{n}");
+                            }
+                            let (ts, _) = self.stmt(&o)?;
+                            out.extend(ts);
+                        }
+                    }
                     let snap = self.global_snapshot();
+                    for (&(t, _), &fid) in &self.ortak_fonk {
+                        if t == tid {
+                            self.funcs[fid].snapshot = Some(snap.clone());
+                        }
+                    }
                     if self.tur_kalip.contains_key(&tid) {
                         self.tur_snapshot.insert(tid, snap.clone());
                     }
@@ -1091,6 +1167,7 @@ impl Checker {
         let decl = f.decl.take().unwrap();
         let snapshot = f.snapshot.clone().unwrap_or_default();
         let (module, owner, ret, params, sabits) = (f.module, f.owner, f.ret.clone(), f.params.clone(), f.param_sabit.clone());
+        let ortak_tur = f.ortak_of;
         self.cx = Ctx {
             module,
             scopes: vec![HashMap::new()],
@@ -1099,6 +1176,7 @@ impl Checker {
             ret: Some(ret.clone()),
             fname: decl.name.clone(),
             func: Some(fid),
+            ortak_tur,
             ..Default::default()
         };
         for (i, (n, t)) in params.iter().enumerate() {
@@ -1154,7 +1232,10 @@ fn ilk_cagri(stmts: &[Stmt]) -> Option<(Span, String)> {
             ExprKind::Binary(_, a, b) | ExprKind::Index(a, b) => e(a).or_else(|| e(b)),
             ExprKind::List(v) => v.iter().find_map(e),
             ExprKind::Dict(v) => v.iter().find_map(|(a, b)| e(a).or_else(|| e(b))),
-            ExprKind::FStr(ps) => ps.iter().find_map(|p| if let FPartE::Expr(x) = p { e(x) } else { None }),
+            ExprKind::FStr(ps) => ps.iter().find_map(|p| match p {
+                FPartE::Expr(x) | FPartE::Bicimli(x, _, _) => e(x),
+                FPartE::Lit(_) => None,
+            }),
             ExprKind::Range { start, end, .. } => start.as_deref().and_then(e).or_else(|| end.as_deref().and_then(e)),
             ExprKind::Match(m) => e(&m.scrutinee),
             _ => None,

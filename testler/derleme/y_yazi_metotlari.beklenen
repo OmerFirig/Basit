@@ -1,0 +1,12 @@
+MERHABA dünya, mERHABA Kolay
+doğru doğru yanlış
+8 Hiç 0
+6 1
+ababab  ğğ
+a, b, c []
+bir-iki-üç
+buldum: 3
+Tekrar sayısı eksi olamaz: -1.
+Hata(mesaj: "Değiştirilecek parça boş olamaz.")
+ÇALIŞMA HATASI (y_yazi_metotlari.kolay, satır 16): Aranan parça boş olamaz.
+  16 | yazdır("a".say(""))
