@@ -165,8 +165,9 @@ pub struct Checker {
     /// Türlerin içeriği çözülürken yazılan sözlük anahtarları; seçenekler henüz çözülmemiş
     /// olabileceği için kontrolleri tüm türler çözüldükten sonra yapılır.
     pub(crate) pending_keys: std::cell::RefCell<Option<Vec<(Type, Span)>>>,
-    /// Kaynak dosyaların metni (hata mesajlarında kullanıcının yazdığı ifadeyi göstermek için)
+    /// Kaynak dosyaların metni (hata mesajlarında kullanıcının yazdığı ifadeyi göstermek için) ve adları
     pub(crate) texts: Vec<String>,
+    pub(crate) dosya_adlari: Vec<String>,
     /// İç içe denetlenen lambdalar (en içteki sonda)
     pub(crate) lambda_stack: Vec<LambdaFrame>,
     /// Hazır hata türleri (tir::HATA_TURLERI sırasıyla)
@@ -198,6 +199,8 @@ pub struct Checker {
     pub(crate) yasak_tip: Vec<String>,
     /// Alanların başlangıç değerleri: (alanın tanımlandığı tür, ad) -> ifade
     pub(crate) alan_varsayilan: HashMap<(TypeId, String), Expr>,
+    /// Şu an denetlenen varsayılan değerler (kendini kullanan varsayılanı yakalamak için)
+    pub(crate) varsayilan_yigini: Vec<String>,
 }
 
 /// Tipsiz `yakala` dalının değişken tipi, fırlatılabilen değerlere bağlıdır; bunlar ise bütün program
@@ -261,6 +264,7 @@ fn check_pass(
         method_ids: HashMap::new(),
         pending_keys: std::cell::RefCell::new(Some(Vec::new())),
         texts: src.files.iter().map(|f| f.text.clone()).collect(),
+        dosya_adlari: src.files.iter().map(|f| f.name.clone()).collect(),
         lambda_stack: Vec::new(),
         hata_turleri: [0; 6],
         tahmin: tahmin.clone(),
@@ -278,6 +282,7 @@ fn check_pass(
         ortak_fonk: HashMap::new(),
         yasak_tip: Vec::new(),
         alan_varsayilan: HashMap::new(),
+        varsayilan_yigini: Vec::new(),
     };
     let mut all_stmts = Vec::new();
     for m in parsed {
@@ -804,6 +809,18 @@ impl Checker {
                 let mut t = *elem;
                 if dims.is_empty() {
                     return Ok(Type::List(Box::new(t), None));
+                }
+                // sabit boyutlu liste program başında bütünüyle oluşturulur: bellek yetmeden önce durdur
+                let eleman = dims.iter().flatten().try_fold(1u64, |a, &d| a.checked_mul(d as u64)).unwrap_or(u64::MAX);
+                if eleman > SABIT_LISTE_SINIRI {
+                    return err(
+                        te.span,
+                        format!(
+                            "Sabit boyutlu liste çok büyük ({} eleman); en fazla {} eleman olabilir. Daha büyük veri için esnek liste kullanın: Liste<Tam>",
+                            group_digits(&eleman.to_string()),
+                            group_digits(&SABIT_LISTE_SINIRI.to_string())
+                        ),
+                    );
                 }
                 for d in dims.iter().rev() {
                     t = Type::List(Box::new(t), *d);
@@ -1590,6 +1607,9 @@ impl Checker {
         Ok(())
     }
 }
+
+/// Sabit boyutlu bir listenin en fazla eleman sayısı (Tam(64) için 800 MB)
+const SABIT_LISTE_SINIRI: u64 = 100_000_000;
 
 const DIS_TIPLER: &str = "Kullanılabilen tipler: Tam(8/16/32/64), Tam(N, +), Ondalık, Ondalık(32), Mantık, Yazı.";
 

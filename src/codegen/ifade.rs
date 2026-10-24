@@ -301,6 +301,12 @@ impl<'p> Gen<'p> {
                 self.emit("call void @kolay_satir()");
                 String::new()
             }
+            TK::Builtin(Builtin::Yaz, args) => {
+                let s = self.expr(&args[0])?;
+                self.emit(&format!("call void @kolay_yaz(ptr {s})"));
+                self.drop_temp(&s);
+                String::new()
+            }
             TK::Builtin(Builtin::Oku, args) => {
                 let p = match args.first() {
                     Some(a) => self.expr(a)?,

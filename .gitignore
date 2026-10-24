@@ -11,8 +11,9 @@ node_modules/
 *.o
 a.out
 # örneklerin ve testlerin yanında derlenen programlar (uzantısız dosyalar)
-/ornekler/*
-!/ornekler/*.kolay
+/ornekler/**/*
+!/ornekler/**/
+!/ornekler/**/*.kolay
 /testler/**/*
 !/testler/**/
 !/testler/**/*.kolay

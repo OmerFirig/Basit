@@ -1,0 +1,2 @@
+tür S(ad: Yazı) { ata kendi: S veya Hiç = S("x") }
+yazdır(S("a"))

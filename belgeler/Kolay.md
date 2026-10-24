@@ -154,6 +154,22 @@ yazdır("Sonuç:", 10, "puan")
 Sonuç: 10 puan
 ```
 
+Aradaki boşluk yerine başka bir şey istiyorsanız `ayraç:`, satır sonu yerine başka bir şey istiyorsanız `son:` yazın:
+
+```kolay
+yazdır("elma", "armut", "kiraz", ayraç: ", ")
+yazdır("Yükleniyor", son: "")
+yazdır("...", son: "")
+yazdır(" tamam")
+```
+
+```
+elma, armut, kiraz
+Yükleniyor... tamam
+```
+
+`son: ""` ile satır sonu yazılmaz; sonraki `yazdır` aynı satırdan devam eder. Bir döngüde sayıları yan yana yazmak için kullanışlıdır: `yazdır(i, son: " ")`.
+
 ### İşlemler
 
 `yazdır`'ın içine işlem de yazılabilir. Önce işlem yapılır, sonra sonuç yazılır:
@@ -721,6 +737,14 @@ yazdır(0.1 + 0.2)
 Bu Kolay'a özgü değildir; Python, Java, C ve JavaScript'te de aynı sonuç çıkar. Para gibi kesin hesap gereken yerlerde kuruş cinsinden tam sayı kullanmak daha güvenlidir.
 
 Ondalık tipin de boyutları vardır: `Ondalık(16)`, `Ondalık(32)`, `Ondalık(64)` (varsayılan). Küçük boyutlar daha az yer kaplar ama hassasiyeti düşüktür.
+
+Çok büyük ya da çok küçük sayılar **bilimsel yazımla** yazılabilir: `e`'den sonraki sayı, 10'un kuvvetidir. Bilimsel yazılan sayı her zaman `Ondalık`'tır:
+
+```kolay
+yazdır(1.5e-7, 2E3)               // 0.00000015 2000.0   (1,5 × 10⁻⁷ ve 2 × 10³)
+ata ışık_hızı = 3e8
+yazdır(f"{ışık_hızı:,.0} m/sn")   // 300.000.000 m/sn
+```
 
 ### Tanımsız sayı
 
@@ -3135,6 +3159,28 @@ Ben Deniz
 Yüzme sporcusuyum
 ```
 
+İki ebeveynin metodu farklı durumlarda farklı davranmalıysa, her birini ayrı ayrı yeniden yazabilirsiniz: `yeniden Kişi.tanıt()`. Nesne `Kişi` olarak kullanılınca (örneğin bir `Liste<Kişi>` içinde) o sürüm, `Sporcu` olarak kullanılınca diğeri çalışır:
+
+```kolay
+tür SporcuÖğrenci[Kişi, Sporcu](numara: Tam) {
+    yeniden Kişi.tanıt()   { yazdır(f"Ben öğrenci {ad}") }
+    yeniden Sporcu.tanıt() { yazdır(f"Okul takımında {branş} yapıyorum") }
+}
+
+ata d = SporcuÖğrenci(ad: "Deniz", branş: "Yüzme", numara: 12)
+ata kişiler: Liste<Kişi> = [d]
+ata sporcular: Liste<Sporcu> = [d]
+kişiler[0].tanıt()
+sporcular[0].tanıt()
+```
+
+```
+Ben öğrenci Deniz
+Okul takımında Yüzme yapıyorum
+```
+
+Sadece bu iki ayrı sürüm yazılmışsa `d.tanıt()` doğrudan çağrılamaz, çünkü hangisi olduğu belli değildir: `'tanıt' belirsiz: Kişi.tanıt mı, Sporcu.tanıt mı? Türün içine ortak bir 'yeniden tanıt()' yazın.`
+
 ### Alıştırma
 
 `Hayvan(ad: Yazı)` türü ve `ses() -> Yazı` metodu yazın. `Kedi` ve `Köpek` alt türleri `ses`'i yeniden yazsın. Karışık bir `Liste<Hayvan>` oluşturup her hayvanın adını ve sesini yazdırın.
@@ -3361,6 +3407,8 @@ Uyarı (deneme.kolay, satır 3): 'Sarı', 'Yeşil' seçenekleri ele alınmamış
 bitti
 ```
 
+Hiç dalı olmayan bir `eşleştir` (`eşleştir x { }`) bir şey yapmaz; Kolay bunun için de uyarır.
+
 ### Dalda atama
 
 Bir dalda tek bir atama da yazılabilir; bu durumda `{ }` gerekmez:
@@ -3418,6 +3466,31 @@ ata şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(2.0, 3.0), Şe
 ```
 
 `Daire(r)` dalı, değer bir daireyse yarıçapını `r` adıyla açar. İstenmeyen değerlerin yerine `_` yazılır: `Dikdörtgen(e, _)`. Tek başına `_` deseni `değilse` gibi her şeye uyar. Seçeneklerin içine de metot yazılabilir (yukarıdaki `alan`).
+
+### Seçeneklerde fonksiyonlar ve arayüzler
+
+Türler gibi seçenekler de fonksiyon içerebilir ve arayüz uygulayabilir. Fonksiyonun içinde `bu`, seçeneğin değeridir:
+
+```kolay
+arayüz Adlı {
+    fonksiyon ad() -> Yazı
+}
+seçenek Renk[Adlı] {
+    Kırmızı
+    Yeşil
+    fonksiyon ad() -> Yazı {
+        döndür eşleştir bu {
+            Kırmızı -> "kırmızı"
+            Yeşil -> "yeşil"
+        }
+    }
+}
+fonksiyon söyle(x: Adlı) { yazdır(x.ad()) }
+söyle(Renk.Yeşil)            // yeşil
+yazdır(Renk.Kırmızı.ad())    // kırmızı
+```
+
+Seçeneklerde kalıtım yoktur; köşeli parantez içine sadece arayüzler yazılır.
 
 ### Ek koşul
 
@@ -4052,7 +4125,7 @@ Kolay'ın kendi çalışma hataları şu türlerdendir. Hepsi `Hata` türünün 
 | `Hata.Anahtar` | Sözlükte olmayan bir anahtar | `notlar["Veli"]`, olmayan anahtarı `sil` |
 | `Hata.Taşma` | Sayı, tipinin sınırına sığmadı | `Tam(8)` 127'yi aştı, `Tam(+)` negatif oldu, `2 ** 200` |
 | `Hata.Dönüşüm` | Bir değer başka bir tipe çevrilemedi | `"abc".tama()`, `300 olarak Tam(8)`, `TanımsızSayı` tam sayıya çevrildi |
-| `Hata` | Diğerleri | `Adım sıfır olamaz.`, `Aralık çok büyük`, negatif `kere` |
+| `Hata` | Diğerleri | `Adım sıfır olamaz.`, `Aralık çok büyük`, negatif `kere`, tutmayan `doğrula(...)` |
 
 `yakala h: Hata` yazılırsa `Hata`'nın **bütün** alt türleri yakalanır:
 
@@ -4707,6 +4780,16 @@ Kurallar:
 - Dahil edilen dosyadaki `yazdır` gibi komutlar, dosya dahil edildiği anda bir kez çalışır.
 - İsimsiz dahil etmede iki dosyada aynı isim varsa Kolay hata verir ve isimli dahil etmeyi önerir.
 
+### Kendi kütüphanenizi yazmak
+
+Başkalarının da kullanacağı fonksiyon ve türleri bir dosyada toplarsanız bir **kütüphane** yazmış olursunuz. Birkaç öneri:
+
+- Kullananlara `x adıyla dahil et(...)` yazmalarını önerin; adlarınız onların adlarıyla çakışmaz.
+- Kütüphanede `yazdır` gibi ekrana yazan üst düzey komutlar olmasın. Bunun yerine `doğrula` ile kütüphanenin kendi testlerini yazın; dahil edilince bir kez çalışır, hata yoksa bir şey yazmaz.
+- Her tiple çalışan fonksiyonları generic (`<T>`) yazın, varsayılan değerlerle kullanımı kolaylaştırın.
+
+Çalışan bir örnek Kolay'ın kaynak klasöründe: `ornekler/08_kutuphane/` (istatistik kütüphanesi ve onu kullanan program). C kütüphanelerini sarmak ya da dile hazır metot eklemek için: `belgeler/GELISTIRICI.md`.
+
 ---
 
 ## 23. Hata mesajlarını okumak
@@ -4781,6 +4864,11 @@ Uyarı (deneme.kolay, satır 2): '^' özel veya (xor) işlemidir; üs için '**'
 | `Aralık çok büyük (... eleman), liste olarak oluşturulamaz.` | Dev bir aralık değer olarak kullanıldı | Aralığı doğrudan döngüde kullanın |
 | `Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.` | Durma koşulu olmayan özyineleme | Durma koşulunu kontrol edin |
 | `'dondur' us klavye modunda bir anahtar kelime ('döndür'). Çevirmeden önce bu adı değiştirin.` | `kolay çevir` ile çevrilecek dosyada, diğer modun anahtar kelimesiyle aynı bir isim var | O ismi değiştirin |
+| `Doğrulama başarısız: ...` | Bir `doğrula(...)` koşulu yanlış çıktı | Koşulu ya da kodunuzu kontrol edin |
+| `'y' varsayılan değerli 'x' parametresinden sonra geliyor...` | Varsayılanlı parametre ortada | Varsayılan değerli parametreleri sona yazın |
+| `'n' burada kullanılamaz: varsayılan değerde değişkenler kullanılamaz.` | Varsayılan değerde değişken | Sayı, yazı, liste ya da fonksiyon çağrısı yazın |
+| `'sayı' Öğrenci türünün ortak değeri, tek bir nesnenin değil.` | Ortak değere nesneden erişildi | `Öğrenci.sayı` yazın |
+| `... içinde: ... (çağrı: satır 12, T = Yazı)` | Generic bir fonksiyon bu tiple çalışmıyor | Çağrıdaki değeri ya da fonksiyonu düzeltin |
 
 ### Hata ayıklama ipuçları
 
@@ -5289,6 +5377,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | Kolay | Python |
 |---|---|
 | `yazdır("merhaba")` | `print("merhaba")` |
+| `yazdır(a, b, ayraç: ", ", son: "")` | `print(a, b, sep=", ", end="")` |
 | `ata x = 5` | `x = 5` |
 | `ata x: Tam = 5` | `x: int = 5` |
 | `ata sabit PI = 3.14` | `PI = 3.14` (Python'da gerçek sabit yok, büyük harf gelenektir) |
@@ -5435,7 +5524,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `Tam(8/16/32/128)` | boyutlu tam sayı |
 | `Tam(N, +)` / `Tam(N, -)` | sadece pozitif / sadece negatif |
 | `Tam` | esnek, hiç taşmaz |
-| `Ondalık`, `Ondalık(16/32)` | ondalıklı sayı |
+| `Ondalık`, `Ondalık(16/32)` | ondalıklı sayı; bilimsel yazım: `1.5e-7`, `6.022e23` |
 | `Yazı` | metin |
 | `Mantık` | `doğru` / `yanlış` |
 | `Liste<T>` | esnek liste |
@@ -5454,7 +5543,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 
 | Ne | Metotlar |
 |---|---|
-| her yerde | `yazdır(...)`, `oku("soru")`, `doğrula(koşul)`, `doğrula(koşul, "mesaj")` |
+| her yerde | `yazdır(...)` (`ayraç:`, `son:` alabilir), `oku("soru")`, `doğrula(koşul)`, `doğrula(koşul, "mesaj")` |
 | `Yazı` | `uzunluk()`, `büyük_harf()`, `küçük_harf()`, `karakter(i)`, `içerir(parça)`, `böl(ayraç)`, `kırp()`, `değiştir(eski, yeni)`, `başlar(p)`, `biter(p)`, `bul(p)` → `Tam(64) veya Hiç`, `say(p)`, `tekrar(n)`, `tersi()`, `tama()` → `Tam(64) veya Hata.Dönüşüm`, `ondalığa()` → `Ondalık veya Hata.Dönüşüm`, `yazıya()`, dilim `s[a..b]` |
 | `Liste` (değiştiren) | `ekle(x)`, `araya_ekle(i, x)`, `sil(i)`, `çıkar()`, `sırala()`, `sırala(göre: f)`, `ters_çevir()`, `temizle()` |
 | `Liste` (yeni değer veren) | `uzunluk()`, `içerir(x)`, `bul(x)` → `Tam(64) veya Hiç`, `sıralı()`, `sıralı(göre: f)`, `tersi()`, `adım(n)`, `dönüşüm(f)`, `filtre(f)`, `hepsi(f)`, `herhangi(f)`, `toplam()`, `en_büyük()`, `en_küçük()`, `birleşik(ayraç)`, `yazıya()`, dilim `l[a..b]` |

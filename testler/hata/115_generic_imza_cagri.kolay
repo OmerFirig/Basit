@@ -1,0 +1,6 @@
+fonksiyon say<T>(l: Liste<T>) -> Sözlük<T, Tam(64)> {
+    ata d: Sözlük<T, Tam(64)>
+    döndür d
+}
+yazdır(say([1, 2]))
+yazdır(say([1.5]))

@@ -862,6 +862,11 @@ impl<'p> Interp<'p> {
                     self.write_line(&line);
                     Value::Hic
                 }
+                Builtin::Yaz => {
+                    let Value::Str(s) = self.eval(&args[0], f)? else { unreachable!("yazı") };
+                    self.write_line(&s);
+                    Value::Hic
+                }
                 Builtin::Oku => {
                     if let Some(a) = args.first() {
                         let Value::Str(p) = self.eval(a, f)? else { unreachable!() };

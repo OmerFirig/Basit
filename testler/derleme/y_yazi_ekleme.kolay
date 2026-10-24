@@ -1,0 +1,7 @@
+ata s = ""
+0..1000 içindeki her i için yap { s = s + "x" + "y" }
+ata t = "a"
+t = t + "b"
+ata u = "k"
+u = "z" + u
+yazdır(s.uzunluk(), t, u)

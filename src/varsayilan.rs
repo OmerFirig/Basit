@@ -52,13 +52,26 @@ impl Checker {
         self.funcs[fid].inst.as_ref().map(|i| i.binds.clone())
     }
 
+    /// Varsayılan değer kendini (doğrudan ya da dolaylı) kullanıyorsa sonsuza kadar açılırdı: hata ver.
+    /// `ad` yığındaki kimliği ve mesajda görünen adı ("f fonksiyonunun 'x' parametresi" gibi).
+    fn varsayilan_ac(&mut self, ad: String, e: &Expr, f: impl FnOnce(&mut Self) -> CResult<TExpr>) -> CResult<TExpr> {
+        if self.varsayilan_yigini.contains(&ad) {
+            return err(e.span, format!("{ad} varsayılan değerinde kendini kullanıyor; bu değer hiç bitmeden kendini açardı. Varsayılan değeri değiştirin."));
+        }
+        self.varsayilan_yigini.push(ad);
+        let r = f(self);
+        self.varsayilan_yigini.pop();
+        r
+    }
+
     /// Fonksiyonun i. parametresinin varsayılan değeri
     pub(crate) fn fonk_varsayilan(&mut self, fid: FuncId, i: usize) -> CResult<TExpr> {
         let e = self.funcs[fid].varsayilan[i].clone().expect("varsayılan");
         let ty = self.funcs[fid].params[i].1.clone();
         let mi = self.funcs[fid].module;
         let b = self.kopya_tipleri(fid);
-        self.varsayilan_te(mi, &e, Some(&ty), b.as_deref())
+        let ad = format!("'{}' fonksiyonunun '{}' parametresi", self.funcs[fid].name, self.funcs[fid].params[i].0);
+        self.varsayilan_ac(ad, &e, |c| c.varsayilan_te(mi, &e, Some(&ty), b.as_deref()))
     }
 
     /// Alanın başlangıç değeri (başlıkta `= ...` ya da gövdede `ata`)
@@ -66,7 +79,8 @@ impl Checker {
         let e = self.alan_varsayilan.get(&(f.origin, f.name.to_string())).cloned().expect("alan varsayılanı");
         let mi = self.type_decls[f.origin].0;
         let b: Option<Vec<(String, Type)>> = self.tur_inst.get(&f.origin).map(|(k, ts, _)| self.tur_kalip[k].0.iter().cloned().zip(ts.iter().cloned()).collect());
-        self.varsayilan_te(mi, &e, Some(&f.ty), b.as_deref())
+        let ad = format!("{} türünün '{}' alanı", self.types[f.origin].name, f.name);
+        self.varsayilan_ac(ad, &e, |c| c.varsayilan_te(mi, &e, Some(&f.ty), b.as_deref()))
     }
 
     pub(crate) fn alan_varsayilani_var(&self, f: &FieldInfo) -> bool {
@@ -152,7 +166,16 @@ impl Checker {
             return self.resolve_type(te, mi);
         }
         if !basit_deger(deger) {
-            return err(deger.span, format!("Bu alanın tipi değerden çıkarılamıyor; tipini yazın: ata {ad}: Tam = ..."));
+            // öneride değere uygun bir tip göster: Kişi(...) -> Kişi
+            let ornek = match &deger.kind {
+                ExprKind::Call { callee, .. } => match &callee.kind {
+                    ExprKind::Ident(n) if n.chars().next().is_some_and(char::is_uppercase) => n.clone(),
+                    ExprKind::Field(_, n, _) if n.chars().next().is_some_and(char::is_uppercase) => n.clone(),
+                    _ => "Tip".to_string(),
+                },
+                _ => "Tip".to_string(),
+            };
+            return err(deger.span, format!("Bu alanın tipi değerden çıkarılamıyor; tipini yazın: ata {ad}: {ornek} = ..."));
         }
         let b: Vec<(String, Type)> = self.tsubst.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         Ok(self.varsayilan_te(mi, deger, None, Some(&b))?.ty)

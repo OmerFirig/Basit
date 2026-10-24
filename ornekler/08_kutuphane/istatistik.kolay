@@ -1,0 +1,61 @@
+// istatistik.kolay: örnek bir Kolay kütüphanesi
+//
+// Kullanmak için:  ist adıyla dahil et("./istatistik.kolay")
+//                  yazdır(ist.ortalama([1.0, 2.0, 3.0]))
+//
+// Kütüphane yazarken:
+// - Dışarıya açılacak her şey (fonksiyon, tür, değişken) dosyanın üst düzeyinde tanımlanır.
+// - Kütüphaneyi "x adıyla dahil et" ile eklemek önerilir: adlar x. ile kullanılır, başka dosyalarla çakışmaz.
+// - Dosyanın üst düzeyindeki komutlar dahil edildiği anda bir kez çalışır; burada sadece testler var.
+
+// Ortalama; liste boşsa hata verir.
+fonksiyon ortalama(l: Liste<Ondalık>) -> Ondalık {
+    doğrula(l.uzunluk() > 0, "Boş listenin ortalaması alınamaz.")
+    döndür l.toplam() / l.uzunluk()
+}
+
+// Ortanca: sıralanınca ortadaki değer (çift sayıda elemanda ortadaki ikisinin ortalaması).
+fonksiyon ortanca(l: Liste<Ondalık>) -> Ondalık {
+    doğrula(l.uzunluk() > 0, "Boş listenin ortancası alınamaz.")
+    ata s = l.sıralı()
+    ata n = s.uzunluk()
+    eğer n % 2 == 1 { döndür s[n / 2] }
+    döndür (s[n / 2 - 1] + s[n / 2]) / 2.0
+}
+
+// Her tiple çalışır: en çok tekrar eden eleman.
+fonksiyon en_sık<T>(l: Liste<T>) -> T {
+    doğrula(l.uzunluk() > 0, "Boş listede en sık eleman yok.")
+    ata sayılar: Sözlük<T, Tam(64)>
+    ata en = l[0]
+    l içindeki her x için yap {
+        eğer sayılar.içerir(x) { sayılar[x] += 1 } değilse { sayılar[x] = 1 }
+        eğer sayılar[x] > sayılar[en] { en = x }
+    }
+    döndür en
+}
+
+// Sonuçları bir tablo olarak yazar; basamak sayısı istenirse verilir.
+tür Rapor(başlık: Yazı, basamak: Tam(64) = 2) {
+    ortak ata yazılan = 0
+
+    fonksiyon yaz(ad: Yazı, değer: Ondalık) {
+        yazılan += 1
+        eğer basamak == 0 {
+            yazdır(f"{ad:<12}{değer:>10.0}")
+        } değilse {
+            yazdır(f"{ad:<12}{değer:>10.2}")
+        }
+    }
+
+    fonksiyon başla() {
+        yazdır(başlık)
+        yazdır("-".tekrar(22))
+    }
+}
+
+// kütüphanenin kendi testleri (dahil edilince bir kez çalışır, hata yoksa bir şey yazmaz)
+doğrula(ortalama([1.0, 2.0, 3.0]) == 2.0)
+doğrula(ortanca([5.0, 1.0, 3.0]) == 3.0)
+doğrula(ortanca([4.0, 1.0, 3.0, 2.0]) == 2.5)
+doğrula(en_sık(["a", "b", "a"]) == "a")

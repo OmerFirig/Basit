@@ -63,10 +63,15 @@ pub enum TFPart {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Builtin {
+    /// Değerleri boşlukla ayırıp yazar, satır sonu ekler
     Yazdir,
+    /// Tek bir yazıyı olduğu gibi yazar (satır sonu yok): `yazdır(..., ayraç: ..., son: ...)` buna çevrilir
+    Yaz,
     Oku,
 }
 
+/// Hazır metotlar (liste.ekle, yazı.say...). Yeni metot eklemek için adımlar:
+/// belgeler/GELISTIRICI.md, "Dile hazır metot eklemek".
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BM {
     // Liste

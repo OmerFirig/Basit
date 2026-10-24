@@ -1,0 +1,3 @@
+fonksiyon g(x: Tam(64) = h()) -> Tam(64) { döndür x }
+fonksiyon h(y: Tam(64) = g()) -> Tam(64) { döndür y }
+yazdır(g(1))

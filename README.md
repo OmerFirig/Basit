@@ -74,6 +74,7 @@ code --install-extension editor/vscode/kolay-0.6.0.vsix
 | `05_okul.kolay` | tür, kalıtım, arayüz, Liste, Sözlük, sıralama |
 | `06_sekiller.kolay` | seçenek, eşleştir, veya tipleri, Hiç |
 | `07_us_klavye.kolay` | `klavye("us")` modu |
+| `08_kutuphane/` | Kolay ile kütüphane yazmak ve kullanmak (`ana.kolay`) |
 
 Hepsi hem yorumlayıcıyla hem derleyiciyle çalışır.
 
@@ -103,6 +104,8 @@ tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
 ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
 ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
 yazdır(f"{pi:.2} {ad:<10} {n:06} {büyük:,}")   // f-yazı biçimleri: 3.14  Ali  000042  1.234.567
+yazdır(1, 2, 3, ayraç: ", ", son: "")         // 1, 2, 3 (satır sonu olmadan)
+ata avogadro = 6.022e23                       // bilimsel yazım (Ondalık)
 "elma".değiştir("a", "e")  s.başlar("x")  s.bul("ma")  s.say("a")  "-".tekrar(5)  l.birleşik(", ")
 doğrula(topla(2, 3) == 5)        // yanlışsa program durur (kendi kodunu test etmek için)
 ata sabit pi = 3.14159           // değiştirilemez
@@ -161,6 +164,10 @@ mat adıyla dış kütüphane("m") {                   // C kütüphanesi
 }
 ```
 
+## Geliştirmek
+
+Kolay ile kütüphane yazmak, bir C kütüphanesini sarmak ya da dile hazır metot eklemek için: [`belgeler/GELISTIRICI.md`](belgeler/GELISTIRICI.md)
+
 ## Mimari
 
 ```
@@ -173,6 +180,7 @@ kaynak (.kolay)
     cstmt.rs      komutlar, eşleştir, dene/yakala, akış analizi (belirsiz/sabit kontrolü)
     firlat.rs     fırlatma analizi: yakala dallarına gelebilecek değerler, uyarılar
     generic.rs    generic fonksiyon ve türler: tipleri çıkarır, her tip ataması için kopya oluşturur
+    varsayilan.rs varsayılan değerler ve türün gövdesindeki alanlar
   → tir.rs        tipleri çözülmüş ara gösterim (TIR)
       → repl.rs     etkileşimli kip (oturum, hücreler, rustyline)
       → vm.rs       bytecode yorumlayıcı (kolay kod.kolay)

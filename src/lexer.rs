@@ -1,6 +1,6 @@
 // Lexer: kaynak kodu token'lara ayırır. Klavye modu (tr/us), yorumlar ve f-yazılar burada çözülür.
 
-use crate::diag::{err, CResult, Diag, Span};
+use crate::diag::{err, CResult, Span};
 use num_bigint::BigInt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -99,6 +99,7 @@ pub const BUILTIN_NAMES: &[(&str, &str)] = &[
     ("Sözlük", "Sozluk"),
     ("yazdır", "yazdir"),
     ("doğrula", "dogrula"),
+    ("ayraç", "ayrac"),
     ("değiştir", "degistir"),
     ("başlar", "baslar"),
     ("birleşik", "birlesik"),
@@ -537,11 +538,47 @@ impl<'a> Lexer<'a> {
         })
     }
 
+    /// Sayı: 42, 1_000, 3.14, 1.5e-7, 2E10. Üslü (bilimsel) yazım her zaman Ondalık'tır.
     fn number(&mut self, start: Span) -> CResult<Tok> {
         if self.peek() == Some('0') && matches!(self.peek_at(1), Some('x' | 'X')) {
             return self.hex_number(start);
         }
         let mut digits = String::new();
+        self.basamaklar(&mut digits);
+        let mut ondalik = false;
+        if self.peek() == Some('.') && self.peek_at(1).is_some_and(|d| d.is_ascii_digit()) {
+            self.bump();
+            digits.push('.');
+            self.basamaklar(&mut digits);
+            ondalik = true;
+        }
+        // üs: e ya da E, isteğe bağlı işaret, en az bir rakam
+        let us_isaretli = matches!(self.peek_at(1), Some('+' | '-')) && self.peek_at(2).is_some_and(|d| d.is_ascii_digit());
+        if matches!(self.peek(), Some('e' | 'E')) && (self.peek_at(1).is_some_and(|d| d.is_ascii_digit()) || us_isaretli) {
+            self.bump();
+            digits.push('e');
+            if us_isaretli {
+                digits.push(self.peek().unwrap());
+                self.bump();
+            }
+            self.basamaklar(&mut digits);
+            ondalik = true;
+        }
+        if self.peek().is_some_and(|c| c.is_alphabetic()) {
+            return err(self.here(), "Sayının hemen ardından harf gelemez. (Bilimsel yazım için: 1.5e-7)");
+        }
+        if !ondalik {
+            return Ok(Tok::Int(digits.parse::<BigInt>().unwrap()));
+        }
+        match digits.parse::<f64>() {
+            Ok(x) if x.is_finite() => Ok(Tok::Float(x)),
+            Ok(_) => err(start, "Ondalık sayı çok büyük (en büyük değer yaklaşık 1,8 × 10^308)."),
+            Err(_) => err(start, "Geçersiz ondalık sayı."),
+        }
+    }
+
+    /// Rakamları okur; aradaki '_' (1_000_000) atlanır.
+    fn basamaklar(&mut self, digits: &mut String) {
         while let Some(c) = self.peek() {
             if c.is_ascii_digit() {
                 digits.push(c);
@@ -552,28 +589,6 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        if self.peek() == Some('.') && self.peek_at(1).is_some_and(|d| d.is_ascii_digit()) {
-            self.bump();
-            digits.push('.');
-            while let Some(c) = self.peek() {
-                if c.is_ascii_digit() {
-                    digits.push(c);
-                    self.bump();
-                } else if c == '_' && self.peek_at(1).is_some_and(|d| d.is_ascii_digit()) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-            return digits
-                .parse::<f64>()
-                .map(Tok::Float)
-                .map_err(|_| Diag::new(start, "Geçersiz ondalık sayı."));
-        }
-        if self.peek().is_some_and(|c| c.is_alphabetic()) {
-            return err(self.here(), "Sayının hemen ardından harf gelemez.");
-        }
-        Ok(Tok::Int(digits.parse::<BigInt>().unwrap()))
     }
 
     /// Onaltılık sayı: 0xFF, 0x1F_FF (büyük/küçük harf fark etmez)

@@ -1,0 +1,4 @@
+HATA (115_generic_imza_cagri.kolay, satır 1): say içinde: Ondalık sözlük anahtarı olamaz. Anahtar Tam, Yazı, Mantık ya da bir seçenek olmalı.
+(çağrı: satır 6, T = Ondalık)
+  1 | fonksiyon say<T>(l: Liste<T>) -> Sözlük<T, Tam(64)> {
+    |                                         ^

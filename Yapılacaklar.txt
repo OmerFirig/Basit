@@ -209,6 +209,8 @@ Değişmesi gerekenler:
 [x] Türe ait ortak değerler: ortak ata toplam = 0, ortak fonksiyon sıfırla(), Sayaç.toplam
     (2026-10-24; gizli dosya değişkeni 'Sayaç.toplam', ortak fonksiyon normal fonksiyon)
 [x] doğrula(koşul) / doğrula(koşul, "mesaj") (2026-10-24; yanlışsa Hata fırlatılır)
+[x] yazdır(..., ayraç: ", ", son: ""), bilimsel sayı yazımı (1.5e-7), boş eşleştir uyarısı (2026-10-24)
+[ ] İki listeyi birleştirme, dene ... sonunda (finally): konuşulmadı, yazımı sorulacak.
 [x] Listede sıra numarasıyla dolaşma için yeni özellik YOK (kullanıcı kararı 2026-10-24):
     0..liste.uzunluk() içindeki her i için yap { ... liste[i] ... }
 [ ] Küme<T> ({1, 2, 3}; birleşim, kesişim, fark), demet ((Tam, Yazı); sadece açma:

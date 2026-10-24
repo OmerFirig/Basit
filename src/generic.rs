@@ -7,7 +7,7 @@
 
 use crate::ast::*;
 use crate::check::*;
-use crate::diag::{err, CResult, Span};
+use crate::diag::{err, CResult, Diag, Span};
 use crate::tir::*;
 use crate::types::*;
 use std::collections::HashMap;
@@ -246,7 +246,10 @@ impl Checker {
         self.type_methods.push(Vec::new());
         self.tur_inst.insert(new, (tid, ts.clone(), span));
         self.tur_instances.insert((tid, ts), new);
-        self.resolve_type_decl(new)?;
+        let binds: Vec<(String, Type)> = self.tur_kalip[&tid].0.iter().cloned().zip(self.tur_inst[&new].1.iter().cloned()).collect();
+        if let Err(d) = self.resolve_type_decl(new) {
+            return Err(self.kopya_hatasi(d, &tname, "ilk kullanım", span, &binds));
+        }
         if self.miras_hazir {
             self.inherit_one(new)?;
             self.mutates.resize(self.funcs.len(), false);
@@ -270,7 +273,10 @@ impl Checker {
         let decl = self.funcs[fid].decl.clone().expect("generic kalıp");
         let binds: Vec<(String, Type)> = gs.into_iter().zip(tipler.iter().cloned()).collect();
         let map: HashMap<String, Type> = binds.iter().cloned().collect();
-        let (params, param_sabit, ret) = self.with_subst(&map, |c| c.sig_of(&decl, mi))?;
+        let (params, param_sabit, ret) = match self.with_subst(&map, |c| c.sig_of(&decl, mi)) {
+            Ok(x) => x,
+            Err(d) => return Err(self.kopya_hatasi(d, &name, "çağrı", span, &binds)),
+        };
         let inst = self.funcs.len();
         self.funcs.push(FuncInfo {
             name,
@@ -293,6 +299,31 @@ impl Checker {
         self.mutates.push(false);
         self.instances.insert((fid, tipler), inst);
         Ok(inst)
+    }
+
+    /// Generic kopyada çıkan hataya hangi çağrının ve hangi tiplerin yol açtığını ekler:
+    /// "topla içinde: ... \n(çağrı: satır 5, T = Yazı)"
+    pub(crate) fn kopya_hatasi(&self, mut d: Diag, ad: &str, nerede: &str, cagri: Span, binds: &[(String, Type)]) -> Diag {
+        if d.msg.contains(&format!("\n({nerede}: satır")) {
+            return d; // iç içe kopyalarda bilgi bir kez eklenir (en içteki)
+        }
+        let tipler: Vec<String> = binds
+            .iter()
+            .map(|(n, t)| {
+                let tn = self.type_name(t);
+                match tn.char_indices().nth(60) {
+                    Some((i, _)) => format!("{n} = {}...", &tn[..i]),
+                    None => format!("{n} = {tn}"),
+                }
+            })
+            .collect();
+        // çağrı başka bir dosyadaysa adı da yazılır (hata kütüphanede, çağrı ana dosyada olabilir)
+        let dosya = match self.dosya_adlari.get(cagri.file as usize) {
+            Some(n) if cagri.file != d.span.file => format!("{n}, "),
+            _ => String::new(),
+        };
+        d.msg = format!("{ad} içinde: {}\n({nerede}: {dosya}satır {}, {})", d.msg, cagri.line, tipler.join(", "));
+        d
     }
 
     /// Yazılan yol (`Kutu`, `m.Kutu`) bir generic tür kalıbıysa onun numarası

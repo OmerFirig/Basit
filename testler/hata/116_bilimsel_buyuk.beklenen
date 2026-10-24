@@ -1,0 +1,3 @@
+HATA (116_bilimsel_buyuk.kolay, satır 1): Ondalık sayı çok büyük (en büyük değer yaklaşık 1,8 × 10^308).
+  1 | yazdır(1e400)
+    |        ^

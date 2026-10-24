@@ -1,3 +1,4 @@
-HATA (91_generic_tur_sonsuz.kolay, satır 1): 'Z' 64'ten fazla farklı tiple kullanılıyor. Tür kendini her seferinde başka bir tiple kullanıyor olabilir.
+HATA (91_generic_tur_sonsuz.kolay, satır 1): Z içinde: 'Z' 64'ten fazla farklı tiple kullanılıyor. Tür kendini her seferinde başka bir tiple kullanıyor olabilir.
+(ilk kullanım: satır 1, T = Liste<Tam>[][][][][][][][][][][][][][][][][][][][][][][][][]...)
   1 | tür Z<T>(x: Z<Liste<T>> veya Hiç)
     |             ^^^^^^^^^^^

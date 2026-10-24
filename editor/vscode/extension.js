@@ -11,7 +11,7 @@ const KEYWORDS = [
 ];
 const TYPES = ["Tam", "Ondalık", "Yazı", "Mantık", "Liste", "Sözlük", "Fonksiyon", "Hata"];
 const FUNCS = [
-  ["yazdır", "yazdır(${1})", "Ekrana yazar"],
+  ["yazdır", "yazdır(${1})", "Ekrana yazar; ayraç: (değerlerin arası) ve son: (satır sonu yerine) verilebilir"],
   ["oku", "oku(\"${1:Soru: }\")", "Klavyeden bir satır okur (Yazı)"],
   ["doğrula", "doğrula(${1:koşul})", "Koşul yanlışsa program durur (kendi kodunu test etmek için)"],
 ];

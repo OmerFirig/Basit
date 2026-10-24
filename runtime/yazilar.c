@@ -172,9 +172,18 @@ static Yazi *harf_cevir(Yazi *s, uint32_t (*f)(uint32_t)) {
 Yazi *kolay_buyuk_harf(Yazi *s) { return harf_cevir(s, tr_buyuk); }
 Yazi *kolay_kucuk_harf(Yazi *s) { return harf_cevir(s, tr_kucuk); }
 
+/// 8 baytlık bloktaki karakter başlangıcı sayısı: devam baytları (10xxxxxx) dışındakiler
+static inline int64_t blok_karakter(const unsigned char *p) {
+    uint64_t w;
+    memcpy(&w, p, 8);
+    return 8 - __builtin_popcountll(w & ~(w << 1) & 0x8080808080808080ULL);
+}
+
+/// Karakter sayısı (Türkçe harfler tek karakter). Bloklarla sayar: yorumlayıcıdaki chars().count() kadar hızlı.
 int64_t kolay_yazi_uzunluk(Yazi *s) {
     int64_t n = 0;
     const unsigned char *p = (const unsigned char *)s->d, *son = p + s->uzunluk;
+    for (; son - p >= 8; p += 8) n += blok_karakter(p);
     for (; p < son; p++)
         if ((*p & 0xC0) != 0x80) n++;
     return n;
@@ -392,19 +401,35 @@ Yazi *kolay_birlesik(Liste *l, Yazi *ayrac) {
     return y;
 }
 
+/// i. karakterin başladığı bayt (i >= 0); yoksa NULL. Önce i'yi geçmeyen tam blokları atlar.
+static const unsigned char *karakter_basi(Yazi *s, int64_t i) {
+    const unsigned char *p = (const unsigned char *)s->d, *son = p + s->uzunluk;
+    int64_t k = 0; // p'den önce başlayan karakter sayısı
+    for (; son - p >= 8; p += 8) {
+        int64_t c = blok_karakter(p);
+        if (k + c > i) break;
+        k += c;
+    }
+    for (; p < son; p++) {
+        if ((*p & 0xC0) == 0x80) continue;
+        if (k == i) return p;
+        k++;
+    }
+    return NULL;
+}
+
 Yazi *kolay_karakter(Yazi *s, int64_t i, const char *konum, const char *kod) {
-    int64_t n = kolay_yazi_uzunluk(s);
-    int64_t real = i < 0 ? i + n : i;
-    if (real < 0 || real >= n) {
+    // eksi sıra sondan sayar: önce karakter sayısı gerekir; artı sırada gerekmez
+    int64_t real = i < 0 ? i + kolay_yazi_uzunluk(s) : i;
+    const unsigned char *bas = real < 0 ? NULL : karakter_basi(s, real);
+    if (!bas) {
         char msg[200];
-        snprintf(msg, sizeof msg, "Yazının %lld. karakteri yok; yazı %lld karakterli.", (long long)i, (long long)n);
+        snprintf(msg, sizeof msg, "Yazının %lld. karakteri yok; yazı %lld karakterli.", (long long)i, (long long)kolay_yazi_uzunluk(s));
         kolay_hata_tur(HT_INDEKS, msg, konum, kod);
     }
-    const unsigned char *p = (const unsigned char *)s->d;
-    for (int64_t k = 0; k < real; k++) utf8_oku(&p);
-    const unsigned char *start = p;
-    utf8_oku(&p);
-    return yazi_yap((const char *)start, (size_t)(p - start));
+    const unsigned char *son = (const unsigned char *)s->d + s->uzunluk, *p = bas + 1;
+    while (p < son && (*p & 0xC0) == 0x80) p++;
+    return yazi_yap((const char *)bas, (size_t)(p - bas));
 }
 
 /// "a,b,c".böl(",") -> ["a", "b", "c"]; ayraç boşsa karakterlere böler.

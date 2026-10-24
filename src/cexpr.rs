@@ -656,6 +656,7 @@ impl Checker {
         self.tur_inst.retain(|t, _| *t < g.types);
         self.tur_instances.retain(|_, t| *t < g.types);
         self.dispatch.retain(|k, _| k.0 < g.types && k.1 < g.types);
+        self.alan_varsayilan.retain(|k, _| k.0 < g.types);
     }
 
     /// `infer`: dönüş tipini bulmak için (gövde blok, `döndür` değerleri toplanır); dönen ifadenin tipi
@@ -1360,20 +1361,7 @@ impl Checker {
                     return self.construct(tid, args, span, expected);
                 }
                 match name.as_str() {
-                    "yazdır" => {
-                        let mut vals = Vec::new();
-                        for a in args {
-                            if let Some((n, s)) = &a.name {
-                                return err(*s, format!("'{}' adlı değer almaz ('{n}:' yazmayın).", self.shown("yazdır")));
-                            }
-                            let t = self.expr(&a.value, None)?;
-                            if t.ty == Type::Hic && !matches!(t.kind, TK::Hic) {
-                                return Err(self.mismatch(&t, &Type::Str, a.value.span));
-                            }
-                            vals.push(t);
-                        }
-                        Ok(self.mk(TK::Builtin(Builtin::Yazdir, vals), Type::Hic, span))
-                    }
+                    "yazdır" => self.yazdir(args, span),
                     "doğrula" => err(
                         span,
                         format!("'{}' bir değer vermez, tek başına bir satır olarak yazılır: {}(koşul)", self.shown("doğrula"), self.shown("doğrula")),
@@ -1821,6 +1809,62 @@ impl Checker {
         Ok(self.mk(TK::BMethod { recv, m: bi.bm, args: vals }, bi.ret, span))
     }
 
+    /// `yazdır(a, b)`; `ayraç:` (değerlerin arası, varsayılan " ") ve `son:` (en sona, varsayılan satır sonu)
+    /// verilirse değerler tek bir yazıda birleştirilip `Yaz` ile yazılır: yazdır(a, b, ayraç: ", ", son: "")
+    fn yazdir(&mut self, args: &[Arg], span: Span) -> CResult<TExpr> {
+        let ad = self.shown("yazdır");
+        let mut vals = Vec::new();
+        let (mut ayrac, mut son): (Option<TExpr>, Option<TExpr>) = (None, None);
+        for a in args {
+            if let Some((n, s)) = &a.name {
+                let yer = match n.as_str() {
+                    "ayraç" => &mut ayrac,
+                    "son" => &mut son,
+                    _ => {
+                        return err(*s, format!("'{ad}' sadece '{}:' ve 'son:' adlı değerlerini alır: {ad}(a, b, {}: \", \", son: \"\")", self.shown("ayraç"), self.shown("ayraç")));
+                    }
+                };
+                if yer.is_some() {
+                    return err(*s, format!("'{n}' iki kez verildi."));
+                }
+                let t = self.expr(&a.value, Some(&Type::Str))?;
+                *yer = Some(self.coerce(t, &Type::Str, a.value.span)?);
+                continue;
+            }
+            if ayrac.is_some() || son.is_some() {
+                return err(a.value.span, "Adı yazılmış değerlerden sonra adsız değer yazılamaz.");
+            }
+            let t = self.expr(&a.value, None)?;
+            if t.ty == Type::Hic && !matches!(t.kind, TK::Hic) {
+                return Err(self.mismatch(&t, &Type::Str, a.value.span));
+            }
+            vals.push(t);
+        }
+        if ayrac.is_none() && son.is_none() {
+            return Ok(self.mk(TK::Builtin(Builtin::Yazdir, vals), Type::Hic, span));
+        }
+        let yazi = |me: &Self, s: &str| me.mk(TK::Str(std::rc::Rc::new(s.to_string())), Type::Str, span);
+        let ayrac = ayrac.unwrap_or_else(|| yazi(self, " "));
+        let son = son.unwrap_or_else(|| yazi(self, "\n"));
+        // a + ayraç + b + ayraç + ... + son (yazdır ile aynı görünüm: yazıya())
+        let mut sonuc: Option<TExpr> = None;
+        for v in vals {
+            let v = if v.ty == Type::Str { v } else { self.mk(TK::BMethod { recv: Recv::Value(Box::new(v)), m: BM::Yaziya, args: vec![] }, Type::Str, span) };
+            sonuc = Some(match sonuc {
+                None => v,
+                Some(s) => {
+                    let s = self.mk(TK::Concat(Box::new(s), Box::new(ayrac.clone())), Type::Str, span);
+                    self.mk(TK::Concat(Box::new(s), Box::new(v)), Type::Str, span)
+                }
+            });
+        }
+        let tum = match sonuc {
+            None => son,
+            Some(s) => self.mk(TK::Concat(Box::new(s), Box::new(son)), Type::Str, span),
+        };
+        Ok(self.mk(TK::Builtin(Builtin::Yaz, vec![tum]), Type::Hic, span))
+    }
+
     /// f-yazıdaki biçimli değer (`{x:.2}`) yazıya çevrilir: basamak -> gruplama -> hizalama
     fn bicimle(&mut self, t: TExpr, b: &Bicim, sp: Span) -> CResult<TExpr> {
         let sayi = t.ty.is_num();
@@ -1872,6 +1916,8 @@ impl Checker {
         Ok(s)
     }
 
+    /// Hazır metotların adları ("'sya' mı demek istediniz?" önerileri için). Yeni metot eklenince adı
+    /// buraya da yazılır (bkz. belgeler/GELISTIRICI.md).
     fn builtin_method_names(&self, t: &Type) -> Vec<&'static str> {
         match t {
             Type::List(..) => vec!["ekle", "araya_ekle", "sil", "çıkar", "uzunluk", "içerir", "bul", "sırala", "sıralı", "ters_çevir", "tersi", "temizle", "adım", "dönüşüm", "filtre", "hepsi", "herhangi", "toplam", "en_büyük", "en_küçük", "birleşik", "yazıya"],
@@ -1882,6 +1928,8 @@ impl Checker {
         }
     }
 
+    /// Hazır metotların tablosu: alıcının tipine göre ad -> (metot, parametreler, dönüş tipi, değiştirir mi,
+    /// boyutu değiştirir mi). Fonksiyon alan liste metotları (dönüşüm, filtre...) `list_method` içindedir.
     pub(crate) fn builtin_method(&self, t: &Type, name: &str) -> Option<BInfo> {
         let p = |n: &str, t: Type| (n.to_string(), t);
         let mk = |bm, params, ret, mutating, resizes| Some(BInfo { bm, params, ret, mutating, resizes });

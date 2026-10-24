@@ -1,0 +1,3 @@
+HATA (117_yazdir_ad.kolay, satır 1): 'yazdır' sadece 'ayraç:' ve 'son:' adlı değerlerini alır: yazdır(a, b, ayraç: ", ", son: "")
+  1 | yazdır(1, sep: ",")
+    |           ^^^

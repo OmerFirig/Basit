@@ -1,0 +1,4 @@
+Uyarı (110_bos_eslestir.kolay, satır 1): Bu 'eşleştir' hiç dal içermiyor, hiçbir şey yapmaz. Dal ekleyin: eşleştir x { 1 -> yazdır("bir") }
+  1 | eşleştir 5 { }
+    | ^^^^^^^^
+devam

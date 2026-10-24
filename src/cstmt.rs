@@ -163,7 +163,10 @@ impl Checker {
             StmtKind::Ata { sabit, explicit_ata, name, name_span, ty, value } => {
                 (self.ata(*sabit, *explicit_ata, name, *name_span, ty.as_ref(), value.as_ref())?, false)
             }
-            StmtKind::Assign { target, op, value } => (vec![self.assign(target, *op, value, span)?], false),
+            StmtKind::Assign { target, op, value } => match self.yaziya_ekleme(target, *op, value) {
+                Some(ek) => (vec![self.assign(target, Some(BinOp::Add), &ek, span)?], false),
+                None => (vec![self.assign(target, *op, value, span)?], false),
+            },
             StmtKind::Expr(Expr { kind: ExprKind::Lambda { .. }, span }) => {
                 return err(*span, "Bu bir isimsiz fonksiyon (lambda), tek başına bir şey yapmaz. Bir liste üzerinde dönmek için: liste içindeki her x için yap { }");
             }
@@ -602,6 +605,34 @@ impl Checker {
         Ok(out)
     }
 
+    /// `s = s + a + b` (s yazı) -> `s += a + b`. Sonuç aynıdır, ama `+=` yazıyı yerinde büyütür; diğer
+    /// yazımda her turda bütün yazı kopyalanır ve döngüde program karesel yavaşlar. Değiştirilecek kısım
+    /// (`a + b`) döner; uymuyorsa None.
+    fn yaziya_ekleme(&self, target: &Expr, op: Option<BinOp>, value: &Expr) -> Option<Expr> {
+        let (ExprKind::Ident(n), None) = (&target.kind, op) else { return None };
+        let v = self.local_var(n)?;
+        if v.ty != Type::Str || v.sabit || v.yakalanan || self.flow_get(v.key) != FlowSt::Assigned {
+            return None;
+        }
+        // en soldaki terim 's' olan bir + zinciri: ((s + a) + b)
+        let mut terimler: Vec<&Expr> = Vec::new();
+        let mut cur = value;
+        while let ExprKind::Binary(BinOp::Add, l, r) = &cur.kind {
+            terimler.push(r);
+            cur = l;
+        }
+        if terimler.is_empty() || !matches!(&cur.kind, ExprKind::Ident(m) if m == n) {
+            return None;
+        }
+        terimler.reverse();
+        let mut ek = terimler[0].clone();
+        for t in &terimler[1..] {
+            let span = ek.span.to(t.span);
+            ek = Expr { kind: ExprKind::Binary(BinOp::Add, Box::new(ek), Box::new((*t).clone())), span };
+        }
+        Some(ek)
+    }
+
     fn assign(&mut self, target: &Expr, op: Option<BinOp>, value: &Expr, span: Span) -> CResult<TS> {
         // sabit ve henüz atanmamış değişkene ilk atama
         if let (ExprKind::Ident(n), None) = (&target.kind, op) {
@@ -704,6 +735,10 @@ impl Checker {
     pub(crate) fn match_(&mut self, m: &Match, as_expr: bool, expected: Option<&Type>) -> CResult<(TMatch, Type, bool)> {
         let scrut = self.expr(&m.scrutinee, None)?;
         let sty = scrut.ty.clone();
+        if m.arms.is_empty() && !as_expr {
+            let ad = self.shown("eşleştir");
+            self.warn(m.span, format!("Bu '{ad}' hiç dal içermiyor, hiçbir şey yapmaz. Dal ekleyin: {ad} x {{ 1 -> yazdır(\"bir\") }}"));
+        }
         let pre = self.cx.flow.clone();
         let pre_len = pre.len();
         let mut arms = Vec::new();
@@ -1127,24 +1162,12 @@ impl Checker {
             let eski = std::mem::replace(&mut self.tsubst, inst.binds.iter().cloned().collect());
             let r = self.check_body_inner(fid);
             self.tsubst = eski;
-            return r.map_err(|mut d| {
-                let tipler: Vec<String> = inst
-                    .binds
-                    .iter()
-                    .map(|(n, t)| {
-                        let tn = self.type_name(t);
-                        match tn.char_indices().nth(60) {
-                            Some((i, _)) => format!("{n} = {}...", &tn[..i]),
-                            None => format!("{n} = {tn}"),
-                        }
-                    })
-                    .collect();
+            return r.map_err(|d| {
                 let (name, nerede) = match inst.kalip {
                     Kalip::Fonksiyon(t) => (self.funcs[t].name.clone(), "çağrı"),
                     Kalip::Tur(t) => (format!("{}.{}", self.types[t].name, self.funcs[fid].name), "ilk kullanım"),
                 };
-                d.msg = format!("{name} içinde: {}\n({nerede}: satır {}, {})", d.msg, inst.call.line, tipler.join(", "));
-                d
+                self.kopya_hatasi(d, &name, nerede, inst.call, &inst.binds)
             });
         }
         let r = self.check_body_inner(fid);
