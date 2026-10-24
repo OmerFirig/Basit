@@ -361,10 +361,8 @@ impl<'p> Interp<'p> {
                     Value::Range(r) => {
                         let mut i = r.start;
                         loop {
-                            if let Some(e) = r.end {
-                                if (r.inclusive && i > e) || (!r.inclusive && i >= e) {
-                                    break;
-                                }
+                            if r.done(i) {
+                                break;
                             }
                             self.set_slot(binds[0], Value::int(i), f);
                             if let Some(c) = self.loop_ctl(body, f)? {
@@ -592,7 +590,7 @@ impl<'p> Interp<'p> {
                 for a in args {
                     vals.push(self.eval(a, f)?);
                 }
-                self.call(*fid, vals, BuRef::Val(Value::Hic), e.loc)?.0
+                self.call_plain(*fid, vals, e.loc)?
             }
             TK::Variant(tid, idx, args) => {
                 let mut fs = Vec::with_capacity(args.len());
@@ -665,7 +663,7 @@ impl<'p> Interp<'p> {
                     Some(x) => Some(self.eval_i64(x, f)?),
                     None => None,
                 };
-                Value::Range(Rc::new(RangeV { start: s, end: en, inclusive: *inclusive, step: 1 }))
+                Value::Range(Rc::new(RangeV::new(s, en, *inclusive)))
             }
             TK::Neg(x) => {
                 let v = self.eval(x, f)?;
@@ -903,7 +901,7 @@ impl<'p> Interp<'p> {
         let ch: *const crate::vm::Chunk<'p> = &self.chunks[fid];
         let ch = unsafe { &*ch };
         let mut slots = args;
-        slots.resize(ch.nregs as usize, Value::Uninit);
+        fill_slots(&mut slots, ch.nregs);
         let mut frame = Frame { slots, bu };
         self.depth += 1;
         let r = self.run_chunk(ch, &mut frame);
@@ -912,6 +910,26 @@ impl<'p> Interp<'p> {
         slots.clear();
         self.pool.push(slots);
         Ok((r?, bu))
+    }
+
+    /// Metot olmayan fonksiyon çağrısı (en sık durum): `call` ile aynı, ama nesne (`bu`) taşımadığı
+    /// için dönüş değeri küçük kalır.
+    pub(crate) fn call_plain(&mut self, fid: FuncId, args: Vec<Value>, loc: Loc) -> R<Value> {
+        if self.depth >= MAX_DEPTH || self.prog.funcs[fid].dis.is_some() {
+            return Ok(self.call(fid, args, BuRef::Val(Value::Hic), loc)?.0);
+        }
+        let ch: *const crate::vm::Chunk<'p> = &self.chunks[fid];
+        let ch = unsafe { &*ch };
+        let mut slots = args;
+        fill_slots(&mut slots, ch.nregs);
+        let mut frame = Frame { slots, bu: BuRef::Val(Value::Hic) };
+        self.depth += 1;
+        let r = self.run_chunk(ch, &mut frame);
+        self.depth -= 1;
+        let mut slots = frame.slots;
+        slots.clear();
+        self.pool.push(slots);
+        r
     }
 
     pub(crate) fn neg_value(&self, v: Value, ty: &Type, loc: Loc) -> R<Value> {
@@ -1108,6 +1126,16 @@ impl<'p> Interp<'p> {
             }
             _ => false,
         }
+    }
+}
+
+/// Çerçevenin yuvalarını (parametrelerden sonrası) belirsiz değerle doldurur. `resize` her yuva için
+/// değeri kopyalar (clone); burada doğrudan yazılır.
+#[inline(always)]
+fn fill_slots(slots: &mut Vec<Value>, n: u32) {
+    let n = n as usize;
+    if slots.len() < n {
+        slots.extend(std::iter::repeat_with(|| Value::Uninit).take(n - slots.len()));
     }
 }
 
@@ -1331,13 +1359,29 @@ pub(crate) fn bm_val(m: BM, v: Value, args: Vec<Value>, ty: &Type, loc: Loc, pro
         }
         (BM::Adim, Value::Range(r)) => {
             let n = arg_i64(&args[0], loc)?;
-            if n <= 0 {
-                return rt(loc, format!("Adım pozitif olmalı, ama {n} verildi."));
+            if let Some(msg) = adim_hatasi(r, n) {
+                return rt(loc, msg);
             }
             Value::Range(Rc::new(RangeV { step: n, ..**r }))
         }
         _ => unreachable!("yerleşik metot {m:?}"),
     })
+}
+
+/// `(a..b).adım(n)`: adım sıfır olamaz ve aralığın yönüyle aynı işarette olmalı.
+/// Mesaj, derlenmiş programdaki (runtime/cekirdek.c, kolay_adim_hatasi) ile aynı.
+pub(crate) fn adim_hatasi(r: &RangeV, n: i64) -> Option<String> {
+    if n == 0 {
+        return Some("Adım sıfır olamaz.".into());
+    }
+    let e = r.end?;
+    if r.start < e && n < 0 {
+        Some(format!("Aralık artıyor ({}); adım pozitif olmalı, ama {n} verildi.", r.text()))
+    } else if r.start > e && n > 0 {
+        Some(format!("Aralık azalıyor ({}); adım negatif olmalı, ama {n} verildi.", r.text()))
+    } else {
+        None
+    }
 }
 
 /// Yazıyı ondalık sayıya çevirir. Virgül de ondalık ayırıcı kabul edilir ("3,5").

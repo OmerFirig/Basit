@@ -636,18 +636,26 @@ impl<'p> Gen<'p> {
     }
 
     fn for_range(&mut self, iter: &TExpr, bind: Slot, body: &[TS]) -> CResult<()> {
-        // aralık: başlangıç, bitiş (varsa), dahil mi, adım
-        let (s, e, incl, st): (String, Option<String>, String, String) = match &iter.kind {
+        // Aralık: başlangıç, bitiş, adım (yönü de belirler), adımın büyüklüğü (işaretsiz), bitiş var mı,
+        // bitiş dahil mi. Tur sayısı döngüden önce bir kez hesaplanır; döngü 0 .. tur sayısı kadar sayar
+        // ve değeri `başlangıç + k * adım` olarak bulur. Böylece iki yönde de tek bir karşılaştırma kalır
+        // ve sayı taşmaz (bitişi olmayan aralık, sayı taşmadan önceki son değerde biter).
+        let (s, e, st, abs, has, incl): (String, String, String, String, String, String) = match &iter.kind {
             TK::Range { start, end, inclusive } => {
                 let s = match start {
                     Some(x) => self.expr(x)?,
                     None => "0".into(),
                 };
-                let e = match end {
-                    Some(x) => Some(self.expr(x)?),
-                    None => None,
-                };
-                (s, e, inclusive.to_string(), "1".into())
+                match end {
+                    Some(x) => {
+                        let e = self.expr(x)?;
+                        let (gt, st) = (self.tmp(), self.tmp());
+                        self.emit(&format!("{gt} = icmp sgt i64 {s}, {e}"));
+                        self.emit(&format!("{st} = select i1 {gt}, i64 -1, i64 1"));
+                        (s, e, st, "1".into(), "true".into(), inclusive.to_string())
+                    }
+                    None => (s, "0".into(), "1".into(), "1".into(), "false".into(), "false".into()),
+                }
             }
             _ => {
                 let r = self.expr(iter)?;
@@ -656,75 +664,88 @@ impl<'p> Gen<'p> {
                 self.emit(&format!("{e} = extractvalue %aralik {r}, 1"));
                 self.emit(&format!("{st} = extractvalue %aralik {r}, 2"));
                 self.emit(&format!("{fl} = extractvalue %aralik {r}, 3"));
-                // bitişi yoksa bitiş en büyük sayı (taşınca döngü biter)
-                let (has, incl, ee) = (self.tmp(), self.tmp(), self.tmp());
-                let (h0, i0) = (self.tmp(), self.tmp());
+                let (h0, has, i0, incl) = (self.tmp(), self.tmp(), self.tmp(), self.tmp());
                 self.emit(&format!("{h0} = and i64 {fl}, 1"));
                 self.emit(&format!("{has} = icmp ne i64 {h0}, 0"));
                 self.emit(&format!("{i0} = and i64 {fl}, 2"));
                 self.emit(&format!("{incl} = icmp ne i64 {i0}, 0"));
-                self.emit(&format!("{ee} = select i1 {has}, i64 {e}, i64 9223372036854775807"));
-                let incl2 = self.tmp();
-                self.emit(&format!("{incl2} = or i1 {incl}, {}", "false"));
-                let incl3 = self.tmp();
-                let nh = self.tmp();
-                self.emit(&format!("{nh} = xor i1 {has}, true"));
-                self.emit(&format!("{incl3} = or i1 {incl2}, {nh}"));
-                (s, Some(ee), incl3, st)
+                // |adım| işaretsiz olarak: en küçük sayıda da doğru (2^63)
+                let (neg, ng, abs) = (self.tmp(), self.tmp(), self.tmp());
+                self.emit(&format!("{neg} = icmp slt i64 {st}, 0"));
+                self.emit(&format!("{ng} = sub i64 0, {st}"));
+                self.emit(&format!("{abs} = select i1 {neg}, i64 {ng}, i64 {st}"));
+                (s, e, st, abs, has, incl)
             }
         };
+        let count = self.range_count(&s, &e, &st, &abs, &has, &incl);
         let ctr = self.alloca("i64");
-        self.emit(&format!("store i64 {s}, ptr {ctr}"));
+        self.emit(&format!("store i64 0, ptr {ctr}"));
         let (cond, bodyl, stepl, exit) = (self.new_label(), self.new_label(), self.new_label(), self.new_label());
         self.block(&cond);
-        let cur = self.tmp();
-        self.emit(&format!("{cur} = load i64, ptr {ctr}"));
-        match e {
-            Some(e) => {
-                let c = match incl.as_str() {
-                    "true" => {
-                        let c = self.tmp();
-                        self.emit(&format!("{c} = icmp sle i64 {cur}, {e}"));
-                        c
-                    }
-                    "false" => {
-                        let c = self.tmp();
-                        self.emit(&format!("{c} = icmp slt i64 {cur}, {e}"));
-                        c
-                    }
-                    flag => {
-                        let (a, b, c) = (self.tmp(), self.tmp(), self.tmp());
-                        self.emit(&format!("{a} = icmp sle i64 {cur}, {e}"));
-                        self.emit(&format!("{b} = icmp slt i64 {cur}, {e}"));
-                        self.emit(&format!("{c} = select i1 {flag}, i1 {a}, i1 {b}"));
-                        c
-                    }
-                };
-                self.term(&format!("br i1 {c}, label %{bodyl}, label %{exit}"));
-            }
-            None => self.term(&format!("br label %{bodyl}")),
-        }
+        let k = self.tmp();
+        self.emit(&format!("{k} = load i64, ptr {ctr}"));
+        let c = self.tmp();
+        self.emit(&format!("{c} = icmp ult i64 {k}, {count}"));
+        self.term(&format!("br i1 {c}, label %{bodyl}, label %{exit}"));
         self.block(&bodyl);
+        let (m, cur) = (self.tmp(), self.tmp());
+        self.emit(&format!("{m} = mul i64 {k}, {st}"));
+        self.emit(&format!("{cur} = add i64 {s}, {m}"));
         self.store_slot(bind, &cur, &TAM64);
         self.f.loops.push((stepl.clone(), exit.clone()));
         self.stmts(body)?;
         self.f.loops.pop();
         self.block(&stepl);
-        let cur2 = self.tmp();
-        self.emit(&format!("{cur2} = load i64, ptr {ctr}"));
-        self.intrinsic("llvm.sadd.with.overflow.i64", "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)".into());
-        let r = self.tmp();
-        self.emit(&format!("{r} = call {{i64, i1}} @llvm.sadd.with.overflow.i64(i64 {cur2}, i64 {st})"));
-        let (nv, of) = (self.tmp(), self.tmp());
-        self.emit(&format!("{nv} = extractvalue {{i64, i1}} {r}, 0"));
-        self.emit(&format!("{of} = extractvalue {{i64, i1}} {r}, 1"));
-        let cont = self.new_label();
-        self.term(&format!("br i1 {of}, label %{exit}, label %{cont}"));
-        self.block(&cont);
-        self.emit(&format!("store i64 {nv}, ptr {ctr}"));
+        let (k2, inc) = (self.tmp(), self.tmp());
+        self.emit(&format!("{k2} = load i64, ptr {ctr}"));
+        self.emit(&format!("{inc} = add i64 {k2}, 1"));
+        self.emit(&format!("store i64 {inc}, ptr {ctr}"));
         self.term(&format!("br label %{cond}"));
         self.block(&exit);
         Ok(())
+    }
+
+    /// Aralığın tur sayısı (işaretsiz). Değerler sabitse LLVM bunu derleme anında hesaplar.
+    fn range_count(&mut self, s: &str, e: &str, st: &str, abs: &str, has: &str, incl: &str) -> String {
+        let t = |me: &mut Self| me.tmp();
+        let up = t(self);
+        self.emit(&format!("{up} = icmp sgt i64 {st}, 0"));
+        // bitişe uzaklık (yönde), bitiş yoksa taşmaya kadar olan uzaklık
+        let (du, dd, ou, od) = (t(self), t(self), t(self), t(self));
+        self.emit(&format!("{du} = sub i64 {e}, {s}"));
+        self.emit(&format!("{dd} = sub i64 {s}, {e}"));
+        self.emit(&format!("{ou} = sub i64 9223372036854775807, {s}"));
+        self.emit(&format!("{od} = sub i64 {s}, -9223372036854775808"));
+        let (dh, dn, dist) = (t(self), t(self), t(self));
+        self.emit(&format!("{dh} = select i1 {up}, i64 {du}, i64 {dd}"));
+        self.emit(&format!("{dn} = select i1 {up}, i64 {ou}, i64 {od}"));
+        self.emit(&format!("{dist} = select i1 {has}, i64 {dh}, i64 {dn}"));
+        // dahil değilse: uzaklık 0 ise 0 tur, değilse (uzaklık - 1) / |adım| + 1
+        let (d1, q1, c1, z, cx) = (t(self), t(self), t(self), t(self), t(self));
+        self.emit(&format!("{d1} = sub i64 {dist}, 1"));
+        self.emit(&format!("{q1} = udiv i64 {d1}, {abs}"));
+        self.emit(&format!("{c1} = add i64 {q1}, 1"));
+        self.emit(&format!("{z} = icmp eq i64 {dist}, 0"));
+        self.emit(&format!("{cx} = select i1 {z}, i64 0, i64 {c1}"));
+        // dahilse ya da bitiş yoksa: uzaklık / |adım| + 1 (2^64 tur olursa en büyük sayıda kalır)
+        let (q2, c2, w, ci) = (t(self), t(self), t(self), t(self));
+        self.emit(&format!("{q2} = udiv i64 {dist}, {abs}"));
+        self.emit(&format!("{c2} = add i64 {q2}, 1"));
+        self.emit(&format!("{w} = icmp eq i64 {c2}, 0"));
+        self.emit(&format!("{ci} = select i1 {w}, i64 -1, i64 {c2}"));
+        let (nh, ex, cnt) = (t(self), t(self), t(self));
+        self.emit(&format!("{nh} = xor i1 {incl}, true"));
+        self.emit(&format!("{ex} = and i1 {has}, {nh}"));
+        self.emit(&format!("{cnt} = select i1 {ex}, i64 {cx}, i64 {ci}"));
+        // adımın yönü bitişe ters düşüyorsa (sadece başlangıç = bitiş olabilir, adım() bunu kontrol eder)
+        // hiç dönülmez: yön yukarıyken başlangıç > bitiş, aşağıyken başlangıç < bitiş
+        let (bg, bl, bad, bad2, r) = (t(self), t(self), t(self), t(self), t(self));
+        self.emit(&format!("{bg} = icmp sgt i64 {s}, {e}"));
+        self.emit(&format!("{bl} = icmp slt i64 {s}, {e}"));
+        self.emit(&format!("{bad} = select i1 {up}, i1 {bg}, i1 {bl}"));
+        self.emit(&format!("{bad2} = and i1 {has}, {bad}"));
+        self.emit(&format!("{r} = select i1 {bad2}, i64 0, i64 {cnt}"));
+        r
     }
 
     // ------------------------------------------------------------ eşleştir

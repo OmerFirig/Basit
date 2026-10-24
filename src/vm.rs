@@ -384,16 +384,15 @@ impl<'p> Comp<'p> {
                 self.emit(Ins::Variant(d, *tid, *idx, base, args.len() as u32));
             }
             TK::Range { start, end, inclusive } => {
-                let s = match start {
-                    Some(x) => {
-                        let v = self.exprs(&[x, end.as_deref().unwrap_or(x)]);
-                        v[0]
+                // her sınır bir kez hesaplanır (başlangıç dosya değişkeniyse, bitiş onu değiştirebilir)
+                let (s, en, has) = match (start, end) {
+                    (Some(x), Some(y)) => {
+                        let v = self.exprs(&[x, y]);
+                        (v[0], v[1], true)
                     }
-                    None => self.konst(Value::int(0)),
-                };
-                let (en, has) = match end {
-                    Some(x) => (self.expr(x), true),
-                    None => (self.konst(Value::int(0)), false),
+                    (Some(x), None) => (self.expr(x), self.konst(Value::int(0)), false),
+                    (None, Some(y)) => (self.konst(Value::int(0)), self.expr(y), true),
+                    (None, None) => (self.konst(Value::int(0)), self.konst(Value::int(0)), false),
                 };
                 self.emit(Ins::MkRange(d, s, en, has, *inclusive));
             }
@@ -939,7 +938,7 @@ impl<'p> Interp<'p> {
                     for r in *base..*base + *n {
                         args.push(std::mem::replace(&mut f.slots[r as usize], Value::Hic));
                     }
-                    let r = self.call(*fid, args, BuRef::Val(Value::Hic), ch.locs[pc - 1])?.0;
+                    let r = self.call_plain(*fid, args, ch.locs[pc - 1])?;
                     f.slots[*d as usize] = r;
                 }
                 Ins::CallM { d, recv, view, mid, name, args, n } => {
@@ -1024,11 +1023,7 @@ impl<'p> Interp<'p> {
                 Ins::IterRange(r, cur, bind, exit) => {
                     let Value::Range(rv) = &f.slots[*r as usize] else { unreachable!() };
                     let Value::Int(Int::S(i)) = f.slots[*cur as usize] else { unreachable!() };
-                    let done = match rv.end {
-                        Some(e) => (rv.inclusive && i > e) || (!rv.inclusive && i >= e),
-                        None => false,
-                    };
-                    if done {
+                    if rv.done(i) {
                         pc = *exit as usize;
                     } else {
                         self.set_slot(*bind, Value::int(i), f);
@@ -1186,7 +1181,7 @@ impl<'p> Interp<'p> {
                     let loc = ch.locs[pc - 1];
                     let s = as_i64(self.gr(ch, f, *s), loc)?;
                     let e = if *has { Some(as_i64(self.gr(ch, f, *e), loc)?) } else { None };
-                    f.slots[*d as usize] = Value::Range(Rc::new(RangeV { start: s, end: e, inclusive: *incl, step: 1 }));
+                    f.slots[*d as usize] = Value::Range(Rc::new(RangeV::new(s, e, *incl)));
                 }
                 Ins::MkList(d, base, n) => {
                     let items = Self::take_regs(f, *base, *n);

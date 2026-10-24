@@ -255,14 +255,31 @@ impl<'p> Gen<'p> {
                 t
             }
             BM::Adim => {
+                // adım sıfır olamaz ve aralığın yönüyle aynı işarette olmalı (bkz. interp::adim_hatasi)
                 let n = &a[0];
-                let bad = self.tmp();
-                self.emit(&format!("{bad} = icmp sle i64 {n}, 0"));
+                let (s, e, fl) = (self.tmp(), self.tmp(), self.tmp());
+                self.emit(&format!("{s} = extractvalue %aralik {v}, 0"));
+                self.emit(&format!("{e} = extractvalue %aralik {v}, 1"));
+                self.emit(&format!("{fl} = extractvalue %aralik {v}, 3"));
+                let (zero, h0, has, up, down, nneg, npos) =
+                    (self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp());
+                self.emit(&format!("{zero} = icmp eq i64 {n}, 0"));
+                self.emit(&format!("{h0} = and i64 {fl}, 1"));
+                self.emit(&format!("{has} = icmp ne i64 {h0}, 0"));
+                self.emit(&format!("{up} = icmp slt i64 {s}, {e}"));
+                self.emit(&format!("{down} = icmp sgt i64 {s}, {e}"));
+                self.emit(&format!("{nneg} = icmp slt i64 {n}, 0"));
+                self.emit(&format!("{npos} = icmp sgt i64 {n}, 0"));
+                let (b1, b2, b3, b4, bad) = (self.tmp(), self.tmp(), self.tmp(), self.tmp(), self.tmp());
+                self.emit(&format!("{b1} = and i1 {up}, {nneg}"));
+                self.emit(&format!("{b2} = and i1 {down}, {npos}"));
+                self.emit(&format!("{b3} = or i1 {b1}, {b2}"));
+                self.emit(&format!("{b4} = and i1 {has}, {b3}"));
+                self.emit(&format!("{bad} = or i1 {zero}, {b4}"));
                 let (badl, ok) = (self.new_label(), self.new_label());
                 self.br_cold(&bad, &badl, &ok);
                 self.block(&badl);
-                let (once, sonra) = (self.cstr("Adım pozitif olmalı, ama "), self.cstr(" verildi."));
-                self.emit(&format!("call void @kolay_hata_sayi(ptr {once}, i64 {n}, ptr {sonra}, ptr {k}, ptr {kd})"));
+                self.emit(&format!("call void @kolay_adim_hatasi(i64 {s}, i64 {e}, i64 {fl}, i64 {n}, ptr {k}, ptr {kd})"));
                 self.term("unreachable");
                 self.block(&ok);
                 self.emit(&format!("{t} = insertvalue %aralik {v}, i64 {n}, 2"));

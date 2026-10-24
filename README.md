@@ -42,7 +42,7 @@ Bu betik projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kald�
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.1.0.vsix
+code --install-extension editor/vscode/kolay-0.3.1.vsix
 ```
 
 ## Örnekler
@@ -86,6 +86,8 @@ eğer x > 5 ve değil bitti { } değilse eğer x == 0 { } değilse { }
 liste içindeki her e için yap { }
 0..10 içindeki her i için yap { }
 (0..100).adım(5) içindeki her i için yap { }
+10..0 içindeki her i için yap { }          // geri sayar: 10 .. 1
+(10..0).adım(-2) içindeki her i için yap { }
 koşul sürece yap { }
 (ata i = 0; i < 10; i += 1) sürece yap { }
 // dur, devam

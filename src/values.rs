@@ -123,6 +123,32 @@ pub struct RangeV {
     pub step: i64,
 }
 
+impl RangeV {
+    /// Aralığın kendi yönündeki adım: başlangıç bitişten büyükse geri sayar (10..0 -> 10, 9, ... 1).
+    pub fn default_step(start: i64, end: Option<i64>) -> i64 {
+        if end.is_some_and(|e| start > e) { -1 } else { 1 }
+    }
+
+    pub fn new(start: i64, end: Option<i64>, inclusive: bool) -> RangeV {
+        RangeV { start, end, inclusive, step: Self::default_step(start, end) }
+    }
+
+    /// `i` aralığın sonuna ulaştı mı? (adımın yönüne göre)
+    pub fn done(&self, i: i64) -> bool {
+        match self.end {
+            Some(e) if self.step > 0 => if self.inclusive { i > e } else { i >= e },
+            Some(e) => if self.inclusive { i < e } else { i <= e },
+            None => false,
+        }
+    }
+
+    pub fn text(&self) -> String {
+        let op = if self.inclusive { "..=" } else { ".." };
+        let end = self.end.map(|e| e.to_string()).unwrap_or_default();
+        format!("{}{op}{end}", self.start)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Value {
     Int(Int),
@@ -542,12 +568,10 @@ pub fn write_value(out: &mut String, v: &Value, ty: Option<&Type>, prog: &Progra
             }
         }
         Value::Range(r) => {
-            let op = if r.inclusive { "..=" } else { ".." };
-            let end = r.end.map(|e| e.to_string()).unwrap_or_default();
-            if r.step == 1 {
-                let _ = write!(out, "{}{op}{end}", r.start);
+            if r.step == RangeV::default_step(r.start, r.end) {
+                out.push_str(&r.text());
             } else {
-                let _ = write!(out, "({}{op}{end}).adım({})", r.start, r.step);
+                let _ = write!(out, "({}).adım({})", r.text(), r.step);
             }
         }
         Value::Uninit => out.push_str("<belirsiz>"),

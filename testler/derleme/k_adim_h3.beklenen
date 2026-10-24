@@ -1,0 +1,4 @@
+(5..=1).adım(-2)
+(0..=3).adım(2)
+ÇALIŞMA HATASI (k_adim_h3.kolay, satır 4): Aralık artıyor (1..=5); adım pozitif olmalı, ama -1 verildi.
+  4 | yazdır((1..=a).adım(a - 6))

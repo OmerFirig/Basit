@@ -204,7 +204,9 @@ void deger_yaz(Yazi **out, const void *p, const Tip *t, int ust, int ipucu) {
         const char *op = (a->bayrak & 2) ? "..=" : "..";
         char son[32] = "";
         if (a->bayrak & 1) snprintf(son, sizeof son, "%lld", (long long)a->end);
-        if (a->step == 1) snprintf(buf, sizeof buf, "%lld%s%s", (long long)a->start, op, son);
+        // aralığın kendi yönündeki adım (başlangıç > bitiş ise -1) yazılmaz
+        int64_t dogal = ((a->bayrak & 1) && a->start > a->end) ? -1 : 1;
+        if (a->step == dogal) snprintf(buf, sizeof buf, "%lld%s%s", (long long)a->start, op, son);
         else snprintf(buf, sizeof buf, "(%lld%s%s).adım(%lld)", (long long)a->start, op, son, (long long)a->step);
         cyaz(out, buf);
         break;

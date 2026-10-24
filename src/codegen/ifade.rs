@@ -156,10 +156,19 @@ impl<'p> Gen<'p> {
                     None => ("0".into(), 0),
                 };
                 let flags = has | if *inclusive { 2 } else { 0 };
+                // başlangıç bitişten büyükse geri sayar: adım -1
+                let step = if has == 1 {
+                    let (gt, st) = (self.tmp(), self.tmp());
+                    self.emit(&format!("{gt} = icmp sgt i64 {s}, {en}"));
+                    self.emit(&format!("{st} = select i1 {gt}, i64 -1, i64 1"));
+                    st
+                } else {
+                    "1".into()
+                };
                 let (a, b, c, d) = (self.tmp(), self.tmp(), self.tmp(), self.tmp());
                 self.emit(&format!("{a} = insertvalue %aralik undef, i64 {s}, 0"));
                 self.emit(&format!("{b} = insertvalue %aralik {a}, i64 {en}, 1"));
-                self.emit(&format!("{c} = insertvalue %aralik {b}, i64 1, 2"));
+                self.emit(&format!("{c} = insertvalue %aralik {b}, i64 {step}, 2"));
                 self.emit(&format!("{d} = insertvalue %aralik {c}, i64 {flags}, 3"));
                 d
             }

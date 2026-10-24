@@ -1,0 +1,4 @@
+ata a = 5
+yazdır((a..=1).adım(-2))
+yazdır((..=3).adım(2))
+yazdır((1..=a).adım(a - 6))
