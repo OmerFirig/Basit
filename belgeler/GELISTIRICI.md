@@ -101,7 +101,7 @@ yazdır(mat.hipotenüs(6.0, 8.0))      // 10.0
 
 - C'ye verilebilen tipler: `Tam(8/16/32/64)`, `Tam(N, +)`, `Ondalık`, `Ondalık(32)`, `Mantık`, `Yazı` (C'de `const char*`). Liste, sözlük ve nesne verilemez.
 - İmza yanlışsa program çöker; `#Güvensiz` zorunluluğu bu yüzden var. İmzayı C başlık dosyasından dikkatle kopyalayın.
-- Kütüphane adı: `"m"` → `libm.so`. Kendi derlediğiniz kütüphane için yol: `"./libbenim.so"`. Rust (`#[no_mangle] pub extern "C"`), C++ (`extern "C"`) ve Go (`//export`) kütüphaneleri de aynı şekilde kullanılır.
+- Kütüphane adı: `"m"` → `libm.so` (Windows'ta `"m"` C'nin kendi kütüphanesidir, diğer adlar `ad.dll`). Kendi derlediğiniz kütüphane için yol: `"./libbenim.so"` (Windows'ta `"./benim.dll"`). Rust (`#[no_mangle] pub extern "C"`), C++ (`extern "C"`) ve Go (`//export`) kütüphaneleri de aynı şekilde kullanılır.
 
 ---
 

@@ -39,4 +39,11 @@ jobs:
 
       - name: Testler
         shell: bash
-        run: ./testler/calistir.sh
+        # başarısız testlerin çıktısı iş özetinde (annotation) de görünür
+        run: |
+          ./testler/calistir.sh > sonuc.txt 2>&1 && kod=0 || kod=$?
+          cat sonuc.txt
+          if [ $kod != 0 ]; then
+            echo "::error title=Windows testleri::$(head -c 30000 sonuc.txt | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{printf "%s%%0A", $0}')"
+          fi
+          exit $kod

@@ -21,7 +21,9 @@ sayılar içindeki her s için yap {
 
 ## Kurulum
 
-Şimdilik sadece Linux. Gerekenler: Rust (1.85 ya da yenisi), clang ve llvm (derleyici için), libffi.
+Linux ve Windows'ta çalışır. Gerekenler: Rust (1.85 ya da yenisi), derleyici için clang ve llvm.
+
+### Linux
 
 ```
 # Ubuntu / Debian
@@ -35,6 +37,23 @@ git clone https://github.com/OmerFirig/Kolay.git && cd Kolay
 ```
 
 `kur.sh` projeyi derler ve `kolay` komutunu `~/.local/bin` içine bağlar. Kaldırmak için: `rm ~/.local/bin/kolay`
+
+### Windows
+
+1. Rust: https://rustup.rs adresinden `rustup-init.exe` (kurulum sırasında istenen Visual Studio Build Tools'u da kurun).
+2. Git ve clang (LLVM), PowerShell'de:
+   ```
+   winget install Git.Git LLVM.LLVM
+   ```
+3. Yeni bir PowerShell penceresinde:
+   ```
+   git clone https://github.com/OmerFirig/Kolay.git
+   cd Kolay
+   powershell -ExecutionPolicy Bypass -File kur.ps1
+   ```
+
+`kur.ps1` projeyi derler ve `kolay` komutunu kullanıcının PATH'ine ekler; yeni açılan terminallerde `kolay`
+yazmak yeter. `kolay derle kod.kolay` Windows'ta `kod.exe` üretir. libffi ayrıca kurulmaz (Rust ile birlikte derlenir).
 
 ## Kullanım
 
@@ -68,7 +87,7 @@ Girdi [2]: x * 2
 ```
 
 Komutlar: `:yardım`, `:tip ifade`, `:geçmiş`, `:kaydet dosya`, `:yükle dosya`, `:temizle`, `:çık`.
-Çalışan bir girdi Ctrl+C ile durdurulur. Ok tuşlarıyla geçmiş (`~/.cache/kolay/repl_gecmis.txt`), Tab ile tamamlama.
+Çalışan bir girdi Ctrl+C ile durdurulur. Ok tuşlarıyla geçmiş (`~/.cache/kolay/repl_gecmis.txt`, Windows'ta `%LOCALAPPDATA%\kolay`), Tab ile tamamlama.
 
 ## VS Code eklentisi
 
@@ -259,7 +278,7 @@ Derlenmiş programlarda:
 - Metotlar mümkünse doğrudan, birden fazla aday varsa türe göre `switch` ile çağrılır.
 - Hata mesajları yorumlayıcıdakiyle aynıdır (dosya, satır ve kaynak satırı dahil).
 - Program 1 GB'lık yığında çalışır (yorumlayıcıyla aynı). Sonsuz özyineleme Türkçe "Çok derin özyineleme" hatasıyla durur. Fark: yorumlayıcı 100.000 iç içe çağrıda durur ve hatalı çağrının satırını gösterir; derlenmiş program yığın dolunca durur ve fonksiyonun tanımlandığı satırı gösterir.
-- Çalışma kütüphanesi (`runtime/`) bir kez LLVM bitcode'a derlenip `~/.cache/kolay/` içinde saklanır ve programla birleştirilir (küçük fonksiyonlar programın içine yerleşir). `llvm-link` yoksa nesne dosyası olarak bağlanır.
+- Çalışma kütüphanesi (`runtime/`) bir kez LLVM bitcode'a derlenip `~/.cache/kolay/` (Windows'ta `%LOCALAPPDATA%\kolay`) içinde saklanır ve programla birleştirilir (küçük fonksiyonlar programın içine yerleşir). `llvm-link` yoksa nesne dosyası olarak bağlanır.
 
 ## Testler
 
@@ -267,6 +286,9 @@ Derlenmiş programlarda:
 ./testler/calistir.sh              # tüm testler
 ./testler/calistir.sh --guncelle   # beklenen çıktıları yeniden yazar (bilerek değişiklik yaptıysanız)
 ```
+
+Windows'ta aynı betik Git Bash ile çalışır (`bash testler/calistir.sh`). GitHub'a her gönderimde testler
+Linux ve Windows'ta otomatik çalışır (`.github/workflows/testler.yml`).
 
 - `testler/calisma/`: çalışması gereken programlar
 - `testler/hata/`: hata vermesi gereken programlar ve beklenen Türkçe mesajlar

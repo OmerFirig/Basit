@@ -5075,7 +5075,7 @@ yazdır(karekök(2.0))
 1.4142135623730951
 ```
 
-- `"m"` kütüphanenin adıdır (`libm.so`).
+- `"m"` kütüphanenin adıdır (Linux'ta `libm.so`; Windows'ta matematik fonksiyonları C'nin kendi kütüphanesindedir).
 - `= "sqrt"` C'deki asıl adı belirtir; böylece fonksiyona Kolay içinde Türkçe bir ad verebilirsiniz.
 
 İsimli yazım (`dahil et`'teki gibi):
