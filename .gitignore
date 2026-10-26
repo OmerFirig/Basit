@@ -1,8 +1,9 @@
 # Rust derleme çıktısı
 /target
 
-# VS Code eklentisi
+# VS Code eklentisi (hazır paket depoda: editor/vscode/kolay-<sürüm>.vsix)
 *.vsix
+!/editor/vscode/kolay-*.vsix
 node_modules/
 
 # kolay derle çıktıları: ara kod ve derlenmiş programlar

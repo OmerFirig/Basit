@@ -177,7 +177,14 @@ Uygularken verilen küçük kararlar (💡 onay bekliyor):
 ------------------------------------------------------------------------------
 3. WINDOWS VE macOS DESTEĞİ
 ------------------------------------------------------------------------------
-Şu an sadece Linux. Bu makinede sadece Linux var: macOS/Windows kodu yazılabilir ama
+WINDOWS YAPILDI (2026-10-26): yorumlayıcı, dış kütüphaneler (LoadLibrary, libffi-sys), derleyici ve
+çalışma kütüphanesi (CreateThread 1 GB yığın, AddVectoredExceptionHandler ile derin özyineleme, COFF
+kolay_kod$a/$m/$z bölüm sınırları, _setjmp(buf, NULL), memmem, compiler-rt), kur.ps1, VS Code tırnaklama,
+GitHub Actions'ta windows-latest işi (251/251 geçiyor). 128 bitlik değerler artık her sistemde runtime'a
+işaretçiyle verilir (Windows ABI farkı). Windows'a özel beklenen çıktı: testler/**/ad.windows.beklenen.
+Kalan: macOS (aşağıdaki macOS maddeleri).
+
+Önceden sadece Linux. Bu makinede sadece Linux var: macOS/Windows kodu yazılabilir ama
 burada çalıştırılıp doğrulanamaz (Windows için mingw ile en fazla çapraz derleme denenebilir).
 
 Değişmesi gerekenler:

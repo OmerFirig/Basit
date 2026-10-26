@@ -518,10 +518,14 @@ function activate(ctx) {
     await ed.document.save();
     const term = vscode.window.terminals.find((t) => t.name === "Kolay") || vscode.window.createTerminal("Kolay");
     term.show();
-    // Windows'ta (PowerShell ve cmd) çift tırnak, diğerlerinde tek tırnak
-    const f =
-      process.platform === "win32" ? `"${ed.document.uri.fsPath}"` : `'${ed.document.uri.fsPath.replace(/'/g, "'\\''")}'`;
-    term.sendText(cmd === "derle" ? `${kolayPath()} derle ${f}` : `${kolayPath()} ${f}`);
+    // Windows'ta (PowerShell ve cmd) çift tırnak, diğerlerinde tek tırnak; boşluklu yollar da çalışsın
+    const win = process.platform === "win32";
+    const q = (x) => (win ? `"${x}"` : `'${x.replace(/'/g, "'\\''")}'`);
+    // PowerShell tırnaklı bir komutu ancak & ile çalıştırır (cmd'de & kullanılmaz)
+    const ps = win && /pwsh|powershell/i.test(vscode.env.shell || "powershell");
+    const kolay = (ps ? "& " : "") + q(kolayPath());
+    const f = q(ed.document.uri.fsPath);
+    term.sendText(cmd === "derle" ? `${kolay} derle ${f}` : `${kolay} ${f}`);
   };
   ctx.subscriptions.push(vscode.commands.registerCommand("kolay.calistir", run("çalıştır")));
   ctx.subscriptions.push(vscode.commands.registerCommand("kolay.derle", run("derle")));
