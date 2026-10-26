@@ -757,7 +757,7 @@ impl<'p> Gen<'p> {
         let decl = format!(
             "declare {} @\"{}\"({})",
             cty(&func.ret),
-            d.symbol,
+            crate::dis::c_adi(&d.symbol),
             func.params.iter().map(|t| cty(t).to_string()).collect::<Vec<_>>().join(", ")
         );
         self.intrinsic(&format!("dış {}", d.symbol), decl);
@@ -778,12 +778,12 @@ impl<'p> Gen<'p> {
             }
         }
         if func.ret == Type::Hic {
-            let _ = writeln!(out, "  call void @\"{}\"({})\n  ret void\n}}\n", d.symbol, args.join(", "));
+            let _ = writeln!(out, "  call void @\"{}\"({})\n  ret void\n}}\n", crate::dis::c_adi(&d.symbol), args.join(", "));
         } else if func.ret == Type::Str {
-            let _ = writeln!(out, "  %r = call ptr @\"{}\"({})", d.symbol, args.join(", "));
+            let _ = writeln!(out, "  %r = call ptr @\"{}\"({})", crate::dis::c_adi(&d.symbol), args.join(", "));
             let _ = writeln!(out, "  %y = call ptr @kolay_c_yazi(ptr %r)\n  ret ptr %y\n}}\n");
         } else {
-            let _ = writeln!(out, "  %r = call {} @\"{}\"({})\n  ret {ret} %r\n}}\n", cty(&func.ret), d.symbol, args.join(", "));
+            let _ = writeln!(out, "  %r = call {} @\"{}\"({})\n  ret {ret} %r\n}}\n", cty(&func.ret), crate::dis::c_adi(&d.symbol), args.join(", "));
         }
         out
     }

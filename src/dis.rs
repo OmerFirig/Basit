@@ -29,6 +29,23 @@ unsafe extern "system" {
 #[cfg(not(windows))]
 const RTLD_NOW: c_int = 2;
 
+/// C fonksiyonunun kütüphanedeki gerçek adı. Windows'ta bazı C fonksiyonları başlık dosyasında başka bir
+/// ada yönlendirilir (time -> _time64); kütüphanede o ad bulunur.
+pub fn c_adi(sym: &str) -> &str {
+    if !cfg!(windows) {
+        return sym;
+    }
+    match sym {
+        "time" => "_time64",
+        "difftime" => "_difftime64",
+        "mktime" => "_mktime64",
+        "localtime" => "_localtime64",
+        "gmtime" => "_gmtime64",
+        "ctime" => "_ctime64",
+        _ => sym,
+    }
+}
+
 /// Kütüphane adının dosya adı (hata mesajı için): Linux'ta libm.so, Windows'ta m.dll
 pub fn dosya_adi(name: &str) -> String {
     if cfg!(windows) { format!("{name}.dll") } else { format!("lib{name}.so") }
@@ -113,7 +130,7 @@ pub fn resolve(prog: &Program) -> Result<Vec<usize>, Diag> {
                 h
             }
         };
-        let sym = CString::new(d.symbol.clone()).map_err(|_| diag(f.loc, "C fonksiyon adında geçersiz karakter var.".into()))?;
+        let sym = CString::new(c_adi(&d.symbol)).map_err(|_| diag(f.loc, "C fonksiyon adında geçersiz karakter var.".into()))?;
         let p = sym_addr(h, &sym);
         if p.is_null() {
             return Err(diag(f.loc, format!("\"{}\" kütüphanesindeki '{}' fonksiyonu bulunamadı.", d.lib, d.symbol)));

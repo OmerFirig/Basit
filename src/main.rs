@@ -163,7 +163,23 @@ fn ctrl_c_yakala() {
 
 const DURDURULDU: &str = "\nProgram durduruldu (Ctrl+C).\n";
 
+/// Windows: C'nin çıktısı (dış kütüphanelerin printf'i) metin kipinde "\n"yi "\r\n" yapar; Kolay'ın kendi
+/// çıktısı gibi "\n" kalsın (derlenmiş programdaki runtime/cekirdek.c ile aynı).
+#[cfg(windows)]
+fn c_ciktisi_ikili() {
+    unsafe extern "C" {
+        fn _setmode(fd: std::ffi::c_int, mode: std::ffi::c_int) -> std::ffi::c_int;
+    }
+    const O_BINARY: std::ffi::c_int = 0x8000;
+    unsafe {
+        _setmode(1, O_BINARY);
+        _setmode(2, O_BINARY);
+    }
+}
+
 fn real_main() -> i32 {
+    #[cfg(windows)]
+    c_ciktisi_ikili();
     // kolay kütüphane liste | yeni <ad> | kur <dosya>
     let argumanlar: Vec<String> = std::env::args().skip(1).collect();
     if matches!(argumanlar.first().map(String::as_str), Some("kütüphane" | "kutuphane")) {
