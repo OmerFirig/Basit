@@ -459,7 +459,7 @@ impl<'p> Gen<'p> {
         let fr = self.alloca("[1024 x i8]");
         self.emit(&format!("call void @kolay_dene_gir(ptr {fr})"));
         let (r, z) = (self.tmp(), self.tmp());
-        self.emit(&format!("{r} = call i32 @_setjmp(ptr {fr}) returns_twice"));
+        self.emit(&format!("{r} = call i32 @_setjmp(ptr {fr}{}) returns_twice", super::SETJMP_ARGS));
         self.emit(&format!("{z} = icmp eq i32 {r}, 0"));
         let (govde, yakala, son) = (self.new_label(), self.new_label(), self.new_label());
         self.term(&format!("br i1 {z}, label %{govde}, label %{yakala}"));

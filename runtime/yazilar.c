@@ -141,12 +141,18 @@ static int utf8_yaz(uint32_t c, char *o) {
 static uint32_t tr_kucuk(uint32_t c) {
     if (c == 'I') return 0x131;   // ı
     if (c == 0x130) return 'i';   // İ
+#ifdef _WIN32
+    if (c > 0xFFFF) return c;  // Windows'ta wint_t 16 bit
+#endif
     return (uint32_t)towlower((wint_t)c);
 }
 
 static uint32_t tr_buyuk(uint32_t c) {
     if (c == 'i') return 0x130;
     if (c == 0x131) return 'I';
+#ifdef _WIN32
+    if (c > 0xFFFF) return c;  // Windows'ta wint_t 16 bit
+#endif
     return (uint32_t)towupper((wint_t)c);
 }
 

@@ -145,6 +145,7 @@ fn ctrl_c_yakala() {
     use std::ffi::c_int;
     unsafe extern "C" {
         fn signal(sig: c_int, handler: extern "C" fn(c_int)) -> usize;
+        #[cfg_attr(windows, link_name = "_write")]
         fn write(fd: c_int, buf: *const std::ffi::c_void, n: usize) -> isize;
         fn _exit(code: c_int) -> !;
     }
@@ -224,7 +225,10 @@ fn real_main() -> i32 {
         }
         "derle" => {
             let Some(prog) = front(&path, o.mode, &mut sources) else { return 1 };
-            let out = o.out.clone().map(PathBuf::from).unwrap_or_else(|| path.with_extension(""));
+            let mut out = o.out.clone().map(PathBuf::from).unwrap_or_else(|| path.with_extension(""));
+            if cfg!(windows) && out.extension().is_none() {
+                out.set_extension("exe");
+            }
             match codegen::compile(&prog, &sources, &out, o.ir) {
                 Ok(()) => {
                     println!("Derlendi: {}", out.display());

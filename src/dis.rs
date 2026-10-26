@@ -10,14 +10,45 @@ use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_uint, c_void, CStr, CString};
 
 unsafe extern "C" {
-    fn dlopen(name: *const c_char, flags: c_int) -> *mut c_void;
-    fn dlsym(h: *mut c_void, name: *const c_char) -> *mut c_void;
     fn fflush(f: *mut c_void) -> c_int;
 }
 
+#[cfg(not(windows))]
+unsafe extern "C" {
+    fn dlopen(name: *const c_char, flags: c_int) -> *mut c_void;
+    fn dlsym(h: *mut c_void, name: *const c_char) -> *mut c_void;
+}
+
+#[cfg(windows)]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn LoadLibraryA(name: *const c_char) -> *mut c_void;
+    fn GetProcAddress(h: *mut c_void, name: *const c_char) -> *mut c_void;
+}
+
+#[cfg(not(windows))]
 const RTLD_NOW: c_int = 2;
 
+/// Kütüphane adının dosya adı (hata mesajı için): Linux'ta libm.so, Windows'ta m.dll
+pub fn dosya_adi(name: &str) -> String {
+    if cfg!(windows) { format!("{name}.dll") } else { format!("lib{name}.so") }
+}
+
+/// Kütüphane adından açılabilecek dosya adayları (Windows): "m" ve "c" C'nin kendi kütüphanesidir
+/// (ucrtbase.dll); diğerleri ad.dll, libad.dll
+#[cfg(windows)]
+fn candidates(name: &str) -> Vec<String> {
+    if name.contains('/') || name.contains('\\') || name.to_ascii_lowercase().ends_with(".dll") {
+        return vec![name.to_string()];
+    }
+    match name {
+        "m" | "c" => vec!["ucrtbase.dll".into(), "msvcrt.dll".into()],
+        _ => vec![format!("{name}.dll"), format!("lib{name}.dll")],
+    }
+}
+
 /// Kütüphane adından açılabilecek dosya adayları: "m" -> libm.so, libm.so.6 ...
+#[cfg(not(windows))]
 fn candidates(name: &str) -> Vec<String> {
     if name.contains('/') || name.contains(".so") {
         return vec![name.to_string()];
@@ -42,12 +73,22 @@ fn candidates(name: &str) -> Vec<String> {
 fn open_lib(name: &str) -> Option<*mut c_void> {
     for c in candidates(name) {
         let cs = CString::new(c).ok()?;
+        #[cfg(not(windows))]
         let h = unsafe { dlopen(cs.as_ptr(), RTLD_NOW) };
+        #[cfg(windows)]
+        let h = unsafe { LoadLibraryA(cs.as_ptr()) };
         if !h.is_null() {
             return Some(h);
         }
     }
     None
+}
+
+fn sym_addr(h: *mut c_void, name: &CString) -> *mut c_void {
+    #[cfg(not(windows))]
+    return unsafe { dlsym(h, name.as_ptr()) };
+    #[cfg(windows)]
+    return unsafe { GetProcAddress(h, name.as_ptr()) };
 }
 
 fn diag(loc: Loc, msg: String) -> Diag {
@@ -66,14 +107,14 @@ pub fn resolve(prog: &Program) -> Result<Vec<usize>, Diag> {
             Some(h) => *h,
             None => {
                 let Some(h) = open_lib(&d.lib) else {
-                    return Err(diag(d.lib_loc, format!("\"{}\" kütüphanesi bulunamadı (aranan: lib{}.so).", d.lib, d.lib)));
+                    return Err(diag(d.lib_loc, format!("\"{}\" kütüphanesi bulunamadı (aranan: {}).", d.lib, dosya_adi(&d.lib))));
                 };
                 libs.insert(d.lib.clone(), h);
                 h
             }
         };
         let sym = CString::new(d.symbol.clone()).map_err(|_| diag(f.loc, "C fonksiyon adında geçersiz karakter var.".into()))?;
-        let p = unsafe { dlsym(h, sym.as_ptr()) };
+        let p = sym_addr(h, &sym);
         if p.is_null() {
             return Err(diag(f.loc, format!("\"{}\" kütüphanesindeki '{}' fonksiyonu bulunamadı.", d.lib, d.symbol)));
         }
@@ -110,7 +151,11 @@ struct FfiCif {
     extra: [u64; 4],
 }
 
-#[link(name = "ffi")]
+// Linux/macOS: sistemin libffi'si. Windows: libffi-sys kaynağından derleyip bağlar.
+#[cfg(windows)]
+use libffi_sys as _;
+
+#[cfg_attr(not(windows), link(name = "ffi"))]
 unsafe extern "C" {
     static mut ffi_type_void: FfiType;
     static mut ffi_type_uint8: FfiType;
@@ -128,9 +173,10 @@ unsafe extern "C" {
     fn ffi_call(cif: *mut FfiCif, f: *mut c_void, rvalue: *mut c_void, avalue: *mut *mut c_void);
 }
 
-#[cfg(target_arch = "x86_64")]
+// libffi'deki FFI_DEFAULT_ABI: x86-64 Linux'ta FFI_UNIX64, Windows'ta FFI_WIN64
+#[cfg(all(target_arch = "x86_64", not(windows)))]
 const FFI_DEFAULT_ABI: c_int = 2;
-#[cfg(not(target_arch = "x86_64"))]
+#[cfg(any(not(target_arch = "x86_64"), windows))]
 const FFI_DEFAULT_ABI: c_int = 1;
 
 fn ffi_type(t: &Type) -> *mut FfiType {

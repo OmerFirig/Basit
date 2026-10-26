@@ -13,3 +13,7 @@ num-bigint = "0.5.1"
 num-integer = "0.1.47"
 num-traits = "0.2.19"
 rustyline = { version = "14", default-features = false, features = ["with-file-history", "custom-bindings"] }
+
+# Windows'ta sistemde libffi olmadığı için kaynağından derlenir (Linux'ta sistemin libffi'si kullanılır).
+[target.'cfg(windows)'.dependencies]
+libffi-sys = "2.3"

@@ -64,7 +64,6 @@ declare void @kolay_dene_bitti(ptr)
 declare void @kolay_dene_yeniden(ptr) noreturn
 declare void @kolay_kacir(ptr)
 @kolay_temizlik_ust = external global ptr
-declare i32 @_setjmp(ptr) returns_twice
 declare void @kolay_hata_sayi(ptr, i64, ptr, ptr, ptr) noreturn
 declare void @kolay_tasma(ptr, ptr, i128, i128, i32, ptr, ptr, ptr, i32, ptr, ptr) noreturn
 declare void @kolay_sigmiyor(i128, i32, ptr, ptr, ptr, ptr) noreturn
@@ -165,6 +164,24 @@ declare i64 @kolay_esnek_i64(i64, ptr, ptr, ptr)
 declare i64 @kolay_esnek_kere(i64, ptr, ptr)
 ";
 
+// Windows'ta _setjmp ikinci bir değer alır (çerçeve adresi); boş verilince longjmp yığını
+// açmadan (Linux'taki gibi) doğrudan döner.
+#[cfg(not(windows))]
+const SETJMP_DECL: &str = "declare i32 @_setjmp(ptr) returns_twice\n";
+#[cfg(windows)]
+const SETJMP_DECL: &str = "declare i32 @_setjmp(ptr, ptr) returns_twice\n";
+#[cfg(not(windows))]
+pub(super) const SETJMP_ARGS: &str = "";
+#[cfg(windows)]
+pub(super) const SETJMP_ARGS: &str = ", ptr null";
+
+// Kolay fonksiyonlarının konduğu bölüm. Windows'ta (COFF) '$' sonrası bağlayıcının sıralamasıdır:
+// çalışma kütüphanesi bölümün başını ve sonunu kolay_kod$a ve kolay_kod$z ile işaretler.
+#[cfg(not(windows))]
+const KOD_BOLUMU: &str = "kolay_kod";
+#[cfg(windows)]
+const KOD_BOLUMU: &str = "kolay_kod$m";
+
 const BELIRSIZ: &str = "Değişken henüz belirsiz (bir fonksiyon, değişken tanımlanmadan önce çağrıldı).";
 
 pub fn compile(prog: &Program, sources: &Sources, out: &Path, keep_ir: bool) -> CResult<()> {
@@ -174,6 +191,10 @@ pub fn compile(prog: &Program, sources: &Sources, out: &Path, keep_ir: bool) -> 
     for f in &prog.funcs {
         if let Some(d) = &f.dis {
             let arg = if d.lib.contains('/') || d.lib.contains(".so") { d.lib.clone() } else { format!("-l{}", d.lib) };
+            // Windows'ta matematik ve C fonksiyonları C'nin kendi kütüphanesindedir (ayrıca bağlanmaz)
+            if cfg!(windows) && (d.lib == "m" || d.lib == "c") {
+                continue;
+            }
             if !libs.contains(&arg) {
                 libs.push(arg);
             }
@@ -182,7 +203,11 @@ pub fn compile(prog: &Program, sources: &Sources, out: &Path, keep_ir: bool) -> 
     let ir = Gen::new(prog, sources).program()?;
     let tool = |msg: &str| Diag::new(Span { file: u32::MAX, ..Default::default() }, msg.to_string());
     if Command::new("clang").arg("--version").output().is_err() {
-        return Err(tool("Derlemek için clang gerekiyor ama bulunamadı. Kurmak için: sudo pacman -S clang"));
+        return Err(tool(if cfg!(windows) {
+            "Derlemek için clang gerekiyor ama bulunamadı. Kurmak için: winget install LLVM.LLVM (sonra terminali yeniden açın)"
+        } else {
+            "Derlemek için clang gerekiyor ama bulunamadı. Kurmak için: sudo apt install clang llvm (Arch: sudo pacman -S clang llvm)"
+        }));
     }
     let dir = std::env::temp_dir().join(format!("kolay-{}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| tool(&format!("Geçici klasör oluşturulamadı: {e}")))?;
@@ -220,7 +245,7 @@ pub fn compile(prog: &Program, sources: &Sources, out: &Path, keep_ir: bool) -> 
         .args(["-O2", "-w", "-o"])
         .arg(out)
         .args(&input)
-        .args(["-lm", "-lpthread"])
+        .args(sistem_kutuphaneleri())
         .args(&libs)
         .output()
         .map_err(|e| tool(&format!("clang çalıştırılamadı: {e}")));
@@ -235,6 +260,26 @@ pub fn compile(prog: &Program, sources: &Sources, out: &Path, keep_ir: bool) -> 
     Ok(())
 }
 
+/// Programın bağlandığı sistem kütüphaneleri.
+#[cfg(not(windows))]
+fn sistem_kutuphaneleri() -> Vec<String> {
+    vec!["-lm".into(), "-lpthread".into()]
+}
+
+/// Windows: 128 bitlik bölme ve Ondalık(16) dönüştürmeleri için clang'ın kendi yardımcı kütüphanesi
+/// (compiler-rt) gerekir; MSVC'nin kütüphanelerinde yoktur.
+#[cfg(windows)]
+fn sistem_kutuphaneleri() -> Vec<String> {
+    let mut v = Vec::new();
+    if let Ok(o) = Command::new("clang").args(["--rtlib=compiler-rt", "-print-libgcc-file-name"]).output() {
+        let yol = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        if !yol.is_empty() && Path::new(&yol).exists() {
+            v.push(yol);
+        }
+    }
+    v
+}
+
 /// Çalışma kütüphanesini bir kez derleyip önbellekte tutar (her derlemede yeniden derlenmesin).
 /// `bitcode`: LLVM bitcode (.bc) mı, nesne dosyası (.o) mı
 fn runtime_object(tmp: &Path, bitcode: bool) -> Result<std::path::PathBuf, String> {
@@ -245,6 +290,7 @@ fn runtime_object(tmp: &Path, bitcode: bool) -> Result<std::path::PathBuf, Strin
     let name = format!("kolay_runtime_{:016x}.{}", h.finish(), if bitcode { "bc" } else { "o" });
     let cache = std::env::var_os("XDG_CACHE_HOME")
         .map(std::path::PathBuf::from)
+        .or_else(|| if cfg!(windows) { std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from) } else { None })
         .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
         .map(|d| d.join("kolay"));
     if let Some(dir) = &cache {
@@ -624,6 +670,7 @@ impl<'p> Gen<'p> {
         let mut out = String::new();
         let _ = writeln!(out, "; Kolay derleyicisinin ürettiği LLVM IR\n");
         out.push_str(DECLS);
+        out.push_str(SETJMP_DECL);
         let mut intr: Vec<&String> = self.intrinsics.values().collect();
         intr.sort();
         for d in intr {
@@ -824,7 +871,7 @@ impl<'p> Gen<'p> {
         let (k, c) = self.where_(func.loc);
         let ad = if dene { format!("@f{fid}.d") } else { format!("@f{fid}") };
         self.fn_table.push(format!("{{ ptr, ptr, ptr }} {{ ptr {ad}, ptr {k}, ptr {c} }}"));
-        Ok(self.finish_fn(&format!("define internal {ret} {ad}({}) section \"kolay_kod\"", params.join(", "))))
+        Ok(self.finish_fn(&format!("define internal {ret} {ad}({}) section \"{KOD_BOLUMU}\"", params.join(", "))))
     }
 
     /// Lambda nesnesinin düzeni: yakalananların ofsetleri, nesnenin (bu) ofseti, toplam boyut.

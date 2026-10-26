@@ -518,8 +518,10 @@ function activate(ctx) {
     await ed.document.save();
     const term = vscode.window.terminals.find((t) => t.name === "Kolay") || vscode.window.createTerminal("Kolay");
     term.show();
-    const f = ed.document.uri.fsPath.replace(/'/g, "'\\''");
-    term.sendText(cmd === "derle" ? `${kolayPath()} derle '${f}'` : `${kolayPath()} '${f}'`);
+    // Windows'ta (PowerShell ve cmd) çift tırnak, diğerlerinde tek tırnak
+    const f =
+      process.platform === "win32" ? `"${ed.document.uri.fsPath}"` : `'${ed.document.uri.fsPath.replace(/'/g, "'\\''")}'`;
+    term.sendText(cmd === "derle" ? `${kolayPath()} derle ${f}` : `${kolayPath()} ${f}`);
   };
   ctx.subscriptions.push(vscode.commands.registerCommand("kolay.calistir", run("çalıştır")));
   ctx.subscriptions.push(vscode.commands.registerCommand("kolay.derle", run("derle")));

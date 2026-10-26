@@ -343,8 +343,6 @@ _Noreturn void kolay_tur_degil_nesne(const char *hedef, void *nesne, const char 
 
 // ------------------------------------------------------------ başlatma ve derin özyineleme
 
-static char *yigin_alt;
-
 /// Derleyicinin ürettiği fonksiyon tablosu: { adres, konum, kaynak satırı }
 typedef struct {
     const char *adres;
@@ -353,13 +351,25 @@ typedef struct {
 } FonkBilgi;
 extern const int64_t kolay_fonk_sayi;
 extern const FonkBilgi kolay_fonk_tablo[];
-// Kolay fonksiyonlarının bulunduğu bölümün sınırları (bağlayıcı tanımlar)
+// Kolay fonksiyonlarının bulunduğu bölümün sınırları
+#ifdef _WIN32
+// COFF: bağlayıcı kolay_kod$a, kolay_kod$m (Kolay fonksiyonları), kolay_kod$z sırasıyla birleştirir.
+// Gövdeler farklı: bağlayıcı aynı fonksiyonları tek fonksiyona indirebilir.
+__attribute__((section("kolay_kod$a"), used, noinline)) static int kolay_kod_bas(void) { return 1; }
+__attribute__((section("kolay_kod$z"), used, noinline)) static int kolay_kod_son(void) { return 2; }
+#define KOD_BAS ((const char *)kolay_kod_bas)
+#define KOD_SON ((const char *)kolay_kod_son)
+#else
+// ELF: bağlayıcı tanımlar
 extern char __start_kolay_kod[] __attribute__((weak));
 extern char __stop_kolay_kod[] __attribute__((weak));
+#define KOD_BAS __start_kolay_kod
+#define KOD_SON __stop_kolay_kod
+#endif
 
 /// Komut adresinin içinde bulunduğu Kolay fonksiyonu (yoksa NULL).
 static const FonkBilgi *fonk_bul(const char *pc) {
-    if (!pc || !__start_kolay_kod || pc < __start_kolay_kod || pc >= __stop_kolay_kod) return NULL;
+    if (!pc || !KOD_BAS || pc < KOD_BAS || pc >= KOD_SON) return NULL;
     const FonkBilgi *en = NULL;
     for (int64_t i = 0; i < kolay_fonk_sayi; i++) {
         const FonkBilgi *f = &kolay_fonk_tablo[i];
@@ -367,6 +377,98 @@ static const FonkBilgi *fonk_bul(const char *pc) {
     }
     return en;
 }
+
+static void yaz_stderr(const char *s) {
+    size_t n = strlen(s);
+    while (n > 0) {
+        ssize_t k = write(2, s, n);
+        if (k <= 0) break;
+        s += k;
+        n -= (size_t)k;
+    }
+}
+
+static void derin_ozyineleme(const char *pc) {
+    const FonkBilgi *f = fonk_bul(pc);
+    if (f) {
+        yaz_stderr("ÇALIŞMA HATASI (");
+        yaz_stderr(f->konum);
+        yaz_stderr("): Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.\n");
+        yaz_stderr(f->kod);
+    } else {
+        yaz_stderr("ÇALIŞMA HATASI: Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.\n");
+    }
+}
+
+static const char *const BELLEK_HATASI =
+    "İÇ HATA: Derlenmiş program bellek hatasıyla durdu. Bu Kolay derleyicisinin bir hatası, lütfen bildirin.\n";
+
+/// Ctrl+C: Türkçe mesajla durur (yorumlayıcıdaki main.rs ctrl_c_yakala ile aynı).
+static void ctrl_c(int sig) {
+    (void)sig;
+    yaz_stderr("\nProgram durduruldu (Ctrl+C).\n");
+    _exit(130);
+}
+
+typedef void (*kolay_fn)(void);
+
+#ifdef _WIN32
+
+// Yığın taşması Windows'ta bir istisnadır (sinyal değil); işleyici, ayrılmış son 64 KB'ta çalışır.
+static LONG WINAPI istisna_yakala(EXCEPTION_POINTERS *e) {
+    DWORD kod = e->ExceptionRecord->ExceptionCode;
+    if (kod != EXCEPTION_STACK_OVERFLOW && kod != EXCEPTION_ACCESS_VIOLATION) return EXCEPTION_CONTINUE_SEARCH;
+    fflush(stdout);
+    if (kod == EXCEPTION_STACK_OVERFLOW) {
+#if defined(_M_X64) || defined(__x86_64__)
+        derin_ozyineleme((const char *)e->ContextRecord->Rip);
+#elif defined(_M_ARM64) || defined(__aarch64__)
+        derin_ozyineleme((const char *)e->ContextRecord->Pc);
+#else
+        derin_ozyineleme(NULL);
+#endif
+    } else {
+        yaz_stderr(BELLEK_HATASI);
+    }
+    _exit(1);
+}
+
+static DWORD WINAPI calistir_is(LPVOID arg) {
+    ULONG pay = 1 << 16;
+    SetThreadStackGuarantee(&pay);
+    ((kolay_fn)arg)();
+    return 0;
+}
+
+/// Programı büyük yığınlı (1 GB, yorumlayıcıyla aynı) bir iş parçacığında çalıştırır.
+void kolay_calistir(kolay_fn ana) {
+    setlocale(LC_CTYPE, ".UTF-8");
+    // Yazılar UTF-8: konsol da UTF-8 gösterir. Satır sonları "\n" kalır (metin kipi "\r\n" yapardı).
+    UINT eski_cp = GetConsoleOutputCP(), eski_giris = GetConsoleCP();
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
+    // Windows'ta satır tamponu yok (_IOLBF tam tampon gibi davranır): ekrana tamponsuz yazılır.
+    if (isatty(1)) setvbuf(stdout, NULL, _IONBF, 0);
+    else setvbuf(stdout, NULL, _IOFBF, 1 << 16);
+    signal(SIGINT, ctrl_c);
+    AddVectoredExceptionHandler(1, istisna_yakala);
+    HANDLE t = CreateThread(NULL, (SIZE_T)1 << 30, calistir_is, (LPVOID)ana, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+    if (t) {
+        WaitForSingleObject(t, INFINITE);
+        CloseHandle(t);
+    } else {
+        calistir_is((LPVOID)ana);
+    }
+    fflush(stdout);
+    if (eski_cp) SetConsoleOutputCP(eski_cp);
+    if (eski_giris) SetConsoleCP(eski_giris);
+}
+
+#else
+
+static char *yigin_alt;
 
 static const char *komut_adresi(void *ctx) {
     ucontext_t *uc = (ucontext_t *)ctx;
@@ -380,37 +482,17 @@ static const char *komut_adresi(void *ctx) {
 #endif
 }
 
-static void yaz_stderr(const char *s) {
-    size_t n = strlen(s);
-    while (n > 0) {
-        ssize_t k = write(2, s, n);
-        if (k <= 0) break;
-        s += k;
-        n -= (size_t)k;
-    }
-}
-
 static void segv_yakala(int sig, siginfo_t *info, void *ctx) {
     (void)sig;
     char *adr = (char *)info->si_addr;
     fflush(stdout);
     if (yigin_alt && adr >= yigin_alt - (1 << 20) && adr < yigin_alt + (1 << 16)) {
-        const FonkBilgi *f = fonk_bul(komut_adresi(ctx));
-        if (f) {
-            yaz_stderr("ÇALIŞMA HATASI (");
-            yaz_stderr(f->konum);
-            yaz_stderr("): Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.\n");
-            yaz_stderr(f->kod);
-        } else {
-            yaz_stderr("ÇALIŞMA HATASI: Çok derin özyineleme: bir fonksiyon kendini çok fazla çağırdı.\n");
-        }
+        derin_ozyineleme(komut_adresi(ctx));
     } else {
-        yaz_stderr("İÇ HATA: Derlenmiş program bellek hatasıyla durdu. Bu Kolay derleyicisinin bir hatası, lütfen bildirin.\n");
+        yaz_stderr(BELLEK_HATASI);
     }
     _exit(1);
 }
-
-typedef void (*kolay_fn)(void);
 
 static void *calistir_is(void *arg) {
     // Yığın taşınca sinyal işleyicisi ayrı küçük bir yığında çalışır.
@@ -434,13 +516,6 @@ static void *calistir_is(void *arg) {
     return NULL;
 }
 
-/// Ctrl+C: Türkçe mesajla durur (yorumlayıcıdaki main.rs ctrl_c_yakala ile aynı).
-static void ctrl_c(int sig) {
-    (void)sig;
-    yaz_stderr("\nProgram durduruldu (Ctrl+C).\n");
-    _exit(130);
-}
-
 /// Programı büyük yığınlı (1 GB, yorumlayıcıyla aynı) bir iş parçacığında çalıştırır.
 void kolay_calistir(kolay_fn ana) {
     setlocale(LC_CTYPE, "C.UTF-8");
@@ -458,3 +533,5 @@ void kolay_calistir(kolay_fn ana) {
     }
     fflush(stdout);
 }
+
+#endif

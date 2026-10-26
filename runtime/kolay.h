@@ -22,20 +22,45 @@
 // Ondalık 2/4/8, Mantık 1, işaretçiler 8, 'veya' 24 bayt (etiket + 16 bayt değer), aralık 32 bayt.
 
 #define _GNU_SOURCE
+#define _CRT_SECURE_NO_WARNINGS
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <math.h>
-#include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wctype.h>
+#ifdef _WIN32
+// Windows (clang): iş parçacığı, yığın taşması ve konsol için Windows API'si
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+typedef ptrdiff_t ssize_t;
+#define write _write
+#define isatty _isatty
+#else
+#include <pthread.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <wctype.h>
+#endif
+
+#ifdef _WIN32
+// memmem GNU'ya özel: Windows'ta yok
+static void *memmem(const void *h, size_t hn, const void *n, size_t nn) {
+    if (nn == 0) return (void *)h;
+    const char *p = (const char *)h, *son = p + hn;
+    while (hn >= nn && (p = memchr(p, *(const char *)n, (size_t)(son - p) - nn + 1))) {
+        if (memcmp(p, n, nn) == 0) return (void *)p;
+        p++;
+        if ((size_t)(son - p) < nn) break;
+    }
+    return NULL;
+}
+#endif
 
 typedef __int128 i128;
 typedef unsigned __int128 u128;

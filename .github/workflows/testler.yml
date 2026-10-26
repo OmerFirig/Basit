@@ -1,5 +1,6 @@
-# Her gönderimde (push) ve birleştirme isteğinde (pull request) Kolay derlenir ve bütün testler çalışır:
-# yorumlayıcı, LLVM derleyicisi (iki yolun aynı çıktıyı vermesi), hata mesajları, dahil et, etkileşimli kip.
+# Her gönderimde (push) ve birleştirme isteğinde (pull request) Kolay Linux ve Windows'ta derlenir ve bütün
+# testler çalışır: yorumlayıcı, LLVM derleyicisi (iki yolun aynı çıktıyı vermesi), hata mesajları, dahil et,
+# etkileşimli kip.
 name: Testler
 
 on:
@@ -22,4 +23,20 @@ jobs:
         run: cargo build --release
 
       - name: Testler
+        run: ./testler/calistir.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # clang (LLVM) ve MSVC araçları Windows sanal makinesinde hazır gelir
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Derle
+        run: cargo build --release
+
+      - name: Testler
+        shell: bash
         run: ./testler/calistir.sh

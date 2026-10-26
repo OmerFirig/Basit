@@ -434,6 +434,7 @@ impl ConditionalEventHandler for Kapat {
 fn gecmis_dosyasi() -> Option<PathBuf> {
     let d = std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
+        .or_else(|| if cfg!(windows) { std::env::var_os("LOCALAPPDATA").map(PathBuf::from) } else { None })
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))?
         .join("kolay");
     let _ = std::fs::create_dir_all(&d);

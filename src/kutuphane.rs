@@ -18,6 +18,7 @@ pub fn ad_mi(p: &str) -> bool {
 pub fn kisisel_klasor() -> Option<PathBuf> {
     let veri = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
+        .or_else(|| if cfg!(windows) { std::env::var_os("APPDATA").map(PathBuf::from) } else { None })
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
     Some(veri.join("kolay").join("kutuphaneler"))
 }
@@ -204,7 +205,7 @@ fn kur(dosya: &Path) -> i32 {
         return 1;
     }
     let Some(hedef_klasor) = kisisel_klasor() else {
-        eprintln!("HATA: Kişisel klasör bulunamadı (HOME tanımlı değil).");
+        eprintln!("HATA: Kişisel klasör bulunamadı (HOME ya da APPDATA tanımlı değil).");
         return 1;
     };
     if let Err(e) = std::fs::create_dir_all(&hedef_klasor) {
