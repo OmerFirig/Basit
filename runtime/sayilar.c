@@ -142,7 +142,9 @@ void grupla(const char *s, char *out) {
 
 // ------------------------------------------------------------ sayıları yazıya çevirme
 
-Yazi *kolay_tam_yazi(i128 bits, int32_t bicim) {
+// 128 bitlik değerler derlenmiş koddan işaretçiyle gelir (bkz. codegen/mod.rs i128_ptr).
+Yazi *kolay_tam_yazi(const i128 *bp, int32_t bicim) {
+    i128 bits = *bp;
     char s[64];
     tam_yazi_bicim(bits, bicim, s);
     return yazi_c(s);
@@ -227,8 +229,9 @@ Yazi *kolay_ondalik_yazi(double v, int32_t bits) {
 // ------------------------------------------------------------ çalışma anı hataları
 
 /// Tam sayı taşması. op: "+", "-", "*", "/", "%" ya da "" (işaret değiştirme: -b)
-_Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbits, int32_t bicim, const char *sinir,
+_Noreturn void kolay_tasma(const char *tip, const char *op, const i128 *ap, const i128 *bp, int32_t bicim, const char *sinir,
                            const char *alt, const char *ust, int32_t pozitif, const char *konum, const char *kod) {
+    i128 abits = *ap, bbits = *bp;
     char sa[100], sb[100], sr[100], ga[140], gb[140], gr[140], msg[900];
     Sayi a = sayi_bicim(abits, bicim), b = sayi_bicim(bbits, bicim), r;
     u128 amag = (u128)a.l[0] | ((u128)a.l[1] << 64), bmag = (u128)b.l[0] | ((u128)b.l[1] << 64);
@@ -264,7 +267,8 @@ _Noreturn void kolay_tasma(const char *tip, const char *op, i128 abits, i128 bbi
     kolay_hata_tur(HT_TASMA, msg, konum, kod);
 }
 
-_Noreturn void kolay_sigmiyor(i128 bits, int32_t bicim, const char *tip, const char *sinir, const char *konum, const char *kod) {
+_Noreturn void kolay_sigmiyor(const i128 *bp, int32_t bicim, const char *tip, const char *sinir, const char *konum, const char *kod) {
+    i128 bits = *bp;
     char sv[100], gv[140], msg[600];
     tam_yazi_bicim(bits, bicim, sv);
     grupla(sv, gv);
@@ -287,14 +291,16 @@ _Noreturn void kolay_cevrilemez_f(double v, const char *konum, const char *kod) 
 }
 
 /// once + sayı + sonra biçiminde hata (128 bitlik sayı, biçim: bkz. sayi_bicim)
-_Noreturn void kolay_sayi_hata(i128 bits, int32_t bicim, const char *once, const char *sonra, const char *konum, const char *kod) {
+_Noreturn void kolay_sayi_hata(const i128 *bp, int32_t bicim, const char *once, const char *sonra, const char *konum, const char *kod) {
+    i128 bits = *bp;
     char sv[100], msg[400];
     tam_yazi_bicim(bits, bicim, sv);
     snprintf(msg, sizeof msg, "%s%s%s", once, sv, sonra);
     kolay_hata(msg, konum, kod);
 }
 
-_Noreturn void kolay_kere_negatif(i128 bits, int32_t bicim, const char *konum, const char *kod) {
+_Noreturn void kolay_kere_negatif(const i128 *bp, int32_t bicim, const char *konum, const char *kod) {
+    i128 bits = *bp;
     char sv[100], msg[300];
     tam_yazi_bicim(bits, bicim, sv);
     snprintf(msg, sizeof msg, "'kere' için tekrar sayısı negatif olamaz (%s).", sv);
@@ -592,7 +598,8 @@ double esnek_ondalik(int64_t v) {
 double kolay_esnek_ondalik(int64_t v) { return esnek_ondalik(v); }
 
 /// Boyutlu Tam'dan esnek Tam (biçim: 0 işaretli, 1 işaretsiz, 2 büyüklük).
-int64_t kolay_esnek_tamdan(i128 bits, int32_t bicim) {
+int64_t kolay_esnek_tamdan(const i128 *bp, int32_t bicim) {
+    i128 bits = *bp;
     if (bicim == 0 && bits >= ESNEK_ALT && bits <= ESNEK_UST) return esnek_yap((int64_t)bits);
     BB a;
     Sayi s = sayi_bicim(bits, bicim);
@@ -880,8 +887,8 @@ int64_t kolay_esnek_neg(int64_t a, int64_t isaret, const char *tip, const char *
 
 /// Esnek Tam'ı boyutlu Tam'a çevirir (olarak). Sonuç 128 bitlik biçimde: işaretsiz hedefte (Tam(128, +))
 /// işaretsiz, Tam(128, -) hedefinde büyüklük (eksi değer), diğerlerinde işaretli.
-i128 kolay_esnek_boyutluya(int64_t a, int64_t bit, int64_t isaret, const char *tip, const char *sinir,
-                           const char *konum, const char *kod) {
+static i128 esnek_boyutluya(int64_t a, int64_t bit, int64_t isaret, const char *tip, const char *sinir,
+                            const char *konum, const char *kod) {
     BB x;
     bb_esnek(&x, a);
     int sigar = x.n <= 4;
@@ -910,6 +917,11 @@ i128 kolay_esnek_boyutluya(int64_t a, int64_t bit, int64_t isaret, const char *t
     if (isaret == 1) return (i128)m;
     if (isaret == 2 && bit >= 128) return (i128)m; // büyüklük biçimi
     return x.isaret < 0 ? -(i128)m : (i128)m;
+}
+
+void kolay_esnek_boyutluya(i128 *sonuc, int64_t a, int64_t bit, int64_t isaret, const char *tip, const char *sinir,
+                           const char *konum, const char *kod) {
+    *sonuc = esnek_boyutluya(a, bit, isaret, tip, sinir, konum, kod);
 }
 
 _Noreturn void kolay_sigmiyor_esnek(int64_t v, const char *tip, const char *sinir, const char *konum, const char *kod) {

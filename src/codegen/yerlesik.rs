@@ -21,8 +21,9 @@ impl<'p> Gen<'p> {
             }
             Type::Int { bits: Some(_), .. } => {
                 let (bits, mode) = self.int128_form(v, ty);
+                let bits = self.i128_ptr(&bits);
                 let t = self.tmp();
-                self.emit(&format!("{t} = call ptr @kolay_tam_yazi(i128 {bits}, i32 {mode})"));
+                self.emit(&format!("{t} = call ptr @kolay_tam_yazi(ptr {bits}, i32 {mode})"));
                 self.own(t, &Type::Str)
             }
             Type::Int { bits: None, .. } => {

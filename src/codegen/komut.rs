@@ -590,8 +590,9 @@ impl<'p> Gen<'p> {
                 self.br_cold(&neg, &bad, &ok);
                 self.block(&bad);
                 let (mag, negf) = self.int128_form(&n0, &c.ty);
+                let mag = self.i128_ptr(&mag);
                 let (k, kd) = self.where_(c.loc);
-                self.emit(&format!("call void @kolay_kere_negatif(i128 {mag}, i32 {negf}, ptr {k}, ptr {kd})"));
+                self.emit(&format!("call void @kolay_kere_negatif(ptr {mag}, i32 {negf}, ptr {k}, ptr {kd})"));
                 self.term("unreachable");
                 self.block(&ok);
             }

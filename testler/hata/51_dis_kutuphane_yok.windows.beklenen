@@ -1,0 +1,3 @@
+HATA (51_dis_kutuphane_yok.kolay, satır 2): "boyle_bir_kutuphane_yok" kütüphanesi bulunamadı (aranan: boyle_bir_kutuphane_yok.dll).
+  2 | dış kütüphane("boyle_bir_kutuphane_yok") {
+    | ^

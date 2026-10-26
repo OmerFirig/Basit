@@ -65,13 +65,13 @@ declare void @kolay_dene_yeniden(ptr) noreturn
 declare void @kolay_kacir(ptr)
 @kolay_temizlik_ust = external global ptr
 declare void @kolay_hata_sayi(ptr, i64, ptr, ptr, ptr) noreturn
-declare void @kolay_tasma(ptr, ptr, i128, i128, i32, ptr, ptr, ptr, i32, ptr, ptr) noreturn
-declare void @kolay_sigmiyor(i128, i32, ptr, ptr, ptr, ptr) noreturn
+declare void @kolay_tasma(ptr, ptr, ptr, ptr, i32, ptr, ptr, ptr, i32, ptr, ptr) noreturn
+declare void @kolay_sigmiyor(ptr, i32, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_sigmiyor_f(double, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_sigmiyor_esnek(i64, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_cevrilemez_f(double, ptr, ptr) noreturn
-declare void @kolay_kere_negatif(i128, i32, ptr, ptr) noreturn
-declare void @kolay_sayi_hata(i128, i32, ptr, ptr, ptr, ptr) noreturn
+declare void @kolay_kere_negatif(ptr, i32, ptr, ptr) noreturn
+declare void @kolay_sayi_hata(ptr, i32, ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_tur_degil(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_tur_degil_nesne(ptr, ptr, ptr, ptr) noreturn
 declare void @kolay_indeks_hatasi(i64, i64, ptr, ptr) noreturn
@@ -90,7 +90,7 @@ declare ptr @kolay_c_yazi(ptr)
 declare void @kolay_tampon_bosalt()
 declare ptr @kolay_ekle(ptr, ptr)
 declare ptr @kolay_birlestir(ptr, ptr)
-declare ptr @kolay_tam_yazi(i128, i32)
+declare ptr @kolay_tam_yazi(ptr, i32)
 declare ptr @kolay_ondalik_yazi(double, i32)
 declare ptr @kolay_yaziya(ptr, ptr)
 declare void @kolay_yaz(ptr)
@@ -153,11 +153,11 @@ declare ptr @kolay_sozluk_deger_i(ptr, i64)
 declare i64 @kolay_esnek_islem(i64, i64, i64, i64, ptr, ptr, ptr)
 declare i64 @kolay_esnek_neg(i64, i64, ptr, ptr, ptr)
 declare i32 @kolay_esnek_kars(i64, i64)
-declare i64 @kolay_esnek_tamdan(i128, i32)
+declare i64 @kolay_esnek_tamdan(ptr, i32)
 declare i64 @kolay_esnek_metinden(ptr)
 declare double @kolay_esnek_ondalik(i64)
 declare ptr @kolay_esnek_yazi(i64)
-declare i128 @kolay_esnek_boyutluya(i64, i64, i64, ptr, ptr, ptr, ptr)
+declare void @kolay_esnek_boyutluya(ptr, i64, i64, i64, ptr, ptr, ptr, ptr)
 declare i64 @kolay_esnek_kisitla(i64, i64, ptr, ptr, ptr, ptr)
 declare i64 @kolay_esnek_ondaliktan(double, ptr, ptr)
 declare i64 @kolay_esnek_i64(i64, ptr, ptr, ptr)
@@ -553,6 +553,14 @@ impl<'p> Gen<'p> {
         let _ = writeln!(self.f.allocas, "  {name} = alloca {ty}, align 16");
         self.f.adlar.push(name.clone());
         name
+    }
+
+    /// 128 bitlik değerler çalışma kütüphanesine işaretçiyle verilir: Windows'ta C bunu işaretçiyle
+    /// bekler, LLVM ise iki yazmaçta gönderirdi (her sistemde aynı olsun diye hep işaretçi).
+    fn i128_ptr(&mut self, v: &str) -> String {
+        let a = self.alloca("i128");
+        self.emit(&format!("store i128 {v}, ptr {a}"));
+        a
     }
 
     fn intrinsic(&mut self, name: &str, decl: String) {

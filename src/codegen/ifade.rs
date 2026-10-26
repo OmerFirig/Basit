@@ -778,8 +778,9 @@ impl<'p> Gen<'p> {
         let hi = self.cstr(&group_digits(&hi.unwrap().to_string()));
         let (k, c) = self.where_(loc);
         let pos = (s == Sign::Pos) as i32;
+        let (am, bm) = (self.i128_ptr(&am), self.i128_ptr(&bm));
         self.emit(&format!(
-            "call void @kolay_tasma(ptr {tn}, ptr {ops}, i128 {am}, i128 {bm}, i32 {mode}, ptr {bounds}, ptr {lo}, ptr {hi}, i32 {pos}, ptr {k}, ptr {c})"
+            "call void @kolay_tasma(ptr {tn}, ptr {ops}, ptr {am}, ptr {bm}, i32 {mode}, ptr {bounds}, ptr {lo}, ptr {hi}, i32 {pos}, ptr {k}, ptr {c})"
         ));
         self.term("unreachable");
     }
@@ -949,8 +950,9 @@ impl<'p> Gen<'p> {
             };
             let (once, sonra) = (self.cstr(once), self.cstr(sonra));
             let (v, mode) = self.int128_form(b, ty);
+            let v = self.i128_ptr(&v);
             let (k, kd) = self.where_(loc);
-            self.emit(&format!("call void @kolay_sayi_hata(i128 {v}, i32 {mode}, ptr {once}, ptr {sonra}, ptr {k}, ptr {kd})"));
+            self.emit(&format!("call void @kolay_sayi_hata(ptr {v}, i32 {mode}, ptr {once}, ptr {sonra}, ptr {k}, ptr {kd})"));
             self.term("unreachable");
             self.block(&ok);
         }
@@ -1382,8 +1384,9 @@ impl<'p> Gen<'p> {
             return o;
         }
         let (bits, mode) = self.int128_form(v, from);
+        let bits = self.i128_ptr(&bits);
         let t = self.tmp();
-        self.emit(&format!("{t} = call i64 @kolay_esnek_tamdan(i128 {bits}, i32 {mode})"));
+        self.emit(&format!("{t} = call i64 @kolay_esnek_tamdan(ptr {bits}, i32 {mode})"));
         self.own(t, &crate::types::ESNEK)
     }
 
@@ -1505,11 +1508,12 @@ impl<'p> Gen<'p> {
                 let tn = self.cstr(&type_display(to, self.prog));
                 let bounds = self.cstr(&bounds_text(Some(*tb), *sign));
                 let (k, kd) = self.where_(loc);
-                let r = self.tmp();
+                let (o, r) = (self.alloca("i128"), self.tmp());
                 self.emit(&format!(
-                    "{r} = call i128 @kolay_esnek_boyutluya(i64 {v}, i64 {tb}, i64 {}, ptr {tn}, ptr {bounds}, ptr {k}, ptr {kd})",
+                    "call void @kolay_esnek_boyutluya(ptr {o}, i64 {v}, i64 {tb}, i64 {}, ptr {tn}, ptr {bounds}, ptr {k}, ptr {kd})",
                     sign_code(to)
                 ));
+                self.emit(&format!("{r} = load i128, ptr {o}"));
                 self.drop_temp(v);
                 let w = width(to);
                 Ok(if w == 128 {
@@ -1594,7 +1598,8 @@ impl<'p> Gen<'p> {
             }
             _ => {
                 let (bits, mode) = self.int128_form(src, from);
-                self.emit(&format!("call void @kolay_sigmiyor(i128 {bits}, i32 {mode}, ptr {tn}, ptr {lim}, ptr {k}, ptr {kd})"));
+                let bits = self.i128_ptr(&bits);
+                self.emit(&format!("call void @kolay_sigmiyor(ptr {bits}, i32 {mode}, ptr {tn}, ptr {lim}, ptr {k}, ptr {kd})"));
             }
         }
         self.term("unreachable");
@@ -1635,8 +1640,9 @@ impl<'p> Gen<'p> {
         let (mag, neg) = self.int128_form(v, from);
         let tn = self.cstr(&type_display(to, self.prog));
         let bounds = self.cstr(&bounds_text(Some(tb), ts));
+        let mag = self.i128_ptr(&mag);
         let (k, c) = self.where_(loc);
-        self.emit(&format!("call void @kolay_sigmiyor(i128 {mag}, i32 {neg}, ptr {tn}, ptr {bounds}, ptr {k}, ptr {c})"));
+        self.emit(&format!("call void @kolay_sigmiyor(ptr {mag}, i32 {neg}, ptr {tn}, ptr {bounds}, ptr {k}, ptr {c})"));
         self.term("unreachable");
         self.block(&ok);
         let t = self.tmp();

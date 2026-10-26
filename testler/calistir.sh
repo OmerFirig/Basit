@@ -21,6 +21,8 @@ guncelle=0
 
 kontrol() {
     local f="$1" out="$2" exp="${1%.kolay}.beklenen"
+    # Windows'ta farklı olan çıktılar (ör. kütüphane dosya adı .dll): ad.windows.beklenen
+    [ "${OS:-}" = Windows_NT ] && [ -f "${1%.kolay}.windows.beklenen" ] && exp="${1%.kolay}.windows.beklenen"
     if [ $guncelle = 1 ]; then
         printf '%s' "$out" > "$exp"
         return
