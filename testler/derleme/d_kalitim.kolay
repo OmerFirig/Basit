@@ -21,9 +21,9 @@ seçenek Robot[Konuşabilir] {
         }
     }
 }
-ata hepsi: Liste<Konuşabilir> = [Kedi(ad: "Tekir", renk: "gri"), Köpek(ad: "Karabaş"), Robot.Küçük, Robot.Büyük(güç: 9), Hayvan(ad: "Kuş")]
+değişken hepsi: Liste<Konuşabilir> = [Kedi(ad: "Tekir", renk: "gri"), Köpek(ad: "Karabaş"), Robot.Küçük, Robot.Büyük(güç: 9), Hayvan(ad: "Kuş")]
 hepsi içindeki her h için yap { yazdır(h.konuş()) }
-ata hl: Liste<Hayvan> = [Kedi(ad: "A", renk: "siyah"), Köpek(ad: "B")]
+değişken hl: Liste<Hayvan> = [Kedi(ad: "A", renk: "siyah"), Köpek(ad: "B")]
 hl içindeki her h için yap { h.tanıt() }
 fonksiyon ne(h: Hayvan) -> Yazı {
     döndür eşleştir h {
@@ -34,6 +34,6 @@ fonksiyon ne(h: Hayvan) -> Yazı {
 }
 hl içindeki her h için yap { yazdır(ne(h)) }
 yazdır(ne(Hayvan(ad: "x")))
-ata k = hl[0] olarak Kedi
+değişken k = hl[0] olarak Kedi
 yazdır(k.renk, k)
 yazdır(hepsi[2] == Robot.Küçük, hepsi[3] == Robot.Büyük(güç: 9), hepsi[3] == Robot.Büyük(güç: 8))

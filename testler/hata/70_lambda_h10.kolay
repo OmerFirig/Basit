@@ -1,2 +1,2 @@
-ata l = ["a"]
+değişken l = ["a"]
 yazdır(l.toplam())

@@ -1,2 +1,2 @@
-ata d = {"a": 1}
+değişken d = {"a": 1}
 yazdır(d["b"])

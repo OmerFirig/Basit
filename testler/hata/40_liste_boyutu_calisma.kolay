@@ -1,2 +1,2 @@
-ata a = [1, 2]
-ata b: Liste<Tam(64)>[5] = a
+değişken a = [1, 2]
+değişken b: Liste<Tam(64)>[5] = a

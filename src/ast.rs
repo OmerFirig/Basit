@@ -256,9 +256,9 @@ pub struct TurDecl {
     pub parents: Vec<(Vec<String>, Span)>,
     pub fields: Vec<Param>,
     pub methods: Vec<FnDecl>,
-    /// Gövdede `ata` ile yazılan alanlar: her nesnenin kendi alanı, oluştururken verilmez, başlangıç değeri var
+    /// Gövdede `değişken` ya da `sabit` ile yazılan alanlar: her nesnenin kendi alanı, oluştururken verilmez, başlangıç değeri var
     pub alanlar: Vec<Stmt>,
-    /// Türe ait ortak değerler (`ortak ata toplam = 0`, her biri bir `Ata` komutu) ve fonksiyonlar
+    /// Türe ait ortak değerler (`ortak değişken toplam = 0`, her biri bir `Ata` komutu) ve fonksiyonlar
     pub ortak: Vec<Stmt>,
     pub ortak_fonk: Vec<FnDecl>,
 }

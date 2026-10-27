@@ -1,2 +1,2 @@
-ata u: Tam(8, +) = 200
+değişken u: Tam(8, +) = 200
 yazdır(u << 1)

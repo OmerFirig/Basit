@@ -1,0 +1,3 @@
+HATA (131_degisken_sabit.kolay, satır 1): 'değişken sabit' birlikte yazılmaz. Değiştirilemeyen değer için sadece 'sabit' yazın: sabit x = 5
+  1 | değişken sabit x = 5
+    | ^^^^^^^^^^^^^^

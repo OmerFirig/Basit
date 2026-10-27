@@ -1,9 +1,9 @@
-ata x = doğru
-ata y = yanlış
+değişken x = doğru
+değişken y = yanlış
 x = y veya x
 yazdır(x)
-ata a = yanlış
-ata b = doğru
+değişken a = yanlış
+değişken b = doğru
 a = b ve a
 yazdır(a)
 fonksiyon f(p: Mantık, q: Mantık) -> Mantık {

@@ -1,2 +1,2 @@
-ata ad = "Ali"
+değişken ad = "Ali"
 yazdır(f"{ad:.2}")

@@ -105,7 +105,7 @@ impl Checker {
     }
 
     /// Generic tür kalıbından nesne: `Kutu(değer: 5)` -> Kutu<Tam(64)>. Beklenen tip bu kalıbın bir
-    /// kopyasıysa (`ata k: Kutu<Tam(8)> = Kutu(değer: 5)`) o kullanılır.
+    /// kopyasıysa (`değişken k: Kutu<Tam(8)> = Kutu(değer: 5)`) o kullanılır.
     pub(crate) fn construct_generic(&mut self, tid: TypeId, args: &[Arg], expected: Option<&Type>, span: Span) -> CResult<TExpr> {
         let hedef = expected.and_then(|e| {
             e.members().into_iter().find_map(|m| match m {

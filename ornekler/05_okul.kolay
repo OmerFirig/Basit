@@ -19,7 +19,7 @@ tür Öğrenci[Kişi](sabit numara: Tam(32, +), notlar: Liste<Tam(8, +)>) {
     }
     fonksiyon ortalama() -> Ondalık {
         eğer notlar.uzunluk() == 0 { döndür 0.0 }
-        ata toplam = 0
+        değişken toplam = 0
         notlar içindeki her n için yap { toplam += n }
         döndür toplam / notlar.uzunluk() olarak Ondalık
     }
@@ -34,29 +34,29 @@ tür Öğretmen[Kişi](branş: Yazı) {
     }
 }
 
-ata ali = Öğrenci(ad: "Ali", yaş: 20, numara: 1001, notlar: [80, 95])
+değişken ali = Öğrenci(ad: "Ali", yaş: 20, numara: 1001, notlar: [80, 95])
 ali.not_ekle(70)
 ali.doğum_günü()
 
-ata okul: Liste<Kişi> = [ali, Öğretmen(ad: "Ayşe", yaş: 41, branş: "Matematik")]
+değişken okul: Liste<Kişi> = [ali, Öğretmen(ad: "Ayşe", yaş: 41, branş: "Matematik")]
 okul içindeki her kişi için yap {
     yazdır(kişi.tanıt())
 }
 
 // Sözlük
-ata sınıflar: Sözlük<Yazı, Tam> = {"9-A": 31, "9-B": 28}
+değişken sınıflar: Sözlük<Yazı, Tam> = {"9-A": 31, "9-B": 28}
 sınıflar["10-A"] = 30
 sınıflar içindeki her (sınıf, mevcut) için yap {
     yazdır(f"{sınıf}: {mevcut} öğrenci")
 }
 
 // Değer semantiği: kopyalar birbirinden bağımsızdır
-ata liste = [3, 1, 2]
-ata kopya = liste
+değişken liste = [3, 1, 2]
+değişken kopya = liste
 kopya.sırala()
 yazdır(liste, kopya)
 
 // Türkçe alfabetik sıralama
-ata isimler = ["Zeynep", "Çağla", "Can", "İrem", "Ilgaz", "Ömer", "Oya"]
+değişken isimler = ["Zeynep", "Çağla", "Can", "İrem", "Ilgaz", "Ömer", "Oya"]
 isimler.sırala()
 yazdır(isimler)

@@ -1,2 +1,2 @@
 fonksiyon f<T>(x: T) -> T { döndür x }
-ata g = f
+değişken g = f

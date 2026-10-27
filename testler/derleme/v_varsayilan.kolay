@@ -6,28 +6,28 @@ selam("Ali")
 selam(ünlem: doğru)
 
 tür Kişi(ad: Yazı, yaş: Tam(64) = 0) {
-    ata sabit kayıt = "yeni"
-    ata notlar: Liste<Tam(64)> = []
-    ata puan = 10
+    sabit kayıt = "yeni"
+    değişken notlar: Liste<Tam(64)> = []
+    değişken puan = 10
     fonksiyon not_ekle(n: Tam(64)) { notlar.ekle(n); puan += n }
 }
-ata a = Kişi("Ali")
-ata b = Kişi("Ayşe", yaş: 20)
+değişken a = Kişi("Ali")
+değişken b = Kişi("Ayşe", yaş: 20)
 a.not_ekle(90)
 yazdır(a, b)
 yazdır(a.puan, b.notlar)
 
 tür Öğrenci[Kişi](okul: Yazı = "Lise") {
-    ata sınıf = 9
+    değişken sınıf = 9
 }
 yazdır(Öğrenci("Can"), Öğrenci("Ece", 15, "Kolej"))
 
 tür Kutu<T>(değer: T, adet: Tam(64) = 1) {
-    ata etiket = "kutu"
+    değişken etiket = "kutu"
 }
 yazdır(Kutu(2.5), Kutu("x", adet: 3))
 fonksiyon tekrarla<T>(x: T, n: Tam(64) = 2) -> Liste<T> {
-    ata l: Liste<T>
+    değişken l: Liste<T>
     n kere yap { l.ekle(x) }
     döndür l
 }

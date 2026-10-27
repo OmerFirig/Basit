@@ -1,2 +1,2 @@
-ata ad: Yazı veya Hiç = Hiç
+değişken ad: Yazı veya Hiç = Hiç
 yazdır(ad.uzunluk())

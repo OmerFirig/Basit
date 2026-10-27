@@ -1,12 +1,12 @@
-ata t = 0
+değişken t = 0
 5 kere yap { t += 1 }
 0..10 içindeki her i için yap { eğer i == 3 { devam }; eğer i == 7 { dur }; t += i }
 1..=3 içindeki her i için yap { t += i }
 (0..20).adım(5) içindeki her i için yap { t += i }
-ata k = 0
+değişken k = 0
 k < 3 sürece yap { k += 1 }
 yazdır(t, k)
-ata n: Tam(8, +) = 200
-ata say = 0
+değişken n: Tam(8, +) = 200
+değişken say = 0
 n kere yap { say += 1 }
 yazdır(say)

@@ -20,7 +20,7 @@ impl Mode {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Kw {
-    Ata,
+    Degisken,
     Sabit,
     Fonksiyon,
     Dondur,
@@ -56,7 +56,7 @@ pub enum Kw {
 
 /// (anahtar kelime, tr yazımı, us yazımı)
 pub const KEYWORDS: &[(Kw, &str, &str)] = &[
-    (Kw::Ata, "ata", "ata"),
+    (Kw::Degisken, "değişken", "degisken"),
     (Kw::Sabit, "sabit", "sabit"),
     (Kw::Fonksiyon, "fonksiyon", "fonksiyon"),
     (Kw::Dondur, "döndür", "dondur"),

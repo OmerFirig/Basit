@@ -4,20 +4,20 @@ tür Kutu<T>(değer: T) {
     fonksiyon eşit(diğer: Kutu<T>) -> Mantık { döndür değer == diğer.değer }
 }
 
-ata k = Kutu(değer: 5)
+değişken k = Kutu(değer: 5)
 yazdır(k, k.al())
 k.koy(7)
 yazdır(k.değer)
-ata y = Kutu("merhaba")
+değişken y = Kutu("merhaba")
 yazdır(y.al(), y)
-ata s: Kutu<Tam(8)> = Kutu(değer: 3)
+değişken s: Kutu<Tam(8)> = Kutu(değer: 3)
 yazdır(s)
 yazdır(k.eşit(Kutu(değer: 7)))
 
 tür Çift<A, B>(ilk: A, ikinci: B) {
     fonksiyon ters() -> Çift<B, A> { döndür Çift(ilk: ikinci, ikinci: ilk) }
 }
-ata ç = Çift(1, "bir")
+değişken ç = Çift(1, "bir")
 yazdır(ç, ç.ters())
 
 tür Yığın<T>(elemanlar: Liste<T>) {
@@ -25,7 +25,7 @@ tür Yığın<T>(elemanlar: Liste<T>) {
     fonksiyon çıkar() -> T { döndür elemanlar.çıkar() }
     fonksiyon boş_mu() -> Mantık { döndür elemanlar.uzunluk() == 0 }
 }
-ata yığın = Yığın([] olarak Liste<Yazı>)
+değişken yığın = Yığın([] olarak Liste<Yazı>)
 yığın.ekle("a")
 yığın.ekle("b")
 yazdır(yığın.çıkar(), yığın)
@@ -35,10 +35,10 @@ fonksiyon aç<T>(k: Kutu<T>) -> T { döndür k.değer }
 yazdır(aç(kutula(2.5)), aç(Kutu(doğru)))
 
 tür Düğüm<T>(değer: T, sonraki: Düğüm<T> veya Hiç)
-ata liste = Düğüm(1, Düğüm(2, Hiç))
+değişken liste = Düğüm(1, Düğüm(2, Hiç))
 yazdır(liste)
 
-ata kutular: Liste<Kutu<Yazı>> = [Kutu("x"), Kutu("y")]
+değişken kutular: Liste<Kutu<Yazı>> = [Kutu("x"), Kutu("y")]
 yazdır(kutular)
 tür Sahip(kutu: AdlıKutu<Tam>)      // AdlıKutu henüz tanımlanmadı
 arayüz Adlı { fonksiyon ad() -> Yazı }
@@ -47,24 +47,24 @@ tür AdlıKutu<T>[Temel, Adlı](değer: T) {
     fonksiyon ad() -> Yazı { döndür f"kutu({değer})" }
     fonksiyon dönüştür(f: Fonksiyon(T) -> T) { değer = f(değer) }
 }
-ata s = Sahip(kutu: AdlıKutu(no: 1, değer: 10))
+değişken s = Sahip(kutu: AdlıKutu(no: 1, değer: 10))
 yazdır(s)
 s.kutu.tanıt()
-ata a: Adlı = AdlıKutu(2, "x")
+değişken a: Adlı = AdlıKutu(2, "x")
 yazdır(a.ad())
-ata kk = AdlıKutu(3, 2.5)
+değişken kk = AdlıKutu(3, 2.5)
 kk.dönüştür(her x için x * 2)
 yazdır(kk.değer)
-ata liste: Liste<Adlı> = [AdlıKutu(4, 1), AdlıKutu(5, "b")]
+değişken liste: Liste<Adlı> = [AdlıKutu(4, 1), AdlıKutu(5, "b")]
 liste içindeki her e için yap { yazdır(e.ad()) }
-ata v: AdlıKutu<Tam(64)> veya Yazı = AdlıKutu(6, 7)
+değişken v: AdlıKutu<Tam(64)> veya Yazı = AdlıKutu(6, 7)
 eşleştir v {
     b: AdlıKutu<Tam(64)> -> yazdır("kutu", b.değer)
     y: Yazı -> yazdır(y)
 }
-ata f = liste.dönüşüm(her x için AdlıKutu(0, x.ad()))
+değişken f = liste.dönüşüm(her x için AdlıKutu(0, x.ad()))
 yazdır(f)
 // taşma generic türün metodunda
 tür Sayaç<T>(n: T) { fonksiyon artır() { n += 100 } }
-ata sy: Sayaç<Tam(8)> = Sayaç(n: 100)
+değişken sy: Sayaç<Tam(8)> = Sayaç(n: 100)
 sy.artır()

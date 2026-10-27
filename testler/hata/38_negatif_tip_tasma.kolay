@@ -1,2 +1,2 @@
-ata x: Tam(8, -) = -250
+değişken x: Tam(8, -) = -250
 x = x - 10

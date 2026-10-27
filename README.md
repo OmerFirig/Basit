@@ -13,7 +13,7 @@ fonksiyon fib(n: Tam(64)) -> Tam(64) {
     döndür fib(n - 1) + fib(n - 2)
 }
 
-ata sayılar = [1, 2, 3, 4, 5]
+değişken sayılar = [1, 2, 3, 4, 5]
 sayılar içindeki her s için yap {
     yazdır(f"fib({s}) = {fib(s)}")
 }
@@ -78,9 +78,9 @@ Türkçe klavyesi olmayanlar dosyanın ilk satırına `klavye("us")` yazar: dili
 
 ```
 $ kolay
-Kolay 0.7.0 — yardım için :yardım, çıkmak için :çık
+Kolay 0.8.0 — yardım için :yardım, çıkmak için :çık
 
-Girdi [1]: ata x = 5
+Girdi [1]: değişken x = 5
 
 Girdi [2]: x * 2
 Çıktı [2]: 10                         Tam(64)
@@ -94,7 +94,7 @@ Komutlar: `:yardım`, `:tip ifade`, `:geçmiş`, `:kaydet dosya`, `:yükle dosya
 `editor/vscode/`: `.kolay` dosyaları için renklendirme ve hazır kod parçaları (`eğer`, `kere`, `her`, `tür`, `eşleştir`... yazıp Tab'a basın). Kurmak için:
 
 ```
-code --install-extension editor/vscode/kolay-0.7.0.vsix
+code --install-extension editor/vscode/kolay-0.8.0.vsix
 ```
 
 ## Örnekler
@@ -118,17 +118,21 @@ Hepsi hem yorumlayıcıyla hem derleyiciyle çalışır.
 
 Dili sıfırdan öğreten kurs (alıştırmalar ve çözümleriyle): [`belgeler/Kolay.md`](belgeler/Kolay.md)
 
+**0.8.0'da değişen:** Tanımlar artık `değişken` ve `sabit` ile yazılır: `değişken x = 5` (değeri değişebilir),
+`sabit y = 5` (değişemez). Eski `ata x = 5` / `ata sabit y = 5` yazımı kaldırıldı; yazılırsa Kolay yeni yazımı gösterir.
+`klavye("us")` modunda `degisken`.
+
 ```
 // tek satırlık yorum
 /< çok satırlı yorum, /< iç içe >/ olabilir >/
 
-ata x = 42                       // Tam(64)
-ata y: Tam(8, +) = 200           // 8 bit, sadece pozitif
-ata z: Tam = 1                   // esnek: hiç taşmaz
-ata o: Ondalık(32) = 3.14
-ata renk = 0xFF8800              // onaltılık sayı
-ata m = renk & 0xFF | 1 << 8     // bit işlemleri: & | ^ ~ << >>
-ata ü = 2 ** 10                  // üs
+değişken x = 42                       // Tam(64)
+değişken y: Tam(8, +) = 200           // 8 bit, sadece pozitif
+değişken z: Tam = 1                   // esnek: hiç taşmaz
+değişken o: Ondalık(32) = 3.14
+değişken renk = 0xFF8800              // onaltılık sayı
+değişken m = renk & 0xFF | 1 << 8     // bit işlemleri: & | ^ ~ << >>
+değişken ü = 2 ** 10                  // üs
 
 sayılar.dönüşüm(her x için x * 2)            // lambda: isimsiz fonksiyon
 sayılar.filtre(her x için x > 10).toplam()
@@ -136,21 +140,21 @@ sayılar.filtre(her x için x > 10).toplam()
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
 fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }    // generic: T her çağrıda çıkarılır
 fonksiyon selam(ad: Yazı = "dünya") { }            // varsayılan değer: selam() ya da selam("Ali")
-ata iki_kat = her<T> x: T için x * 2               // generic lambda: iki_kat(5), iki_kat(2.5)
+sabit iki_kat = her<T> x: T için x * 2               // generic lambda: iki_kat(5), iki_kat(2.5)
 uygula(iki_kat, 5)                                  // generic fonksiyon değer olarak
 fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) { }     // her tiple çalışan fonksiyon parametresi
 tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
-ata k = Kutu(değer: 5)                              // Kutu<Tam(64)>
-ata t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
+değişken k = Kutu(değer: 5)                              // Kutu<Tam(64)>
+değişken t = 1.0 / 0.0                // TanımsızSayı (sıfıra bölme tanımsız)
 yazdır(f"{pi:.2} {ad:<10} {n:06} {büyük:,}")   // f-yazı biçimleri: 3.14  Ali  000042  1.234.567
 yazdır(1, 2, 3, ayraç: ", ", son: "")         // 1, 2, 3 (satır sonu olmadan)
-ata avogadro = 6.022e23                       // bilimsel yazım (Ondalık)
+değişken avogadro = 6.022e23                       // bilimsel yazım (Ondalık)
 "elma".değiştir("a", "e")  s.başlar("x")  s.bul("ma")  s.say("a")  "-".tekrar(5)  l.birleşik(", ")
 doğrula(topla(2, 3) == 5)        // yanlışsa program durur (kendi kodunu test etmek için)
-ata sabit pi = 3.14159           // değiştirilemez
-ata sabit mesaj: Yazı            // değeri sonra, bir kez atanır
+sabit pi = 3.14159           // değiştirilemez
+sabit mesaj: Yazı            // değeri sonra, bir kez atanır
 x: Yazı = "artık yazı"           // tip değiştirme (gölgeleme)
-ata k = 300 olarak Tam(16)       // açık dönüştürme
+değişken k = 300 olarak Tam(16)       // açık dönüştürme
 
 eğer x > 5 ve değil bitti { } değilse eğer x == 0 { } değilse { }
 
@@ -160,33 +164,33 @@ liste içindeki her e için yap { }
 (0..100).adım(5) içindeki her i için yap { }
 10..0 içindeki her i için yap { }          // geri sayar: 10 .. 1
 (10..0).adım(2) içindeki her i için yap { }          // 10 8 6 4 2
-ata r = 1..=5                    // aralık bir listedir: [1, 2, 3, 4, 5]
+değişken r = 1..=5                    // aralık bir listedir: [1, 2, 3, 4, 5]
 koşul sürece yap { }
-(ata i = 0; i < 10; i += 1) sürece yap { }
+(değişken i = 0; i < 10; i += 1) sürece yap { }
 // dur, devam
 
 tür Öğrenci[Kişi, Sporcu](sabit numara: Tam(32, +)) {
-    ata puan = 0                                 // gövdede alan: oluştururken verilmez
-    ortak ata sayı = 0                           // türe ait: Öğrenci.sayı
+    değişken puan = 0                                 // gövdede alan: oluştururken verilmez
+    ortak değişken sayı = 0                           // türe ait: Öğrenci.sayı
     ortak fonksiyon özet() -> Yazı { döndür f"{sayı} öğrenci" }
     yeniden tanıt() { Kişi.tanıt() }
 }
 arayüz Konuşabilir { fonksiyon konuş() -> Yazı }
 seçenek Renk { Kırmızı, Yeşil, Mavi }
 
-ata ad = eşleştir renk {
+değişken ad = eşleştir renk {
     Kırmızı -> "kırmızı"
     değilse -> Hiç               // ad: Yazı veya Hiç
 }
 
-ata tablo: Liste<Tam veya Yazı>[4][]
-ata notlar: Sözlük<Yazı, Tam> = {"Ali": 90}
+değişken tablo: Liste<Tam veya Yazı>[4][]
+değişken notlar: Sözlük<Yazı, Tam> = {"Ali": 90}
 liste[4..1]  liste[-1..=0]  liste.adım(2)   // ters dilim, her 2. eleman
 liste.sırala()  liste.sıralı()              // emir kipi değiştirir, sıfat yeni liste verir
 "merhaba"[0..3]                             // yazı dilimi: "mer"
 
 dene {                                      // hata yakalama
-    ata yaş = oku("Yaş: ").tama()           // tama(): Tam(64) veya Hata.Dönüşüm
+    değişken yaş = oku("Yaş: ").tama()           // tama(): Tam(64) veya Hata.Dönüşüm
 } yakala h: Hata.Dönüşüm {
     yazdır(h.mesaj)
 } yakala diğer { yazdır(diğer) }            // tipsiz: geri kalan her şey

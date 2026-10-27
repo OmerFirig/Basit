@@ -1,4 +1,4 @@
-ata a: Tam(8) = 120
+değişken a: Tam(8) = 120
 a = a + 7
 yazdır(a)
 a = a + 1

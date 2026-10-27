@@ -1,5 +1,5 @@
 yazdır("matematik yüklendi")
-ata sabit pi = 3.14159
+sabit pi = 3.14159
 fonksiyon topla(a: Tam, b: Tam) -> Tam { döndür a + b }
 tür Nokta(x: Tam, y: Tam) {
     fonksiyon göster() { yazdır(f"({x}, {y})") }
@@ -10,5 +10,5 @@ tür Kap<T>(içerik: T) {
     fonksiyon al() -> T { döndür içerik }
 }
 fonksiyon ilk<T>(l: Liste<T>) -> T { döndür l[0] }
-ata üçle = her<T> x: T için x * 3
+değişken üçle = her<T> x: T için x * 3
 fonksiyon kendisi<T>(x: T) -> T { döndür x }

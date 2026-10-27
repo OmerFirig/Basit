@@ -9,7 +9,7 @@ fonksiyon selamla(isim: Yazi) {
     yazdir(f"Merhaba {isim}!")
 }
 
-ata öğrenciler = ["Gül", "Şükrü", "Ilgın"]
+degisken öğrenciler = ["Gül", "Şükrü", "Ilgın"]
 öğrenciler icindeki her o icin yap {
     selamla(o)
 }

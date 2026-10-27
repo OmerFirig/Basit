@@ -1,4 +1,4 @@
 fonksiyon böl(a: Tam(64), b: Tam(64)) -> Tam(64) veya Hata {
     döndür a / b
 }
-ata x = böl(1, 2) + 1
+değişken x = böl(1, 2) + 1

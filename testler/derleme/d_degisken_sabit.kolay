@@ -1,0 +1,41 @@
+// 0.8.0: değişken ve sabit ile tanımlama
+değişken ad = "Ali"
+ad = ad + " Kaya"
+sabit selam = "Merhaba"
+yazdır(selam, ad)
+
+sabit mesaj: Yazı              // değeri sonra, bir kez atanır
+eğer ad.uzunluk() > 3 { mesaj = "uzun" } değilse { mesaj = "kısa" }
+yazdır(mesaj)
+
+değişken sayılar: Liste<Tam(64)>   // boş başlar
+(değişken i = 0; i < 5; i += 1) sürece yap { sayılar.ekle(i * i) }
+sabit sayılar = sayılar             // dondurma: artık değiştirilemez
+yazdır(sayılar)
+
+değişken x = "bir"
+x: Tam(64) = 5                      // var olan adla tip değiştirme (anahtar kelimesiz)
+yazdır(x + 1)
+değişken x: Yazı = "beş"            // aynı şey, değişken ile
+yazdır(x)
+
+tür Sayaç(ad: Yazı) {
+    değişken değer = 0
+    sabit ADIM = 2
+    ortak değişken toplam = 0
+    ortak sabit BİRİM = "tık"
+    fonksiyon artır() {
+        değer += ADIM
+        toplam += 1
+    }
+}
+değişken s = Sayaç("a")
+s.artır()
+s.artır()
+yazdır(s, Sayaç.toplam, Sayaç.BİRİM)
+
+sabit iki_kat = her<T> x: T için x * 2
+yazdır(iki_kat(4), iki_kat(1.5))
+
+değişken ata = "ecdat"              // 'ata' artık anahtar kelime değil, ad olabilir
+yazdır(ata)

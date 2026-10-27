@@ -1,6 +1,6 @@
 KOLAY — YAPILACAKLAR
 ====================
-Son güncelleme: 2026-10-25 (sürüm 0.7.0)
+Son güncelleme: 2026-10-27 (sürüm 0.8.0)
 
 Bu dosya, kararı verilmiş ama henüz UYGULANMAMIŞ işleri ve nasıl yapılacaklarını tutar.
 
@@ -30,7 +30,7 @@ Yazım:
     fonksiyon en_büyük<T>(l: Liste<T>) -> T { ... }
     fonksiyon deneme<T, Z>(x: T, y: Z) -> Tam veya Hata { ... }
     tür Kutu<T>(değer: T) { fonksiyon al() -> T { döndür değer } }
-    ata k = Kutu(değer: 5)          // T kendiliğinden Tam(64)
+    değişken k = Kutu(değer: 5)          // T kendiliğinden Tam(64)
 
 Kurallar (kullanıcı kararı):
 [x] Tip parametresine KISIT YAZILMAZ (<T: Arayüz> yok). Tip isteyen zaten parametrede
@@ -56,11 +56,11 @@ Uygulama notları:
     generic seçenek. Gerekirse sorulacak.
 
 [x] GENERIC LAMBDA (uygulandı: src/genel_deger.rs) — yazım kararı verildi (kullanıcı, 2026-10-24): tip parametresi açıkça yazılır
-        ata iki_kat = her<T> x: T için x * 2      // generic: her çağrıda somutlaşır
+        sabit iki_kat = her<T> x: T için x * 2      // generic: her çağrıda somutlaşır
         yazdır(iki_kat(5), iki_kat(2.5))          // 10  5.0
-        ata artır = her x: Tam için x + 1          // tipi belli lambda
-        ata topla = her<T> (a: T, b: T) için a + b
-    - Bağlamı olmayan tipsiz lambda (ata f = her x için x * 2) hata vermeye devam eder; mesaj iki
+        değişken artır = her x: Tam için x + 1          // tipi belli lambda
+        sabit topla = her<T> (a: T, b: T) için a + b
+    - Bağlamı olmayan tipsiz lambda (değişken f = her x için x * 2) hata vermeye devam eder; mesaj iki
       yazımı da önerir. Kendiliğinden (gizli) generic lambda yok.
     - Tek parametrede parantezsiz tip yazımı da geçerli: her x: Tam için ... (şu an parantez zorunlu).
     - Tipi ekranda (yazdır, :tip): Fonksiyon<T>(T) -> T
@@ -164,7 +164,7 @@ Uygularken verilen küçük kararlar (💡 onay bekliyor):
     - Yakalanamayanlar: çok derin özyineleme (iki tarafta da), Ctrl+C, bellek yetmedi, belirsiz
       değişken (fonksiyon, değişken tanımlanmadan çağrıldı: programın yapısındaki hata).
     - dene içinde beklenen tip Hata'yı kabul ediyorsa çağrı açılmaz:
-      ata r: Tam veya Hata = böl(1, 0)    // r bir Hata değeri olur, fırlatılmaz
+      değişken r: Tam veya Hata = böl(1, 0)    // r bir Hata değeri olur, fırlatılmaz
     - Tipsiz yakala tipinde Hata'nın alt türleri tek 'Hata' üyesinde birleşir: Yazı veya Hata.
     - Ondalık.tama() değişmedi (TanımsızSayı vb. Hata.Dönüşüm olarak fırlatılır).
     - dene içindeki bir lambdanın gövdesi dene içinde sayılmaz (lambda sonra çağrılabilir).
@@ -221,7 +221,7 @@ Değişmesi gerekenler:
     liste.birleşik(", "). Sonucu kullanılmayan çağrıya uyarı. (2026-10-24)
 [x] f-yazı biçimleri: {x:.2}  {ad:<10}  {n:>6}  {n:06}  {büyük:,}  {ad:*^9} (2026-10-24;
     tip denetleyicide BM::Hassas / Grupla / Hizala çağrılarına çevrilir)
-[x] Türe ait ortak değerler: ortak ata toplam = 0, ortak fonksiyon sıfırla(), Sayaç.toplam
+[x] Türe ait ortak değerler: ortak değişken toplam = 0, ortak fonksiyon sıfırla(), Sayaç.toplam
     (2026-10-24; gizli dosya değişkeni 'Sayaç.toplam', ortak fonksiyon normal fonksiyon)
 [x] doğrula(koşul) / doğrula(koşul, "mesaj") (2026-10-24; yanlışsa Hata fırlatılır)
 [x] yazdır(..., ayraç: ", ", son: ""), bilimsel sayı yazımı (1.5e-7), boş eşleştir uyarısı (2026-10-24)
@@ -229,9 +229,9 @@ Değişmesi gerekenler:
 [x] Listede sıra numarasıyla dolaşma için yeni özellik YOK (kullanıcı kararı 2026-10-24):
     0..liste.uzunluk() içindeki her i için yap { ... liste[i] ... }
 [ ] Küme<T> ({1, 2, 3}; birleşim, kesişim, fark), demet ((Tam, Yazı); sadece açma:
-    ata (a, b) = f()).
+    değişken (a, b) = f()).
 [x] Varsayılan değerler: tür Kişi(ad: Yazı, yaş: Tam = 0), fonksiyon selam(ad: Yazı = "dünya");
-    türün gövdesinde ata alanları (2026-10-24; src/varsayilan.rs)
+    türün gövdesinde değişken alanları (2026-10-24; src/varsayilan.rs)
 [~] Standart kütüphane: matematik ve rastgele YAPILDI (kutuphaneler/, 2026-10-25).
     Kalan: dosya okuma/yazma, zaman, bekle(), komut satırı argümanları.
 [ ] Eşleştir: fonksiyon değerleri için desen (gerekirse).

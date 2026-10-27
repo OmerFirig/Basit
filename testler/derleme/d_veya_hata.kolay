@@ -1,2 +1,2 @@
-ata t: Tam(64) veya Yazı = "a"
+değişken t: Tam(64) veya Yazı = "a"
 yazdır(t olarak Tam(64))

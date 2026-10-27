@@ -1,0 +1,3 @@
+HATA (127_eski_ata.kolay, satır 1): 'ata' yerine artık 'değişken' yazılır: değişken x = ... (değeri hiç değişmeyecekse: sabit x = ...)
+  1 | ata x = 5
+    | ^^^^^

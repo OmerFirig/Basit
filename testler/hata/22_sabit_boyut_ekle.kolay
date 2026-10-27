@@ -1,2 +1,2 @@
-ata l: Liste<Tam>[3]
+değişken l: Liste<Tam>[3]
 l.ekle(4)

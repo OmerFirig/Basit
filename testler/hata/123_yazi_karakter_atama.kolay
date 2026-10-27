@@ -1,2 +1,2 @@
-ata s = "abc"
+değişken s = "abc"
 s[0] = "x"

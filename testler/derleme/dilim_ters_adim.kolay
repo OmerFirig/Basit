@@ -1,19 +1,19 @@
 // Ters dilimleme ve liste.adım()
-ata l = [10, 20, 30, 40, 50, 60]
+değişken l = [10, 20, 30, 40, 50, 60]
 yazdır(l[4..1], l[4..=1], l[-1..=0], l[-1..0])
 yazdır(l[..-1], l[..=-1], l[-2..], l[1..=3], l[2..2], l[2..=2])
 yazdır(l[10..0], l[100..=-100], l[0..100], l[-100..2], l[3..-100])
 yazdır(l.adım(2), l.adım(-2), l.adım(-1), l.adım(4), l.adım(100), l[1..5].adım(2))
-ata boş: Liste<Yazı>
+değişken boş: Liste<Yazı>
 yazdır(boş[3..0], boş.adım(-3), ["a"].adım(-1))
-ata sabitl: Liste<Tam(8)>[4] = [1, 2, 3, 4]
+değişken sabitl: Liste<Tam(8)>[4] = [1, 2, 3, 4]
 yazdır(sabitl[3..0].adım(2), sabitl.adım(3))
-ata ad = ["x", "y", "z"]
-ata kopya = ad[2..=0]
+değişken ad = ["x", "y", "z"]
+değişken kopya = ad[2..=0]
 kopya.ekle("w")
 yazdır(ad, kopya)
 // 'veya' içindeki Ondalık(32) kendi boyutuyla yazılır
-ata v: Liste<Tam(64) veya Ondalık(32)> = [1, 0.1]
-ata vv: Liste<Ondalık(32)> veya Yazı = [0.1, 0.2]
+değişken v: Liste<Tam(64) veya Ondalık(32)> = [1, 0.1]
+değişken vv: Liste<Ondalık(32)> veya Yazı = [0.1, 0.2]
 yazdır(v, v[1], f"{v[1]}", vv)
 yazdır(l.adım(0))

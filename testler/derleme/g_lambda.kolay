@@ -1,16 +1,16 @@
 // generic lambda
-ata iki_kat = her<T> x: T için x * 2
+değişken iki_kat = her<T> x: T için x * 2
 yazdır(iki_kat(5), iki_kat(2.5))
-ata topla = her<T> (a: T, b: T) için a + b
+değişken topla = her<T> (a: T, b: T) için a + b
 yazdır(topla(1, 2), topla("a", "b"))
-ata artır = her x: Tam(64) için x + 1
+değişken artır = her x: Tam(64) için x + 1
 yazdır(artır(41))
 
 // somut tip beklenen yere verilince orada somutlaşır
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }
 fonksiyon kare<T>(x: T) -> T { döndür x * x }
 yazdır(uygula(iki_kat, 5), uygula(kare, 7), uygula(artır, 1))
-ata g: Fonksiyon(Ondalık) -> Ondalık = kare
+değişken g: Fonksiyon(Ondalık) -> Ondalık = kare
 yazdır(g(1.5))
 yazdır([1, 2, 3].dönüşüm(iki_kat), [1.5, 2.5].dönüşüm(kare), ["a", "b"].dönüşüm(iki_kat_yazı))
 fonksiyon iki_kat_yazı(s: Yazı) -> Yazı { döndür s + s }
@@ -33,19 +33,19 @@ fonksiyon içinden(f: Fonksiyon<T>(T) -> T) { ikisine(f) }
 içinden(kare)
 
 // normal fonksiyon ve lambda değerleri
-ata h = iki_kat_yazı
-ata l = her (x: Tam(64)) için x - 1
+değişken h = iki_kat_yazı
+değişken l = her (x: Tam(64)) için x - 1
 fonksiyon çağır(f: Fonksiyon(Tam(64)) -> Tam(64)) -> Tam(64) { döndür f(10) }
 yazdır(h("x"), l(5), çağır(l), çağır(her x için x * 3))
-ata fs = [l, artır, her (y: Tam(64)) için y * y]
+değişken fs = [l, artır, her (y: Tam(64)) için y * y]
 yazdır(fs.dönüşüm(her f için f(4)))
 
 // generic lambda başka generic lambdayı kullanabilir
-ata iki = her<T> x: T için x * 2
-ata dört = her<T> x: T için iki(iki(x))
+değişken iki = her<T> x: T için x * 2
+değişken dört = her<T> x: T için iki(iki(x))
 yazdır(dört(3), dört(1.5))
 // yazı indeksi ve Python gibi ondalık yazımı
-ata s = "çiçek"
+değişken s = "çiçek"
 yazdır(s[0], s[-1], 1.5e-7, 6.022e23, 1e16, 1e15, 0.0001)
 // ortak fonksiyon değer olarak
 tür Hesap(n: Tam(64)) {

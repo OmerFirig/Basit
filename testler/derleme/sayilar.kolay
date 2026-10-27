@@ -1,18 +1,18 @@
 // Derleyici ile yorumlayıcının aynı sonucu verdiği sayı testleri
-ata a: Tam(8) = 100
-ata b: Tam(8, +) = 200
-ata c: Tam(8, -) = -200
-ata y = 42
+değişken a: Tam(8) = 100
+değişken b: Tam(8, +) = 200
+değişken c: Tam(8, -) = -200
+değişken y = 42
 yazdır(a, b, c, y)
 yazdır(a + 27, b + 55, c - 55, c + 200)
-ata o = 3.14
-ata o32: Ondalık(32) = 3.14
-ata o16: Ondalık(16) = 3.14
+değişken o = 3.14
+değişken o32: Ondalık(32) = 3.14
+değişken o16: Ondalık(16) = 3.14
 yazdır(o, o32, o16, 0.1 + 0.2, 1.0 / 3.0)
 yazdır(7 / 2, -7 / 2, 7 % 3, -7 % 3, 7.5 % 2.0)
-ata genis: Tam(32) = a
+değişken genis: Tam(32) = a
 yazdır(genis * 1000, 300 olarak Tam(16), 3.99 olarak Tam(64), (-3.99) olarak Tam(64))
 yazdır(5 olarak Ondalık, a olarak Ondalık(32), 2 * 1.5, -a, -o)
-ata büyük: Tam(128) = 170141183460469231731687303715884105727
-ata ibüyük: Tam(128, +) = 340282366920938463463374607431768211455
+değişken büyük: Tam(128) = 170141183460469231731687303715884105727
+değişken ibüyük: Tam(128, +) = 340282366920938463463374607431768211455
 yazdır(büyük, ibüyük)

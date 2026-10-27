@@ -17,8 +17,8 @@ fonksiyon ortalama(l: Liste<Ondalık>) -> Ondalık {
 // Ortanca: sıralanınca ortadaki değer (çift sayıda elemanda ortadaki ikisinin ortalaması).
 fonksiyon ortanca(l: Liste<Ondalık>) -> Ondalık {
     doğrula(l.uzunluk() > 0, "Boş listenin ortancası alınamaz.")
-    ata s = l.sıralı()
-    ata n = s.uzunluk()
+    değişken s = l.sıralı()
+    değişken n = s.uzunluk()
     eğer n % 2 == 1 { döndür s[n / 2] }
     döndür (s[n / 2 - 1] + s[n / 2]) / 2.0
 }
@@ -26,8 +26,8 @@ fonksiyon ortanca(l: Liste<Ondalık>) -> Ondalık {
 // Her tiple çalışır: en çok tekrar eden eleman.
 fonksiyon en_sık<T>(l: Liste<T>) -> T {
     doğrula(l.uzunluk() > 0, "Boş listede en sık eleman yok.")
-    ata sayılar: Sözlük<T, Tam(64)>
-    ata en = l[0]
+    değişken sayılar: Sözlük<T, Tam(64)>
+    değişken en = l[0]
     l içindeki her x için yap {
         eğer sayılar.içerir(x) { sayılar[x] += 1 } değilse { sayılar[x] = 1 }
         eğer sayılar[x] > sayılar[en] { en = x }
@@ -37,7 +37,7 @@ fonksiyon en_sık<T>(l: Liste<T>) -> T {
 
 // Sonuçları bir tablo olarak yazar; basamak sayısı istenirse verilir.
 tür Rapor(başlık: Yazı, basamak: Tam(64) = 2) {
-    ortak ata yazılan = 0
+    ortak değişken yazılan = 0
 
     fonksiyon yaz(ad: Yazı, değer: Ondalık) {
         yazılan += 1

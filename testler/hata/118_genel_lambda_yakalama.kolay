@@ -1,2 +1,2 @@
-ata n = 3
-ata f = her<T> x: T için x * n
+değişken n = 3
+değişken f = her<T> x: T için x * n

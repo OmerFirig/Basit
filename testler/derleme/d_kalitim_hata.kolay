@@ -1,5 +1,5 @@
 tür A(x: Tam(64)) { }
 tür B[A]() { }
 tür C[A]() { }
-ata l: Liste<A> = [B(x: 1), C(x: 2)]
-ata b = l[1] olarak B
+değişken l: Liste<A> = [B(x: 1), C(x: 2)]
+değişken b = l[1] olarak B

@@ -1,10 +1,10 @@
 // Tam sayılar, boyutlar ve taşma kontrolü
 
-ata küçük: Tam(8) = 100           // 8 bit: -128 .. 127
-ata pozitif: Tam(8, +) = 200      // sadece pozitif: 0 .. 255
-ata negatif: Tam(8, -) = -200     // sadece negatif: -255 .. 0
-ata normal = 42                   // tip yazılmazsa Tam(64): C kadar hızlı
-ata esnek: Tam = 1                // esnek: hiç taşmaz, gerektikçe büyür
+değişken küçük: Tam(8) = 100           // 8 bit: -128 .. 127
+değişken pozitif: Tam(8, +) = 200      // sadece pozitif: 0 .. 255
+değişken negatif: Tam(8, -) = -200     // sadece negatif: -255 .. 0
+değişken normal = 42                   // tip yazılmazsa Tam(64): C kadar hızlı
+değişken esnek: Tam = 1                // esnek: hiç taşmaz, gerektikçe büyür
 
 yazdır(küçük, pozitif, negatif, normal)
 
@@ -12,12 +12,12 @@ yazdır(küçük, pozitif, negatif, normal)
 yazdır(f"2 üzeri 100 = {esnek}")
 
 // Ondalık sayılar
-ata pi = 3.14159
-ata yarıçap: Ondalık(32) = 2.5
+değişken pi = 3.14159
+değişken yarıçap: Ondalık(32) = 2.5
 yazdır(f"Alan: {pi * yarıçap * yarıçap}")
 
 // Dönüştürme: büyükten küçüğe geçiş 'olarak' ile yazılır
-ata büyük = 300
+değişken büyük = 300
 yazdır(büyük olarak Tam(16), 3.99 olarak Tam(64))
 
 // Taşma: aşağıdaki satırın başındaki '//' işaretini silip çalıştırın

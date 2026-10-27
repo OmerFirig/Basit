@@ -1,2 +1,2 @@
-ata l: Liste<Yazı>
+değişken l: Liste<Yazı>
 yazdır(l.en_büyük())

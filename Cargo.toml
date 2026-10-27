@@ -1,6 +1,6 @@
 [package]
 name = "kolay"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 description = "Kolay: Türkçe, tip güvenli ve hızlı bir programlama dili"
 authors = ["Ömer Faruk Yılmaz <ofy.omer.yilmaz@gmail.com>"]

@@ -1,2 +1,2 @@
-ata x = 2.5
+değişken x = 2.5
 yazdır(x & 1)

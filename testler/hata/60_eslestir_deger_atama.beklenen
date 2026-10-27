@@ -1,3 +1,3 @@
 HATA (60_eslestir_deger_atama.kolay, satır 2): Değer döndüren eşleştir'de dallar bir değer olmalı; '{ }' bloğu ya da atama kullanılamaz.
-  2 | ata a = eşleştir v { 1 -> v = 2, değilse -> 3 }
-    |                      ^^^^^^^^^^
+  2 | değişken a = eşleştir v { 1 -> v = 2, değilse -> 3 }
+    |                           ^^^^^^^^^^

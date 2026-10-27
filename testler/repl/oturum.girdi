@@ -1,19 +1,19 @@
-ata x = 5
+değişken x = 5
 x * 2
 fonksiyon kare(n: Tam(64)) -> Tam(64) {
     döndür n * n
 }
 yazdır("kare:", kare(x))
 [1, 2, 3].tersi()
-ata y: Tam(8) = 300
+değişken y: Tam(8) = 300
 y
 x = x + 1
 kare(x)
 "abc"[1..]
 [1, 2].bul(5)
 :tip kare(2) > 3
-:tip ata z = 1
-ata l = [1]
+:tip değişken z = 1
+değişken l = [1]
 l.ekle(2)
 l
 1 / 0
@@ -22,7 +22,7 @@ tür N(a: Tam(64)) { fonksiyon iki() -> Tam(64) { döndür a * 2 } }
 N(4).iki()
 N(5)
 /< çok satırlı
-   yorum >/ ata k = 3
+   yorum >/ değişken k = 3
 k ** 2
 :geçmiş
 :bilinmeyen

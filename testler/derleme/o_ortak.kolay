@@ -1,6 +1,6 @@
 tür Öğrenci(ad: Yazı) {
-    ortak ata sayı = 0
-    ortak ata sabit OKUL = "Atatürk Lisesi"
+    ortak değişken sayı = 0
+    ortak sabit OKUL = "Atatürk Lisesi"
 
     fonksiyon kaydet() {
         sayı += 1
@@ -13,7 +13,7 @@ tür Öğrenci(ad: Yazı) {
 }
 
 Öğrenci("Ali").kaydet()
-ata a = Öğrenci("Ayşe")
+değişken a = Öğrenci("Ayşe")
 a.kaydet()
 yazdır(Öğrenci.sayı, Öğrenci.özet())
 Öğrenci.sayı = 10
@@ -22,7 +22,7 @@ yazdır(Öğrenci.özet())
 yazdır(Öğrenci.sayı)
 fonksiyon say() -> Tam(64) { döndür Öğrenci.sayı }
 yazdır(say())
-ata f = her (x: Tam(64)) için x + Öğrenci.sayı
+değişken f = her (x: Tam(64)) için x + Öğrenci.sayı
 Öğrenci.sayı = 5
 yazdır(f(1))
 

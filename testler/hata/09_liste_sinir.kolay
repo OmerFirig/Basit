@@ -1,2 +1,2 @@
-ata a = [1, 2, 3]
+değişken a = [1, 2, 3]
 yazdır(a[5])

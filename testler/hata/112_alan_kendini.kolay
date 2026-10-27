@@ -1,2 +1,2 @@
-tür S(ad: Yazı) { ata kendi: S veya Hiç = S("x") }
+tür S(ad: Yazı) { değişken kendi: S veya Hiç = S("x") }
 yazdır(S("a"))

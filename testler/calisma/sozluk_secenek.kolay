@@ -2,7 +2,7 @@ seçenek Hücre {
     Boş
     Dolu(sahip: Yazı, kat: Tam(8))
 }
-ata tahta: Sözlük<Hücre, Tam(64)> = {Hücre.Boş: 0}
+değişken tahta: Sözlük<Hücre, Tam(64)> = {Hücre.Boş: 0}
 tahta[Hücre.Dolu(sahip: "Ali", kat: 1)] = 5
 tahta[Hücre.Dolu(sahip: "Ali", kat: 1)] += 1
 tahta[Hücre.Dolu(sahip: "Ayşe", kat: 2)] = 7

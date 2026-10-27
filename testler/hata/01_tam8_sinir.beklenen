@@ -1,3 +1,3 @@
 HATA (01_tam8_sinir.kolay, satır 1): 300, Tam(8) sınırlarını aşıyor (-128 .. 127).
-  1 | ata d: Tam(8) = 300
-    |                 ^^^
+  1 | değişken d: Tam(8) = 300
+    |                      ^^^

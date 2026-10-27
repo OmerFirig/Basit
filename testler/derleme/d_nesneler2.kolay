@@ -2,18 +2,18 @@ tür Nokta(x: Tam(64), y: Tam(64)) {
     fonksiyon kaydir(d: Tam(64)) { x += d; y += d }
     fonksiyon toplam() -> Tam(64) { döndür x + y }
 }
-ata p = Nokta(x: 1, y: 2)
-ata q = p
+değişken p = Nokta(x: 1, y: 2)
+değişken q = p
 q.kaydir(10)
 yazdır(p, q, p.toplam(), q.toplam())
-ata liste = [Nokta(x: 0, y: 0), Nokta(1, 1)]
+değişken liste = [Nokta(x: 0, y: 0), Nokta(1, 1)]
 liste[1].kaydir(5)
 liste[0].x = 42
 yazdır(liste)
-ata kopya = liste
+değişken kopya = liste
 kopya[0].kaydir(1)
 yazdır(liste[0], kopya[0])
 fonksiyon yeni(i: Tam(64)) -> Nokta { döndür Nokta(x: i, y: i * 2) }
-ata t = 0
-1000 kere yap { ata n = yeni(t); t = n.toplam() % 1000 }
+değişken t = 0
+1000 kere yap { değişken n = yeni(t); t = n.toplam() % 1000 }
 yazdır(t)

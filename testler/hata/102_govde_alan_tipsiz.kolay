@@ -1,2 +1,2 @@
 fonksiyon f() -> Tam(64) { döndür 1 }
-tür S(ad: Yazı) { ata x = f() }
+tür S(ad: Yazı) { değişken x = f() }

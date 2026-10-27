@@ -4,12 +4,12 @@
 
 yazdır("Merhaba dünya!")
 
-ata ad = oku("Adınız nedir? ")
+değişken ad = oku("Adınız nedir? ")
 yazdır(f"Merhaba {ad}!")
 
 // tama() yazıyı sayıya çevirir; sayı yazılmadıysa hata verir. Hata 'yakala' ile ele alınır.
 dene {
-    ata yaş = oku("Kaç yaşındasınız? ").tama()
+    değişken yaş = oku("Kaç yaşındasınız? ").tama()
     yazdır(f"10 yıl sonra {yaş + 10} yaşında olacaksınız.")
 } yakala h: Hata.Dönüşüm {
     yazdır("Yaşınızı sayıyla yazmalısınız:", h.mesaj)

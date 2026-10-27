@@ -3,13 +3,13 @@ klavye("us")
 m adiyla dahil et("matematik")
 s adiyla dahil et("../moduller/us_sekil.kolay")
 yazdir(m.karekok(16.0), m.buyugu(3, 7))
-ata d = s.Daire(yaricap: 2.0)
+degisken d = s.Daire(yaricap: 2.0)
 yazdir(d.alani(), d.yaricap)
 yazdir(s.buyut(d, kat: 3.0).yaricap)
 // dosyanın kendi 'sayac' değişkeni s.sayac'ı gizlemez
-ata sayac = 5
+degisken sayac = 5
 yazdir(s.sayac, sayac)
-ata r: s.Renk = s.Renk.Kirmizi
+degisken r: s.Renk = s.Renk.Kirmizi
 eslestir r {
     s.Renk.Kirmizi -> yazdir("kirmizi")
     s.Renk.Yesil -> yazdir("yesil")
@@ -18,5 +18,5 @@ eslestir r {
 tur Kare[s.Cizilen](kenar: Ondalik) {
     fonksiyon ciz() -> Yazi { dondur "kare" }
 }
-ata c: s.Cizilen = Kare(2.0)
+degisken c: s.Cizilen = Kare(2.0)
 yazdir(c.ciz())

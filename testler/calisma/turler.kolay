@@ -21,13 +21,13 @@ tür Öğrenci[Kişi, Sporcu](numara: Tam(32, +)) {
         yazdır(f"Numaram {numara}")
     }
 }
-ata ali = Öğrenci(ad: "Ali", yaş: 21, branş: "Yüzme", numara: 123)
+değişken ali = Öğrenci(ad: "Ali", yaş: 21, branş: "Yüzme", numara: 123)
 ali.tanıt()
 ali.doğum_günü()
 yazdır(ali.yaş)
 ali.ad_değiştir("Veli")
 yazdır(ali)
-ata kişiler: Liste<Kişi> = [Kişi(ad: "Ayşe", yaş: 30), ali]
+değişken kişiler: Liste<Kişi> = [Kişi(ad: "Ayşe", yaş: 30), ali]
 kişiler içindeki her k için yap { k.tanıt() }
 fonksiyon selamla(k: Kişi) { k.tanıt() }
 selamla(ali)
@@ -48,8 +48,8 @@ konuştur(Kedi(ad: "Tekir"))
 konuştur(Robot(model: 42))
 
 // değer semantiği: kopya bağımsız
-ata a = [1, 2, 3]
-ata b = a
+değişken a = [1, 2, 3]
+değişken b = a
 b.ekle(4)
 yazdır(a, b)
-ata sabit dondur = a
+sabit dondur = a

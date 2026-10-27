@@ -1,2 +1,2 @@
-ata x = 3.14159
+değişken x = 3.14159
 yazdır(f"{x:.2f}")

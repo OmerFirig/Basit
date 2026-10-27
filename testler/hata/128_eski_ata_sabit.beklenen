@@ -1,0 +1,3 @@
+HATA (128_eski_ata_sabit.kolay, satır 1): 'ata sabit' yerine artık sadece 'sabit' yazılır: sabit PI = ...
+  1 | ata sabit PI = 3.14
+    | ^^^^^^^^^

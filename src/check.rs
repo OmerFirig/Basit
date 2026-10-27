@@ -191,7 +191,7 @@ pub struct Checker {
     pub(crate) tsubst: HashMap<String, Type>,
     /// (kalıp, tipler, Fonksiyon<T> parametrelerine verilenler) -> kopya
     pub(crate) instances: HashMap<(FuncId, Vec<Type>, Vec<GenelRef>), FuncId>,
-    /// `ata f = her<T> ...` ile tanımlanan generic lambdalar
+    /// `değişken f = her<T> ...` ile tanımlanan generic lambdalar
     pub(crate) genel_lambdalar: Vec<GenelLambda>,
     /// Generic tür kalıpları: tip parametreleri ve tanımı
     pub(crate) tur_kalip: HashMap<TypeId, (Vec<String>, TypeDecl)>,
@@ -609,17 +609,18 @@ impl Checker {
         self.tur_inst.get(&t).map(|x| x.0).unwrap_or(t)
     }
 
-    /// `ortak ata` adları ve `ortak fonksiyon`lar
+    /// `ortak değişken` adları ve `ortak fonksiyon`lar
     fn declare_ortak(&mut self, mi: usize, tid: TypeId, d: &TurDecl) -> CResult<()> {
         if d.ortak.is_empty() && d.ortak_fonk.is_empty() {
             return Ok(());
         }
         let mut adlar: Vec<String> = Vec::new();
         for s in &d.ortak {
-            let StmtKind::Ata { name, name_span, value, .. } = &s.kind else { unreachable!("ortak ata") };
+            let StmtKind::Ata { name, name_span, value, .. } = &s.kind else { unreachable!("ortak değişken") };
             // generic türün ortak değeri bütün kopyalar için tektir: değeri baştan belli olmalı
             if !d.generics.is_empty() && value.is_none() {
-                return err(*name_span, format!("Generic türün ortak değerine başlangıç değeri verilmeli: ortak ata {name} = ..."));
+                let d = self.kw_name(crate::lexer::Kw::Degisken);
+                return err(*name_span, format!("Generic türün ortak değerine başlangıç değeri verilmeli: ortak {d} {name} = ..."));
             }
             if adlar.contains(name) {
                 return err(*name_span, format!("'{name}' bu türde iki kez tanımlanmış."));
@@ -1102,14 +1103,15 @@ impl Checker {
                     }
                     fields.push(FieldInfo { name: p.name.as_str().into(), ty, sabit: p.sabit, origin: tid, kurucuda: true });
                 }
-                // gövdedeki alanlar: ata değer = 0
+                // gövdedeki alanlar: değişken değer = 0
                 for s in &d.alanlar {
                     let StmtKind::Ata { sabit, name, name_span, ty, value, .. } = &s.kind else { unreachable!("tür alanı") };
                     if fields.iter().any(|f| *f.name == **name) || d.methods.iter().any(|m| m.name == *name) {
                         return err(*name_span, format!("'{name}' bu türde zaten tanımlı."));
                     }
                     let Some(v) = value else {
-                        return err(*name_span, format!("Türün içindeki alana başlangıç değeri verilmeli: ata {name} = 0"));
+                        let d = self.kw_name(if *sabit { crate::lexer::Kw::Sabit } else { crate::lexer::Kw::Degisken });
+                        return err(*name_span, format!("Türün içindeki alana başlangıç değeri verilmeli: {d} {name} = 0"));
                     };
                     let t = self.govde_alan_tipi(mi, ty.as_ref(), v, name)?;
                     self.no_hic_value(&t, *name_span)?;

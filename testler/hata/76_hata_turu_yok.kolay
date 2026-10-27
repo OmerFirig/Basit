@@ -1,1 +1,1 @@
-dene { ata x = Hata.Bilinmeyen(mesaj: "a") } yakala h { }
+dene { değişken x = Hata.Bilinmeyen(mesaj: "a") } yakala h { }

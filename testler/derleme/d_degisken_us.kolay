@@ -1,0 +1,13 @@
+klavye("us")
+degisken toplam = 0
+sabit SINIR = 4
+(degisken i = 1; i <= SINIR; i += 1) surece yap { toplam += i }
+yazdir(toplam)
+
+tur Kutu(deger: Tam(64)) {
+    degisken okundu = 0
+    ortak degisken sayi = 0
+    ortak sabit AD = "kutu"
+}
+degisken k = Kutu(7)
+yazdir(k, Kutu.sayi, Kutu.AD)

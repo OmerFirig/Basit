@@ -1,1 +1,1 @@
-tür Kutu<T>(d: T) { ortak ata x: T = 5 }
+tür Kutu<T>(d: T) { ortak değişken x: T = 5 }

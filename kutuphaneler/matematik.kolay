@@ -22,8 +22,8 @@ c adıyla dış kütüphane("m") {
     fonksiyon exp(x: Ondalık) -> Ondalık
 }
 
-ata sabit PI = 3.141592653589793
-ata sabit E = 2.718281828459045
+sabit PI = 3.141592653589793
+sabit E = 2.718281828459045
 
 // ------------------------------------------------------------ kök, üs, logaritma
 
@@ -57,7 +57,7 @@ fonksiyon e_üssü(x: Ondalık) -> Ondalık {
 
 // En yakın sayıya yuvarlar (yarım yukarı); basamak verilirse virgülden sonra o kadar basamak kalır.
 fonksiyon yuvarla(x: Ondalık, basamak: Tam(64) = 0) -> Ondalık {
-    ata k = c.pow(10.0, basamak olarak Ondalık)
+    değişken k = c.pow(10.0, basamak olarak Ondalık)
     döndür c.round(x * k) / k
 }
 
@@ -103,10 +103,10 @@ fonksiyon derece(radyan: Ondalık) -> Ondalık { döndür radyan * 180.0 / PI }
 
 // En büyük ortak bölen (Öklid)
 fonksiyon ebob(a: Tam(64), b: Tam(64)) -> Tam(64) {
-    ata x = mutlak(a)
-    ata y = mutlak(b)
+    değişken x = mutlak(a)
+    değişken y = mutlak(b)
     y != 0 sürece yap {
-        ata k = x % y
+        değişken k = x % y
         x = y
         y = k
     }
@@ -121,7 +121,7 @@ fonksiyon ekok(a: Tam(64), b: Tam(64)) -> Tam(64) {
 
 fonksiyon asal_mı(n: Tam(64)) -> Mantık {
     eğer n < 2 { döndür yanlış }
-    ata i = 2
+    değişken i = 2
     i * i <= n sürece yap {
         eğer n % i == 0 { döndür yanlış }
         i += 1

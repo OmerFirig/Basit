@@ -12,14 +12,14 @@ fonksiyon alan(ş: Şekil) -> Ondalık {
     }
 }
 yazdır(alan(Şekil.Daire(r: 2.0)), alan(Şekil.Daire(r: 20.0)), alan(Şekil.Dikdörtgen(e: 3.0, b: 4.0)), alan(Şekil.Nokta))
-ata ş = Şekil.Dikdörtgen(e: 1.5, b: 2.0)
+değişken ş = Şekil.Dikdörtgen(e: 1.5, b: 2.0)
 yazdır(ş, Şekil.Nokta, [Şekil.Nokta, ş])
-ata isim = "Ali"
+değişken isim = "Ali"
 eşleştir isim {
     "Veli" veya "Ali" -> yazdır("tanıdık")
     değilse -> yazdır("yabancı")
 }
-ata ond = 2.5
+değişken ond = 2.5
 eşleştir ond { 2.5 -> yazdır("iki buçuk"), değilse -> yazdır("?") }
-ata m = doğru
+değişken m = doğru
 eşleştir m { doğru -> yazdır("D"), yanlış -> yazdır("Y") }

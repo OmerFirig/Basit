@@ -4,7 +4,7 @@ yazdır("yükleniyor", son: "")
 yazdır("...", son: " bitti\n")
 1..=5 içindeki her i için yap { yazdır(i, son: " ") }
 yazdır()
-ata k: Ondalık(32) = 0.1
+değişken k: Ondalık(32) = 0.1
 yazdır([1, 2], {"a": "b"}, Hiç, k, doğru, "x", ayraç: " | ")
 yazdır(son: "[boş]\n")
 yazdır(1, 2, ayraç: "-", son: "\n")

@@ -1,3 +1,3 @@
-ata a: Tam(8, +) = 5
+değişken a: Tam(8, +) = 5
 yazdır(a - 5)
 yazdır(a - 6)

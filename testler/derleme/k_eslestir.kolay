@@ -6,12 +6,12 @@ fonksiyon tür_adı(x: Tam(64)) -> Yazı {
         değilse -> f"yetişkin {x}"
     }
 }
-(ata i = 0; i <= 70; i += 13) sürece yap { yazdır(tür_adı(i)) }
-ata s = "elma"
+(değişken i = 0; i <= 70; i += 13) sürece yap { yazdır(tür_adı(i)) }
+değişken s = "elma"
 eşleştir s.büyük_harf() {
     "ELMA" -> yazdır("elma!")
     değilse -> yazdır("başka")
 }
-ata m = doğru
-ata r = eşleştir m { doğru -> 1, yanlış -> 2 }
+değişken m = doğru
+değişken r = eşleştir m { doğru -> 1, yanlış -> 2 }
 yazdır(r)

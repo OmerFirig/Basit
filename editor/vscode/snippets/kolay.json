@@ -1,22 +1,22 @@
 {
   "Değişken": {
-    "prefix": "ata",
+    "prefix": ["değişken", "degisken"],
     "body": [
-      "ata ${1:ad} = ${2:değer}"
+      "değişken ${1:ad} = ${2:değer}"
     ],
     "description": "Yeni değişken"
   },
   "Tipli değişken": {
-    "prefix": "atat",
+    "prefix": ["değişkent", "tipli"],
     "body": [
-      "ata ${1:ad}: ${2:Tam} = ${3:0}"
+      "değişken ${1:ad}: ${2:Tam} = ${3:0}"
     ],
     "description": "Tipi yazılmış değişken"
   },
   "Sabit": {
     "prefix": "sabit",
     "body": [
-      "ata sabit ${1:ad} = ${2:değer}"
+      "sabit ${1:ad} = ${2:değer}"
     ],
     "description": "Değiştirilemez değer"
   },
@@ -126,7 +126,7 @@
   "C tarzı döngü": {
     "prefix": "cfor",
     "body": [
-      "(ata ${1:i} = 0; ${1:i} < ${2:10}; ${1:i} += 1) sürece yap {",
+      "(değişken ${1:i} = 0; ${1:i} < ${2:10}; ${1:i} += 1) sürece yap {",
       "\t$0",
       "}"
     ],
@@ -147,7 +147,7 @@
     "prefix": "türv",
     "body": [
       "tür ${1:Ad}(${2:ad}: ${3:Yazı}, ${4:yaş}: ${5:Tam} = ${6:0}) {",
-      "\tata ${7:puan} = ${8:0}",
+      "\tdeğişken ${7:puan} = ${8:0}",
       "\t$0",
       "}"
     ],
@@ -179,7 +179,7 @@
   "Ortak değer": {
     "prefix": "ortak",
     "body": [
-      "ortak ata ${1:toplam} = ${2:0}"
+      "ortak değişken ${1:toplam} = ${2:0}"
     ],
     "description": "Türe ait, bütün nesnelerin paylaştığı değer: Tür.toplam"
   },
@@ -245,21 +245,21 @@
   "Oku": {
     "prefix": "oku",
     "body": [
-      "ata ${1:girdi} = oku(\"${2:Soru: }\")"
+      "değişken ${1:girdi} = oku(\"${2:Soru: }\")"
     ],
     "description": "Klavyeden oku"
   },
   "Liste": {
     "prefix": "liste",
     "body": [
-      "ata ${1:liste}: Liste<${2:Tam}> = [$0]"
+      "değişken ${1:liste}: Liste<${2:Tam}> = [$0]"
     ],
     "description": "Liste"
   },
   "Sözlük": {
     "prefix": "sözlük",
     "body": [
-      "ata ${1:sözlük}: Sözlük<${2:Yazı}, ${3:Tam}> = {$0}"
+      "değişken ${1:sözlük}: Sözlük<${2:Yazı}, ${3:Tam}> = {$0}"
     ],
     "description": "Sözlük"
   },
@@ -345,14 +345,14 @@
   "Generic lambda": {
     "prefix": "lambdag",
     "body": [
-      "ata ${1:ad} = her<${2:T}> ${3:x}: ${2:T} için ${4:x}"
+      "sabit ${1:ad} = her<${2:T}> ${3:x}: ${2:T} için ${4:x}"
     ],
-    "description": "Her tiple çalışan isimsiz fonksiyon: ata iki_kat = her<T> x: T için x * 2"
+    "description": "Her tiple çalışan isimsiz fonksiyon: sabit iki_kat = her<T> x: T için x * 2"
   },
   "Veya tipi": {
     "prefix": "veya",
     "body": [
-      "ata ${1:x}: ${2:Tam} veya ${3:Yazı} = ${4:0}"
+      "değişken ${1:x}: ${2:Tam} veya ${3:Yazı} = ${4:0}"
     ],
     "description": "Birden fazla tipten biri olabilen değişken"
   },

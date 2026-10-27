@@ -1,7 +1,7 @@
 seçenek S { A(x: Tam(64)), B }
-ata l = [S.A(1), S.B, S.A(3)]
-ata t = 0
+değişken l = [S.A(1), S.B, S.A(3)]
+değişken t = 0
 l içindeki her s için yap { eşleştir s { A(x) eğer x > 1 -> t += x * 10, A(x) -> t += x, B -> t = t * 2 } }
 yazdır(t)
-ata y = "Ağaç"
+değişken y = "Ağaç"
 yazdır(y.tersi(), "".tersi(), "a".tersi(), [1, 2].tersi())

@@ -1,2 +1,2 @@
-ata u: Tam(8, +) = 3
+değişken u: Tam(8, +) = 3
 u = u - 5

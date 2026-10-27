@@ -1,2 +1,2 @@
-ata n = 1
-ata f = her (x: Tam(64)) için yap { n = x; döndür x }
+değişken n = 1
+değişken f = her (x: Tam(64)) için yap { n = x; döndür x }

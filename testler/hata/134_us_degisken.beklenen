@@ -1,0 +1,3 @@
+HATA (134_us_degisken.kolay, satır 2): 'değişken' us klavye modunda kullanılamaz, 'degisken' yazın.
+  2 | değişken x = 5
+    | ^^^^^^^^

@@ -1,1 +1,1 @@
-tür Kutu<T>(d: T) { ortak ata x: Tam }
+tür Kutu<T>(d: T) { ortak değişken x: Tam }

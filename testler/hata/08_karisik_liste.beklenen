@@ -1,3 +1,3 @@
 HATA (08_karisik_liste.kolay, satır 1): Bir listedeki tüm elemanlar aynı tipte olmalı. Tam(64), Yazı karıştırılamaz. Karışık liste için tipi yazın: Liste<Tam(64) veya Yazı>
-  1 | ata a = [1, "Ali"]
-    |         ^^^^^^^^^^
+  1 | değişken a = [1, "Ali"]
+    |              ^^^^^^^^^^

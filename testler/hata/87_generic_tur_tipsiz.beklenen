@@ -1,3 +1,3 @@
 HATA (87_generic_tur_tipsiz.kolay, satır 2): 'Kutu' generic bir tür; içindeki tipleri yazın: Kutu<Tam>
-  2 | ata k: Kutu = Kutu(1)
-    |        ^^^^
+  2 | değişken k: Kutu = Kutu(1)
+    |             ^^^^

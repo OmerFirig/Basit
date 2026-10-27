@@ -560,7 +560,8 @@ impl Checker {
         let existing = self.local_var(name);
         if !explicit_ata && existing.is_none() {
             let tn = declared.as_ref().map(|t| self.type_name(t)).unwrap_or_default();
-            return err(name_span, format!("'{name}' tanımlı değil. Yeni değişken için 'ata {name}: {tn} = ...' yazın."));
+            let d = self.kw_name(crate::lexer::Kw::Degisken);
+            return err(name_span, format!("'{name}' tanımlı değil. Yeni değişken için '{d} {name}: {tn} = ...' yazın."));
         }
         self.check_shadow_sabit(name, name_span)?;
         if existing.is_none() && self.owner_field(name).is_some() {
@@ -575,7 +576,8 @@ impl Checker {
                     None => {
                         if t.ty == Type::Hic {
                             if matches!(t.kind, TK::Hic) {
-                                return err(v.span, format!("Hiç tek başına atanamaz. Tipini yazın: ata {name}: Yazı veya Hiç = Hiç"));
+                                let d = self.kw_name(if sabit { crate::lexer::Kw::Sabit } else { crate::lexer::Kw::Degisken });
+                                return err(v.span, format!("Hiç tek başına atanamaz. Tipini yazın: {d} {name}: Yazı veya Hiç = Hiç"));
                             }
                             return Err(self.mismatch(&t, &Type::Str, v.span));
                         }
@@ -653,7 +655,8 @@ impl Checker {
     fn assign(&mut self, target: &Expr, op: Option<BinOp>, value: &Expr, span: Span) -> CResult<TS> {
         if let ExprKind::Ident(n) = &target.kind {
             if self.genel_var(n).is_some() {
-                return err(span, format!("'{n}' her tiple çalışan (generic) bir fonksiyon; değeri değiştirilemez. Yeni bir ad verin: ata başka = her<T> ..."));
+                let s = self.kw_name(crate::lexer::Kw::Sabit);
+                return err(span, format!("'{n}' her tiple çalışan (generic) bir fonksiyon; değeri değiştirilemez. Yeni bir ad verin: {s} başka = her<T> ..."));
             }
         }
         // sabit ve henüz atanmamış değişkene ilk atama
@@ -681,7 +684,8 @@ impl Checker {
                 if self.static_path(target).is_none() && !self.mods[self.cx.module].funcs.contains_key(n) {
                     let mut d = self.unknown_name(n, target.span);
                     if op.is_none() {
-                        d.msg.push_str(&format!(" Yeni değişken için: ata {n} = ..."));
+                        let dk = self.kw_name(crate::lexer::Kw::Degisken);
+                        d.msg.push_str(&format!(" Yeni değişken için: {dk} {n} = ..."));
                     }
                     return Err(d);
                 }

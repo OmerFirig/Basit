@@ -1,10 +1,10 @@
 fonksiyon ikile<T>(x: T) -> Liste<T> { döndür [x, x] }
 ikile(3)
 tür Kutu<T>(d: T) { fonksiyon al() -> T { döndür d } }
-ata k = Kutu("a")
+değişken k = Kutu("a")
 k.al()
 ikile("b")
-ata f = her (x: Tam(64)) için ikile(x)
+değişken f = her (x: Tam(64)) için ikile(x)
 f(5)
 ikile(2.5)
 f(6)

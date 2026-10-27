@@ -161,10 +161,8 @@ impl Parser {
     fn stmt(&mut self) -> CResult<Stmt> {
         let start = self.span();
         let kind = match self.peek().clone() {
-            Tok::Kw(Kw::Ata) => return self.ata(),
-            Tok::Kw(Kw::Sabit) => {
-                return err(start, format!("Sabit tanımı '{} {}' ile başlar: ata sabit x = 5", self.kw(Kw::Ata), self.kw(Kw::Sabit)));
-            }
+            Tok::Kw(Kw::Degisken) | Tok::Kw(Kw::Sabit) => return self.tanim(),
+            Tok::Ident(_) if self.eski_ata() => return self.eski_ata_hatasi(),
             Tok::Kw(Kw::Fonksiyon) => {
                 self.advance();
                 StmtKind::Fonksiyon(self.fn_rest(start, Yeniden::Yok)?)
@@ -252,7 +250,11 @@ impl Parser {
                 let value = self.expr()?;
                 StmtKind::Ata { sabit: false, explicit_ata: false, name, name_span, ty: Some(ty), value: Some(value) }
             }
-            Tok::LParen if self.peek_n(1).tok == Tok::Kw(Kw::Ata) => self.cfor()?,
+            Tok::LParen if matches!(self.peek_n(1).tok, Tok::Kw(Kw::Degisken) | Tok::Kw(Kw::Sabit)) => self.cfor()?,
+            Tok::LParen if matches!(&self.peek_n(1).tok, Tok::Ident(a) if a == "ata") && matches!(self.peek_n(2).tok, Tok::Ident(_)) => {
+                self.advance();
+                return self.eski_ata_hatasi();
+            }
             _ => {
                 let e = self.expr()?;
                 match self.peek().clone() {
@@ -312,22 +314,52 @@ impl Parser {
         Ok(Stmt { kind, span: start.to(self.prev_span()) })
     }
 
-    fn ata(&mut self) -> CResult<Stmt> {
-        let start = self.advance().span;
+    /// `değişken x = 5`, `sabit y = "dünya"`, `değişken x: Tam` (değeri sonra atanır)
+    fn tanim(&mut self) -> CResult<Stmt> {
+        let start = self.span();
         let sabit = self.eat_kw(Kw::Sabit);
-        let (name, name_span) = self.ident("Değişken adı")?;
+        if !sabit {
+            self.advance();
+            if self.at_kw(Kw::Sabit) {
+                return err(
+                    start.to(self.span()),
+                    format!("'{} {}' birlikte yazılmaz. Değiştirilemeyen değer için sadece '{}' yazın: {} x = 5", self.kw(Kw::Degisken), self.kw(Kw::Sabit), self.kw(Kw::Sabit), self.kw(Kw::Sabit)),
+                );
+            }
+        }
+        let kw = self.kw(if sabit { Kw::Sabit } else { Kw::Degisken });
+        let (name, name_span) = self.ident(if sabit { "Sabitin adı" } else { "Değişken adı" })?;
         let ty = if self.eat(&Tok::Colon) { Some(self.ty()?) } else { None };
         let value = if self.eat(&Tok::Assign) { Some(self.expr()?) } else { None };
         if ty.is_none() && value.is_none() {
             return err(
                 name_span,
-                format!("'{name}' için bir tip ya da değer yazılmalı. Örnek: ata {name}: Tam  ya da  ata {name} = 0"),
+                format!("'{name}' için bir tip ya da değer yazılmalı. Örnek: {kw} {name}: Tam  ya da  {kw} {name} = 0"),
             );
         }
         Ok(Stmt {
             kind: StmtKind::Ata { sabit, explicit_ata: true, name, name_span, ty, value },
             span: start.to(self.prev_span()),
         })
+    }
+
+    /// Eski (0.8.0 öncesi) yazım: `ata x = 5`, `ata sabit x = 5`. 'ata' artık anahtar kelime değil
+    /// (değişken adı olabilir); arkasından aynı satırda bir ad ya da 'sabit' gelirse eski yazımdır.
+    fn eski_ata(&self) -> bool {
+        matches!(self.peek(), Tok::Ident(a) if a == "ata")
+            && !self.peek_n(1).nl_before
+            && matches!(self.peek_n(1).tok, Tok::Ident(_) | Tok::Kw(Kw::Sabit))
+    }
+
+    fn eski_ata_hatasi(&self) -> CResult<Stmt> {
+        let (d, s) = (self.kw(Kw::Degisken), self.kw(Kw::Sabit));
+        let span = self.span().to(self.peek_n(1).span);
+        if self.peek_n(1).tok == Tok::Kw(Kw::Sabit) {
+            let ad = match &self.peek_n(2).tok { Tok::Ident(n) => n.clone(), _ => "x".to_string() };
+            return err(span, format!("'ata {s}' yerine artık sadece '{s}' yazılır: {s} {ad} = ..."));
+        }
+        let ad = match &self.peek_n(1).tok { Tok::Ident(n) => n.clone(), _ => "x".to_string() };
+        err(span, format!("'ata' yerine artık '{d}' yazılır: {d} {ad} = ... (değeri hiç değişmeyecekse: {s} {ad} = ...)"))
     }
 
     /// #Güvensiz yazılmadan dış kütüphane tanımı
@@ -438,7 +470,13 @@ impl Parser {
 
     fn cfor(&mut self) -> CResult<StmtKind> {
         self.expect(&Tok::LParen, "'('")?;
-        let init = self.ata()?;
+        if self.at_kw(Kw::Sabit) {
+            return err(
+                self.span(),
+                format!("C tarzı döngünün değişkeni her turda değiştiği için '{}' ile tanımlanır: ({} i = 0; i < 10; i += 1)", self.kw(Kw::Degisken), self.kw(Kw::Degisken)),
+            );
+        }
+        let init = self.tanim()?;
         self.expect(&Tok::Semi, "C tarzı döngüde başlangıçtan sonra ';'")?;
         let cond = self.expr()?;
         self.expect(&Tok::Semi, "C tarzı döngüde koşuldan sonra ';'")?;
@@ -446,7 +484,8 @@ impl Parser {
         let e = self.expr()?;
         let step = self.finish_simple(e, step_start)?;
         self.expect(&Tok::RParen, "')'")?;
-        self.expect_kw(Kw::Surece, "Örnek: (ata i = 0; i < 10; i += 1) sürece yap { }")?;
+        let ornek = format!("Örnek: ({} i = 0; i < 10; i += 1) {} {} {{ }}", self.kw(Kw::Degisken), self.kw(Kw::Surece), self.kw(Kw::Yap));
+        self.expect_kw(Kw::Surece, &ornek)?;
         let body = self.loop_body()?;
         Ok(StmtKind::CFor { init: Box::new(init), cond, step: Box::new(step), body })
     }
@@ -517,8 +556,8 @@ impl Parser {
         let mut out = Vec::new();
         while !self.at(&Tok::RParen) {
             let start = self.span();
-            if self.at_kw(Kw::Ata) {
-                return err(start, format!("{what} başına '{}' yazılmaz. Örnek: (x: Tam)", self.kw(Kw::Ata)));
+            if self.at_kw(Kw::Degisken) {
+                return err(start, format!("{what} başına '{}' yazılmaz. Örnek: (x: Tam)", self.kw(Kw::Degisken)));
             }
             let sabit = self.eat_kw(Kw::Sabit);
             let (name, span) = self.ident("İsim")?;
@@ -624,8 +663,10 @@ impl Parser {
                 }
                 if self.at_kw(Kw::Ortak) {
                     let os = self.advance().span;
-                    if self.at_kw(Kw::Ata) {
-                        ortak.push(self.ata()?);
+                    if self.at_kw(Kw::Degisken) || self.at_kw(Kw::Sabit) {
+                        ortak.push(self.tanim()?);
+                    } else if self.eski_ata() {
+                        self.eski_ata_hatasi()?;
                     } else if self.eat_kw(Kw::Fonksiyon) {
                         let d = self.fn_rest(os, Yeniden::Yok)?;
                         if let Some((_, sp)) = d.generics.first() {
@@ -636,17 +677,20 @@ impl Parser {
                         return err(
                             self.span(),
                             format!(
-                                "'{}' sonrasında '{}' ya da '{}' yazılır: {} {} toplam = 0",
+                                "'{}' sonrasında '{}', '{}' ya da '{}' yazılır: {} {} toplam = 0",
                                 self.kw(Kw::Ortak),
-                                self.kw(Kw::Ata),
+                                self.kw(Kw::Degisken),
+                                self.kw(Kw::Sabit),
                                 self.kw(Kw::Fonksiyon),
                                 self.kw(Kw::Ortak),
-                                self.kw(Kw::Ata)
+                                self.kw(Kw::Degisken)
                             ),
                         );
                     }
-                } else if self.at_kw(Kw::Ata) {
-                    alanlar.push(self.ata()?);
+                } else if self.at_kw(Kw::Degisken) || self.at_kw(Kw::Sabit) {
+                    alanlar.push(self.tanim()?);
+                } else if self.eski_ata() {
+                    self.eski_ata_hatasi()?;
                 } else {
                     methods.push(self.method()?);
                 }
@@ -691,8 +735,9 @@ impl Parser {
             _ => err(
                 self.span(),
                 format!(
-                    "Tür içinde sadece '{}', '{}', '{}' ya da '{}' yazılabilir, ama {} bulundu.",
-                    self.kw(Kw::Ata),
+                    "Tür içinde sadece '{}', '{}', '{}', '{}' ya da '{}' yazılabilir, ama {} bulundu.",
+                    self.kw(Kw::Degisken),
+                    self.kw(Kw::Sabit),
                     self.kw(Kw::Fonksiyon),
                     self.kw(Kw::Yeniden),
                     self.kw(Kw::Ortak),

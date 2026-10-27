@@ -1,17 +1,17 @@
-ata pi = 3.14159265
-ata n = 42
-ata büyük = 1234567
-ata ad = "Ali"
+değişken pi = 3.14159265
+değişken n = 42
+değişken büyük = 1234567
+değişken ad = "Ali"
 yazdır(f"[{pi:.2}] [{pi:.0}] [{n:.3}] [{2.5:.0}] [{-1.005:.2}]")
 yazdır(f"[{ad:<10}] [{ad:>10}] [{ad:^9}] [{ad:*^9}] [{ad:─<6}]")
 yazdır(f"[{n:6}] [{n:<6}] [{n:06}] [{-n:06}] [{ad:2}]")
 yazdır(f"[{büyük:,}] [{-büyük:,}] [{1234:,}] [{123:,}] [{1234567.891:,.2}] [{büyük:>15,}]")
-ata t: Tam = 2 ** 100
+değişken t: Tam = 2 ** 100
 yazdır(f"{t:,}")
-ata k: Ondalık(32) = 0.1
+değişken k: Ondalık(32) = 0.1
 yazdır(f"{k:.3} {1.0 / 0.0:.2} {(0.0 / 0.0):8}")
-ata isimler = ["Ali", "Ayşe", "Mehmet"]
-ata notlar = [90.5, 85.25, 100.0]
+değişken isimler = ["Ali", "Ayşe", "Mehmet"]
+değişken notlar = [90.5, 85.25, 100.0]
 0..3 içindeki her i için yap {
     yazdır(f"{isimler[i]:<8}|{notlar[i]:>7.1}|")
 }

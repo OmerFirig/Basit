@@ -1,6 +1,6 @@
 // Sabit boyutlu liste esnek bir değişkene kopyalanınca eleman eklenebilir.
-ata c: Liste<Tam(64)>[2] = [1, 2]
-ata d: Liste<Tam(64)> = c
+değişken c: Liste<Tam(64)>[2] = [1, 2]
+değişken d: Liste<Tam(64)> = c
 d.ekle(3)
 yazdır(d, c)
 c.ekle(4)

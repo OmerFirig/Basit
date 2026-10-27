@@ -1,23 +1,23 @@
-ata a: Liste<Tam(8, -)> = [-5, 0, -255, -1]
+değişken a: Liste<Tam(8, -)> = [-5, 0, -255, -1]
 a.sırala()
-ata b: Liste<Tam(128, -)> = [-340282366920938463463374607431768211455, -1, 0]
+değişken b: Liste<Tam(128, -)> = [-340282366920938463463374607431768211455, -1, 0]
 b.sırala()
-ata c: Liste<Tam(128, +)> = [340282366920938463463374607431768211455, 1, 0]
+değişken c: Liste<Tam(128, +)> = [340282366920938463463374607431768211455, 1, 0]
 c.sırala()
-ata d: Liste<Tam(64, +)> = [18446744073709551615, 3]
+değişken d: Liste<Tam(64, +)> = [18446744073709551615, 3]
 d.sırala()
-ata e: Liste<Tam(16)> = [-300, 300, 0]
+değişken e: Liste<Tam(16)> = [-300, 300, 0]
 e.sırala()
 yazdır(a, b, c, d, e)
 yazdır(b[0] + 0, c[2] - 1, d[0], a[2])
 b[2] = b[1] + b[1]
 yazdır(b)
-ata f: Liste<Ondalık(16)> = [1.5, 0.1, 65504.0]
+değişken f: Liste<Ondalık(16)> = [1.5, 0.1, 65504.0]
 f.sırala()
 yazdır(f, f[1] * 2.0)
-ata g: Liste<Tam> = [5, -3, 100000000000000000000000, 0]
+değişken g: Liste<Tam> = [5, -3, 100000000000000000000000, 0]
 g.sırala()
 yazdır(g)
-ata h: Sözlük<Tam(8, -), Tam(128, -)> = {-3: -7}
+değişken h: Sözlük<Tam(8, -), Tam(128, -)> = {-3: -7}
 h[-3] -= 1
 yazdır(h)

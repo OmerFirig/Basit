@@ -1,0 +1,3 @@
+HATA (129_eski_ata_dongu.kolay, satır 1): 'ata' yerine artık 'değişken' yazılır: değişken i = ... (değeri hiç değişmeyecekse: sabit i = ...)
+  1 | (ata i = 0; i < 3; i += 1) sürece yap { }
+    |  ^^^^^

@@ -4,7 +4,7 @@ const cp = require("child_process");
 const path = require("path");
 
 const KEYWORDS = [
-  "ata", "sabit", "fonksiyon", "döndür", "eğer", "değilse", "yap", "içindeki", "her", "için",
+  "değişken", "sabit", "fonksiyon", "döndür", "eğer", "değilse", "yap", "içindeki", "her", "için",
   "sürece", "kere", "dur", "devam", "doğru", "yanlış", "tür", "yeniden", "bu", "arayüz",
   "seçenek", "eşleştir", "veya", "ve", "değil", "dahil et", "olarak", "Hiç", "adıyla",
   "dış kütüphane", "kütüphanesindeki", "dene", "yakala", "fırlat", "ortak",
@@ -94,7 +94,7 @@ function scan(text) {
   const tparams = new Set(); // generic tip parametreleri: <T, Eleman>
   const clean = text.replace(/\/<[\s\S]*?>\//g, "").replace(/\/\/.*$/gm, "");
 
-  for (const m of clean.matchAll(new RegExp(`(ortak\\s+)?ata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
+  for (const m of clean.matchAll(new RegExp(`(ortak\\s+)?(?:değişken|degisken|sabit)\\s+(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
     if (!m[1]) vars.set(m[2], (m[3] || m[4] || "").trim());
   }
   for (const m of clean.matchAll(new RegExp(`her\\s+(${ID})(?:\\s*,\\s*(${ID}))?\\s+(?:için|icin)`, "gu"))) {
@@ -135,7 +135,7 @@ function scan(text) {
     const body = clean[i] === "{" ? block(clean, i + 1) : "";
     const fieldTypes = new Map();
     for (const f of splitTop(params)) {
-      const [n, ...t] = f.replace(/^\s*(sabit|ata)\s+/, "").split(":");
+      const [n, ...t] = f.replace(/^\s*sabit\s+/, "").split(":");
       if (n.trim()) fieldTypes.set(n.trim(), t.join(":").split("=")[0].trim());
     }
     const fields = [...fieldTypes.keys()];
@@ -143,10 +143,10 @@ function scan(text) {
     for (const x of body.matchAll(new RegExp(`(ortak\\s+)?(?:fonksiyon|yeniden)\\s+(${ID})\\s*\\(`, "gu"))) {
       (x[1] ? ortakFonk : methods).push([x[2], paren(body, x.index + x[0].length - 1)]);
     }
-    for (const x of body.matchAll(new RegExp(`ortak\\s+ata\\s+(?:sabit\\s+)?(${ID})`, "gu"))) ortak.push(x[1]);
-    // gövdedeki alanlar: ata değer = 0 (oluştururken verilmez)
+    for (const x of body.matchAll(new RegExp(`ortak\\s+(?:değişken|degisken|sabit)\\s+(${ID})`, "gu"))) ortak.push(x[1]);
+    // gövdedeki alanlar: değişken değer = 0 (oluştururken verilmez)
     const govde = [];
-    for (const x of body.matchAll(new RegExp(`(ortak\\s+)?\\bata\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
+    for (const x of body.matchAll(new RegExp(`(ortak\\s+)?(?<![\\p{L}\\p{N}_])(?:değişken|degisken|sabit)\\s+(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gu"))) {
       if (x[1] || fieldTypes.has(x[2])) continue;
       fieldTypes.set(x[2], (x[3] || x[4] || "").trim());
       govde.push(x[2]);
@@ -311,7 +311,7 @@ function modulTanimlari(doc, yazilan) {
   const m = scan(metin);
   // sadece üst düzey (girintisiz) değişkenler; fonksiyonların içindekiler ve parametreler değil
   m.vars = new Map();
-  for (const x of metin.matchAll(new RegExp(`^(?:ata|ortak ata)\\s+(?:sabit\\s+)?(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gmu"))) {
+  for (const x of metin.matchAll(new RegExp(`^(?:ortak\\s+)?(?:değişken|degisken|sabit)\\s+(${ID})\\s*(?::\\s*([^=\\n]+))?(?:=\\s*(.*))?`, "gmu"))) {
     m.vars.set(x[1], (x[2] || x[3] || "").trim());
   }
   return m;

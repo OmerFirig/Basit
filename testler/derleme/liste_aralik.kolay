@@ -1,18 +1,18 @@
 // Aralık bir listedir; köşeli parantez içinde dilimdir; eşleştir'de sıra önemsizdir
-ata r = 1..=5
-ata g = 5..0
+değişken r = 1..=5
+değişken g = 5..0
 r.ekle(6)
 yazdır(r, g, 1..4, 3..3, 3..=3, (0..10).adım(2), (10..0).adım(2), (10..0).adım(-2), (1..=10).adım(-3))
 yazdır((1..=100).içerir(50), (5..0).uzunluk(), (0..5)[1..3], (0..5)[-1..=0])
-ata t = 0
+değişken t = 0
 0..1000000 içindeki her i için yap { t += i }
 (1000000..0).adım(-3) içindeki her i için yap { t -= i }
 yazdır(t)
-ata s = ""
+değişken s = ""
 (10..=0).adım(3) içindeki her i için yap { s += f"{i} " }
 yazdır(s)
 yazdır("merhaba"[0..3], "merhaba"[-1..=0], "ağaçlık"[1..=3], "ağaç"[2..], "abc"[5..9], ""[0..])
-ata l = [3, 1, 2]
+değişken l = [3, 1, 2]
 yazdır(l.sıralı(), l.tersi(), l)
 l.ters_çevir()
 yazdır(l)
@@ -20,7 +20,7 @@ fonksiyon kat(x: Tam(64)) -> Yazı {
     döndür eşleştir x { 5..=1 -> "ters dahil", 10..7 -> "ters hariç", 20..20 -> "boş", değilse -> "başka" }
 }
 yazdır(kat(1), kat(5), kat(6), kat(7), kat(8), kat(10), kat(20))
-ata ad = ["Ömer", "Can", "çiğdem"]
+değişken ad = ["Ömer", "Can", "çiğdem"]
 yazdır(ad.sıralı(), ad[2..=0].adım(2))
-ata x = 4
+değişken x = 4
 yazdır((x..1).adım(x - 4))

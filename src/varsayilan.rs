@@ -1,5 +1,5 @@
 // Varsayılan değerler: `fonksiyon selam(ad: Yazı = "dünya")`, `tür Kişi(ad: Yazı, yaş: Tam = 0)` ve
-// türün gövdesindeki alanlar (`tür Sayaç(ad: Yazı) { ata değer = 0 }`).
+// türün gövdesindeki alanlar (`tür Sayaç(ad: Yazı) { değişken değer = 0 }`).
 //
 // Değer her kullanımda (değer verilmeyen her çağrıda, her yeni nesnede) yeniden hesaplanır. Tanımın olduğu
 // dosyada ve hiçbir değişken görünmeden denetlenir: çağıranın değişkenleri karışmasın, aynı varsayılan
@@ -74,7 +74,7 @@ impl Checker {
         self.varsayilan_ac(ad, &e, |c| c.varsayilan_te(mi, &e, Some(&ty), b.as_deref()))
     }
 
-    /// Alanın başlangıç değeri (başlıkta `= ...` ya da gövdede `ata`)
+    /// Alanın başlangıç değeri (başlıkta `= ...` ya da gövdede `değişken`/`sabit`)
     pub(crate) fn alan_varsayilan(&mut self, f: &FieldInfo) -> CResult<TExpr> {
         let e = self.alan_varsayilan.get(&(f.origin, f.name.to_string())).cloned().expect("alan varsayılanı");
         let mi = self.type_decls[f.origin].0;
@@ -160,7 +160,7 @@ impl Checker {
         self.nesne(tid, verilen, span)
     }
 
-    /// Gövdedeki `ata` alanının tipi: yazılmışsa o, yazılmamışsa basit bir değerden (sayı, yazı, liste...) çıkarılır.
+    /// Gövdedeki alanın (`değişken x = ...`) tipi: yazılmışsa o, yazılmamışsa basit bir değerden (sayı, yazı, liste...) çıkarılır.
     pub(crate) fn govde_alan_tipi(&mut self, mi: usize, ty: Option<&TypeExpr>, deger: &Expr, ad: &str) -> CResult<Type> {
         if let Some(te) = ty {
             return self.resolve_type(te, mi);
@@ -175,7 +175,8 @@ impl Checker {
                 },
                 _ => "Tip".to_string(),
             };
-            return err(deger.span, format!("Bu alanın tipi değerden çıkarılamıyor; tipini yazın: ata {ad}: {ornek} = ..."));
+            let d = self.kw_name(crate::lexer::Kw::Degisken);
+            return err(deger.span, format!("Bu alanın tipi değerden çıkarılamıyor; tipini yazın: {d} {ad}: {ornek} = ..."));
         }
         let b: Vec<(String, Type)> = self.tsubst.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         Ok(self.varsayilan_te(mi, deger, None, Some(&b))?.ty)

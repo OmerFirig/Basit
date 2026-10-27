@@ -1,2 +1,2 @@
-tür S(ad: Yazı) { ata x = 0 }
+tür S(ad: Yazı) { değişken x = 0 }
 S("a", x: 5)

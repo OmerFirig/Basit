@@ -1,5 +1,5 @@
 // Ters aralıklar ve adım (aralık bir listedir; adım listenin adım metoduyla aynı: eksi adım sondan başlar)
-ata t = ""
+değişken t = ""
 5..0 içindeki her i için yap { t += f"{i} " }
 yazdır(t)
 t = ""
@@ -14,8 +14,8 @@ yazdır(t)
 t = ""
 (0..10).adım(3) içindeki her i için yap { t += f"{i} " }
 yazdır(t)
-ata a = 3
-ata b = -2
+değişken a = 3
+değişken b = -2
 t = ""
 a..b içindeki her i için yap { t += f"{i} " }
 yazdır(t)
@@ -30,9 +30,9 @@ t = ""
 4..=4 içindeki her i için yap { t += "y" }
 (4..=4).adım(-5) içindeki her i için yap { t += "z" }
 yazdır(t)
-ata r = 9..2
+değişken r = 9..2
 yazdır(r, (9..2).adım(-2), 2..9, (2..9).adım(2), (9..2).adım(-1))
-ata bb = 9223372036854775807
+değişken bb = 9223372036854775807
 t = ""
 (bb - 2..=bb).adım(1) içindeki her i için yap { t += f"{i} " }
 yazdır(t)
@@ -42,7 +42,7 @@ yazdır(t)
 t = ""
 (0..9223372036854775807).adım(4611686018427387904) içindeki her i için yap { t += f"{i} " }
 yazdır(t)
-ata l = [1, 2, 3, 4, 5]
+değişken l = [1, 2, 3, 4, 5]
 yazdır(l[3..1], l[..-1], l[-2..])
 yazdır(r == 9..2, r == (9..2).adım(-1), r == (9..2).adım(-2))
 // sınırların uç değerleri: taşma olmadan

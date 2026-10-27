@@ -1,3 +1,3 @@
 HATA (43_sozluk_anahtar.kolay, satır 5): Şekil sözlük anahtarı olamaz: içinde Ondalık değeri taşıyor. Anahtar Tam, Yazı, Mantık ya da bir seçenek olmalı; seçenekler de sadece bunları taşıyabilir.
-  5 | ata s: Sözlük<Şekil, Tam(64)> = {Şekil.Kare: 1}
-    |               ^^^^^
+  5 | değişken s: Sözlük<Şekil, Tam(64)> = {Şekil.Kare: 1}
+    |                    ^^^^^

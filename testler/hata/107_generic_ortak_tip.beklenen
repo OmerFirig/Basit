@@ -1,3 +1,3 @@
 HATA (107_generic_ortak_tip.kolay, satır 1): 'T' burada kullanılamaz: generic türün ortak değerleri ve fonksiyonları bütün kopyalar için tektir, tip parametresine bağlı olamaz.
-  1 | tür Kutu<T>(d: T) { ortak ata x: T = 5 }
-    |                                  ^
+  1 | tür Kutu<T>(d: T) { ortak değişken x: T = 5 }
+    |                                       ^

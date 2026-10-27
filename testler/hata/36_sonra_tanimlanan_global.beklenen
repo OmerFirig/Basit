@@ -1,3 +1,3 @@
-HATA (36_sonra_tanimlanan_global.kolay, satır 1): 'isim' bu fonksiyondan sonra tanımlanıyor. Fonksiyonlar sadece kendilerinden önce tanımlanan değişkenleri görebilir; 'ata isim' satırını fonksiyonun üstüne taşıyın.
+HATA (36_sonra_tanimlanan_global.kolay, satır 1): 'isim' bu fonksiyondan sonra tanımlanıyor. Fonksiyonlar sadece kendilerinden önce tanımlanan değişkenleri görebilir; 'isim' tanımını fonksiyonun üstüne taşıyın.
   1 | fonksiyon göster() { yazdır(isim) }
     |                             ^^^^

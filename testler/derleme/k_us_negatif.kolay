@@ -1,2 +1,2 @@
-ata x = 2
+değişken x = 2
 yazdır(x ** -1)

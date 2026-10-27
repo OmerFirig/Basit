@@ -14,7 +14,7 @@ seçenek Şekil {
     }
 }
 
-ata şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(en: 2.0, boy: 3.0), Şekil.Kare(4.0)]
+değişken şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(en: 2.0, boy: 3.0), Şekil.Kare(4.0)]
 şekiller içindeki her ş için yap {
     yazdır(ş, "alan:", ş.alan())
 }
@@ -35,7 +35,7 @@ fonksiyon bul(isimler: Liste<Yazı>, aranan: Yazı) -> Tam veya Hiç {
     döndür isimler.bul(aranan)
 }
 
-ata sonuç = bul(["Ali", "Ayşe"], "Ayşe")
+değişken sonuç = bul(["Ali", "Ayşe"], "Ayşe")
 eşleştir sonuç {
     Tam(i) -> yazdır(f"{i}. sırada bulundu")
     Hiç -> yazdır("bulunamadı")

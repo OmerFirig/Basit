@@ -1,1 +1,1 @@
-tür S(ad: Yazı) { ata x: Tam }
+tür S(ad: Yazı) { değişken x: Tam }

@@ -1,0 +1,3 @@
+HATA (130_sabit_dongu.kolay, satır 1): C tarzı döngünün değişkeni her turda değiştiği için 'değişken' ile tanımlanır: (değişken i = 0; i < 10; i += 1)
+  1 | (sabit i = 0; i < 3; i += 1) sürece yap { }
+    |  ^^^^^

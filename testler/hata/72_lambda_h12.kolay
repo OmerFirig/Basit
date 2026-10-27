@@ -1,2 +1,2 @@
-ata l = [1]
+değişken l = [1]
 yazdır(l.dönüşüm(5))

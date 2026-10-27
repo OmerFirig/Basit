@@ -2,13 +2,13 @@
 // Kayıt zinciri her dönüş yolunda doğru çözülmeli; bozulursa sonraki hatalarda program çöker.
 tür Yığın(öğeler: Liste<Yazı>) {
     fonksiyon çek() -> Yazı {
-        ata son = öğeler[öğeler.uzunluk() - 1]
+        değişken son = öğeler[öğeler.uzunluk() - 1]
         öğeler.sil(öğeler.uzunluk() - 1)
         döndür son
     }
 }
 fonksiyon erken(n: Tam(64), ad: Yazı) -> Yazı {
-    ata l = [ad, ad]
+    değişken l = [ad, ad]
     eğer n % 2 == 0 { döndür l[0] }
     l içindeki her s için yap {
         eğer s.uzunluk() > 3 { döndür "uzun" }
@@ -16,12 +16,12 @@ fonksiyon erken(n: Tam(64), ad: Yazı) -> Yazı {
     döndür ad + "!"
 }
 fonksiyon derin(n: Tam(64), y: Yazı) -> Tam(64) {
-    ata s = y + "."
+    değişken s = y + "."
     eğer n == 0 { döndür [1, 2][s.uzunluk()] }
     döndür derin(n - 1, s)
 }
 fonksiyon iç_dene(n: Tam(64)) -> Yazı {
-    ata d = {"a": [n]}
+    değişken d = {"a": [n]}
     dene {
         döndür erken(n, "x") + derin(n, "").yazıya()
     } yakala h: Hata.İndeks {
@@ -29,8 +29,8 @@ fonksiyon iç_dene(n: Tam(64)) -> Yazı {
         fırlat f"iç {n} {d.uzunluk()}"
     }
 }
-ata y = Yığın(["a", "b", "c"])
-ata toplam = 0
+değişken y = Yığın(["a", "b", "c"])
+değişken toplam = 0
 1000 kere yap {
     dene {
         toplam += erken(toplam, "abcd").uzunluk()
@@ -41,7 +41,7 @@ ata toplam = 0
     }
     dene {
         y.öğeler.ekle(y.çek())
-        ata f = her x: Tam(64) için derin(x, "")
+        değişken f = her x: Tam(64) için derin(x, "")
         toplam += f(1)
     } yakala h {
         toplam += 1

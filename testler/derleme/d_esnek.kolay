@@ -1,15 +1,15 @@
-ata a: Tam = 1
+değişken a: Tam = 1
 100 kere yap { a = a * 2 }
 yazdır(a)
-ata b: Tam = a / 3
+değişken b: Tam = a / 3
 yazdır(b, a % 1000007, -a, a - a, a + 1 > a)
-ata f: Tam = 1
-(ata i = 1; i <= 30; i += 1) sürece yap { f *= i }
+değişken f: Tam = 1
+(değişken i = 1; i <= 30; i += 1) sürece yap { f *= i }
 yazdır(f)
-ata k: Tam = 4611686018427387903
+değişken k: Tam = 4611686018427387903
 k += 1
 yazdır(k, k - 1)
-ata n: Tam = -4611686018427387904
+değişken n: Tam = -4611686018427387904
 n -= 1
 yazdır(n)
 yazdır(f olarak Ondalık, (2.5 olarak Tam))

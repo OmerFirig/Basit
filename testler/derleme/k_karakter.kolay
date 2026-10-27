@@ -1,4 +1,4 @@
-ata s = "aç".tekrar(13) + "ğxyz"
-ata t = ""
+değişken s = "aç".tekrar(13) + "ğxyz"
+değişken t = ""
 0..s.uzunluk() içindeki her i için yap { t += s.karakter(i) }
 yazdır(t == s, s.uzunluk(), s.karakter(-1), s.karakter(26), s.karakter(-5))

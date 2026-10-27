@@ -1,2 +1,2 @@
 ÇALIŞMA HATASI (26_sifira_bolme.kolay, satır 1): Sıfıra bölme hatası.
-  1 | ata x = 10 / 0
+  1 | değişken x = 10 / 0

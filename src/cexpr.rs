@@ -287,7 +287,7 @@ impl Checker {
         if self.cx.func.is_some() && self.mods[self.cx.module].globals.contains_key(name) {
             return Diag::new(
                 span,
-                format!("'{name}' bu fonksiyondan sonra tanımlanıyor. Fonksiyonlar sadece kendilerinden önce tanımlanan değişkenleri görebilir; 'ata {name}' satırını fonksiyonun üstüne taşıyın."),
+                format!("'{name}' bu fonksiyondan sonra tanımlanıyor. Fonksiyonlar sadece kendilerinden önce tanımlanan değişkenleri görebilir; '{name}' tanımını fonksiyonun üstüne taşıyın."),
             );
         }
         match closest(name, self.visible_names().iter()) {
@@ -468,7 +468,8 @@ impl Checker {
         }
         if let ExprKind::Lambda { generics, .. } = &e.kind {
             if !generics.is_empty() {
-                return err(span, "Generic lambda bir değişkene atanmalı ya da tipi belli bir fonksiyon bekleyen yere verilmeli: ata iki_kat = her<T> x: T için x * 2");
+                let s = self.kw_name(crate::lexer::Kw::Sabit);
+                return err(span, format!("Generic lambda bir değişkene atanmalı ya da tipi belli bir fonksiyon bekleyen yere verilmeli: {s} iki_kat = her<T> x: T için x * 2"));
             }
         }
         if let ExprKind::Ident(n) = &e.kind {
@@ -1061,7 +1062,8 @@ impl Checker {
             return Ok(self.mk(TK::List(vals), expected.unwrap().clone(), span));
         }
         if items.is_empty() {
-            return err(span, "Boş listenin tipi belli değil. Tipini yazın: ata liste: Liste<Tam> = []");
+            let d = self.kw_name(crate::lexer::Kw::Degisken);
+            return err(span, format!("Boş listenin tipi belli değil. Tipini yazın: {d} liste: Liste<Tam> = []"));
         }
         let mut typed = Vec::new();
         for it in items {
@@ -1130,7 +1132,8 @@ impl Checker {
             return Ok(self.mk(TK::Dict(vals), expected.unwrap().clone(), span));
         }
         if items.is_empty() {
-            return err(span, "Boş sözlüğün tipi belli değil. Tipini yazın: ata s: Sözlük<Yazı, Tam> = {}");
+            let d = self.kw_name(crate::lexer::Kw::Degisken);
+            return err(span, format!("Boş sözlüğün tipi belli değil. Tipini yazın: {d} s: Sözlük<Yazı, Tam> = {{}}"));
         }
         let mut ks = Vec::new();
         let mut vs = Vec::new();

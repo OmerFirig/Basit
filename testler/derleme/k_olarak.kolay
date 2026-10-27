@@ -1,5 +1,5 @@
-ata a = 300
+değişken a = 300
 yazdır(a olarak Tam(16))
 yazdır(3.99 olarak Tam(64), -3.99 olarak Tam(8))
-ata z = 0.0
+değişken z = 0.0
 yazdır((1.0 / z) olarak Tam(32))

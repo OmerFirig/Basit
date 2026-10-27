@@ -1,0 +1,3 @@
+HATA (136_sabit_tipsiz.kolay, satır 1): 'y' için bir tip ya da değer yazılmalı. Örnek: sabit y: Tam  ya da  sabit y = 0
+  1 | sabit y
+    |       ^

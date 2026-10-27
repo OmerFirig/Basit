@@ -1,12 +1,12 @@
 // Örnek: bir kütüphaneyi kullanmak (istatistik.kolay aynı klasörde)
 ist adıyla dahil et("./istatistik.kolay")
 
-ata notlar = [70.0, 85.5, 92.0, 85.5, 60.0]
-ata r = ist.Rapor("Sınıf notları")
+değişken notlar = [70.0, 85.5, 92.0, 85.5, 60.0]
+değişken r = ist.Rapor("Sınıf notları")
 r.başla()
 r.yaz("Ortalama", ist.ortalama(notlar))
 r.yaz("Ortanca", ist.ortanca(notlar))
-ata puanlar = [3, 5, 5, 4, 5, 2]
+değişken puanlar = [3, 5, 5, 4, 5, 2]
 r.yaz("En sık puan", ist.en_sık(puanlar) olarak Ondalık)
 yazdır(f"{ist.Rapor.yazılan} satır yazıldı")
 yazdır(ist.en_sık(["elma", "armut", "elma"]))

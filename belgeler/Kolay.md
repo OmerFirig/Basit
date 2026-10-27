@@ -2,7 +2,7 @@
 
 Kolay, Türkçe yazılan, tip güvenli ve hızlı bir programlama dilidir. Bu kurs hiç programlama bilmeyen birini adım adım ilk programından nesnelere, kendi veri tiplerine, hataları yakalamaya ve C kütüphanelerini kullanmaya kadar götürür.
 
-> Bu kurs **Kolay 0.7.0** içindir. Hangi sürümün kurulu olduğunu etkileşimli kipi açarak (`kolay`) görebilirsiniz.
+> Bu kurs **Kolay 0.8.0** içindir. Hangi sürümün kurulu olduğunu etkileşimli kipi açarak (`kolay`) görebilirsiniz.
 
 Kursun amacı yalnızca Kolay'ı öğretmek değil, **programlamanın temel mantığını** oturtmaktır: değişken, tip, koşul, döngü, fonksiyon, liste, nesne. Bu kavramlar bütün dillerde aynıdır. Kolay'da öğrendiğiniz her şeyin Python karşılığını kursun sonunda bulacaksınız. Kolay'ı bitiren biri Python'a birkaç günde geçebilir.
 
@@ -114,7 +114,7 @@ Kolay'ın VS Code eklentisi yazmayı kolaylaştırır:
 Kurmak için Kolay'ın kaynak klasöründe:
 
 ```
-code --install-extension editor/vscode/kolay-0.7.0.vsix
+code --install-extension editor/vscode/kolay-0.8.0.vsix
 ```
 
 Eklenti `kolay` komutunu kullanır; komut başka bir yerdeyse VS Code ayarlarında `kolay.yol` ile yolunu yazabilirsiniz.
@@ -270,7 +270,7 @@ Bir şeyi denemek için her seferinde dosya yazıp çalıştırmak zorunda deği
 
 ```
 $ kolay
-Kolay 0.7.0 — yardım için :yardım, çıkmak için :çık
+Kolay 0.8.0 — yardım için :yardım, çıkmak için :çık
 
 Girdi [1]:
 ```
@@ -282,7 +282,7 @@ Etkileşimli kip; bir ifadenin sonucunu görmek, bir metodun ne yaptığını de
 Her yazdığınız şey bir **hücredir** ve bir numara alır. Bir **ifade** yazarsanız (değeri olan bir şey: `fiyat * 3`, `"abc".uzunluk()`) değeri `Çıktı [n]:` satırında, tipi de sağda soluk renkte gösterilir:
 
 ```
-Girdi [1]: ata fiyat = 120
+Girdi [1]: değişken fiyat = 120
 
 Girdi [2]: fiyat * 3
 Çıktı [2]: 360                        Tam(64)
@@ -291,7 +291,7 @@ Girdi [3]: f"Toplam: {fiyat * 3} TL"
 Çıktı [3]: "Toplam: 360 TL"           Yazı
 ```
 
-- `ata fiyat = 120` bir komuttur, değeri yoktur; bu yüzden çıktı satırı yazılmaz.
+- `değişken fiyat = 120` bir komuttur, değeri yoktur; bu yüzden çıktı satırı yazılmaz.
 - Çıktıdaki yazılar tırnak içinde gösterilir (`"Toplam: 360 TL"`), böylece yazı mı sayı mı olduğu belli olur. `yazdır` ise tırnaksız yazar.
 - Tanımladığınız değişkenler, fonksiyonlar ve türler oturum boyunca kalır: 2. hücre 1. hücredeki `fiyat`'ı kullandı.
 
@@ -315,7 +315,7 @@ Açık kalan parantez `(`, köşeli parantez `[`, yazı `"` ve çok satırlı yo
 Hatalar tek satırda, `Hata [n]:` ile gösterilir. **Hatalı bir girdi oturuma eklenmez**: yanlış yazdığınız bir satır, sonraki girdileri bozmaz. Kolay, çalışma hatalarında da oturumu kapatmaz:
 
 ```
-Girdi [6]: ata yaş: Tam(8) = 300
+Girdi [6]: değişken yaş: Tam(8) = 300
 Hata [6]: 300, Tam(8) sınırlarını aşıyor (-128 .. 127).
 
 Girdi [7]: fiyt + 1
@@ -360,7 +360,7 @@ Girdi [11]: :tip kdv
 
 ```
 Girdi [12]: :geçmiş
-[1] ata fiyat = 120
+[1] değişken fiyat = 120
 [2] fiyat * 3
 [3] f"Toplam: {fiyat * 3} TL"
 [4] fonksiyon kdv(x: Tam(64)) -> Tam(64) {
@@ -390,17 +390,17 @@ Sonsuz döngüye giren bir deneme yaparsanız (`doğru sürece yap { }`) Ctrl+C 
 
 ### Alıştırma
 
-Etkileşimli kipi açın ve şunları deneyin: `7 / 2`, `7.0 / 2`, `"istanbul".büyük_harf()`, `:tip 3 < 5`. Sonra `ata x = 10` yazıp `x = "on"` yazmayı deneyin: hata mesajını okuyun. Son olarak `:kaydet denemelerim.kolay` ile girdilerinizi kaydedip `kolay denemelerim.kolay` ile çalıştırın.
+Etkileşimli kipi açın ve şunları deneyin: `7 / 2`, `7.0 / 2`, `"istanbul".büyük_harf()`, `:tip 3 < 5`. Sonra `değişken x = 10` yazıp `x = "on"` yazmayı deneyin: hata mesajını okuyun. Son olarak `:kaydet denemelerim.kolay` ile girdilerinizi kaydedip `kolay denemelerim.kolay` ile çalıştırın.
 
 ---
 
 ## 4. Değişkenler
 
-Değişken, bir değere verilen isimdir. Değeri bir kutuya koyup kutunun üstüne etiket yapıştırmak gibi düşünebilirsiniz. Yeni bir değişken `ata` ile tanımlanır:
+Değişken, bir değere verilen isimdir. Değeri bir kutuya koyup kutunun üstüne etiket yapıştırmak gibi düşünebilirsiniz. Yeni bir değişken `değişken` kelimesiyle tanımlanır:
 
 ```kolay
-ata ad = "Ayşe"
-ata yaş = 21
+değişken ad = "Ayşe"
+değişken yaş = 21
 yazdır(f"{ad} {yaş} yaşında")
 ```
 
@@ -410,10 +410,10 @@ Ayşe 21 yaşında
 
 ### Değeri değiştirmek
 
-Değişken bir kez tanımlandıktan sonra `ata` yazmadan yeni değer verilebilir:
+Değişken bir kez tanımlandıktan sonra `değişken` yazmadan yeni değer verilebilir:
 
 ```kolay
-ata puan = 10
+değişken puan = 10
 yazdır(puan)
 puan = 25
 yazdır(puan)
@@ -446,7 +446,7 @@ Bit işlemlerinin de kısaltmaları vardır (`&=`, `|=`, `^=`, `<<=`, `>>=`); on
 - İsimler harf ya da `_` ile başlar; harf, rakam ve `_` içerebilir: `ad`, `toplam_puan`, `öğrenci2`.
 - Türkçe harfler serbesttir: `ağırlık`, `şehir`, `çiçek_sayısı`.
 - Boşluk olamaz: `toplam puan` yerine `toplam_puan` yazın.
-- `ata`, `eğer`, `yap` gibi dilin kendi kelimeleri isim olarak kullanılamaz.
+- `değişken`, `sabit`, `eğer`, `yap` gibi dilin kendi kelimeleri isim olarak kullanılamaz.
 - Büyük-küçük harf farklıdır: `ad` ile `Ad` ayrı isimlerdir. Değişkenler genelde küçük harfle başlar, tipler büyük harfle (`Yazı`, `Tam`).
 
 ### Tipler
@@ -463,16 +463,16 @@ Her değerin bir **tipi** vardır. Tip, değerin ne çeşit bir şey olduğunu s
 Tipi yazmanız gerekmez, Kolay değere bakıp anlar (buna **tip çıkarımı** denir). İsterseniz iki noktadan sonra açıkça yazabilirsiniz:
 
 ```kolay
-ata ad: Yazı = "Can"
-ata boy: Ondalık = 1.78
-ata öğrenci_mi: Mantık = doğru
+değişken ad: Yazı = "Can"
+değişken boy: Ondalık = 1.78
+değişken öğrenci_mi: Mantık = doğru
 yazdır(ad, boy, öğrenci_mi)
 ```
 
 Tip, değişkenin sözüdür: bir kez `Yazı` olan değişkene sayı konamaz.
 
 ```kolay
-ata yaş = 21
+değişken yaş = 21
 yaş = "yirmi bir"     // ✗ HATA
 ```
 
@@ -487,7 +487,7 @@ Bu kural sayesinde "burada sayı vardı, nasıl yazı oldu?" türü hatalar prog
 Bir değişkenin tipini gerçekten değiştirmek istiyorsanız yeni tipi açıkça yazarsınız. Bu, aynı isimde yeni bir değişken oluşturur:
 
 ```kolay
-ata ölçü = "on dört harf!!"
+değişken ölçü = "on dört harf!!"
 ölçü: Tam(64) = ölçü.uzunluk()   // artık Tam(64)
 yazdır(ölçü + 1)
 ```
@@ -496,43 +496,43 @@ yazdır(ölçü + 1)
 15
 ```
 
-`ölçü: Tam(64) = ...` ile `ata ölçü: Tam(64) = ...` aynı anlama gelir. `ata` yazmadan yapılan bu yazım yalnızca **zaten var olan** bir değişken için geçerlidir; böylece yazım hatası yapılmış bir isim sessizce yeni bir değişken olmaz:
+`ölçü: Tam(64) = ...` ile `değişken ölçü: Tam(64) = ...` aynı anlama gelir. `değişken` yazmadan yapılan bu yazım yalnızca **zaten var olan** bir değişken için geçerlidir; böylece yazım hatası yapılmış bir isim sessizce yeni bir değişken olmaz:
 
 ```kolay
-ata sayaç = 0
+değişken sayaç = 0
 saycç: Tam = 5    // ✗ HATA
 ```
 
 ```
-HATA (deneme.kolay, satır 2): 'saycç' tanımlı değil. Yeni değişken için 'ata saycç: Tam = ...' yazın.
+HATA (deneme.kolay, satır 2): 'saycç' tanımlı değil. Yeni değişken için 'değişken saycç: Tam = ...' yazın.
   2 | saycç: Tam = 5    // ✗ HATA
     | ^^^^^
 ```
 
 ### Sabitler: değişmeyen değerler
 
-`ata sabit` ile tanımlanan bir değer bir daha değiştirilemez:
+Değeri hiç değişmeyecek bir şey `değişken` yerine `sabit` ile tanımlanır. Sabitin değeri bir daha değiştirilemez:
 
 ```kolay
-ata sabit pi = 3.14159
-ata sabit okul = "Atatürk Lisesi"
+sabit pi = 3.14159
+sabit okul = "Atatürk Lisesi"
 yazdır(pi * 2)
 ```
 
 Sabiti değiştirmeye çalışmak hata verir:
 
 ```kolay
-ata sabit pi = 3.14159
+sabit pi = 3.14159
 pi = 3.0      // ✗ HATA: 'pi' sabit ve zaten bir değer atandı; değeri değiştirilemez.
 ```
 
-Değişmeyecek her şeyi sabit yapmak iyi bir alışkanlıktır: okuyan kişi o değerin hiç değişmediğini hemen anlar.
+Her tanımda bir seçim yaparsınız: değeri değişecekse `değişken`, değişmeyecekse `sabit`. Değişmeyecek her şeyi sabit yapmak iyi bir alışkanlıktır: okuyan kişi o değerin hiç değişmediğini hemen anlar.
 
 Sabitin değeri sonradan da verilebilir, ama **yalnızca bir kez**:
 
 ```kolay
-ata saat = 15
-ata sabit mesaj: Yazı
+değişken saat = 15
+sabit mesaj: Yazı
 eğer saat < 12 {
     mesaj = "Günaydın"
 } değilse {
@@ -546,7 +546,7 @@ yazdır(mesaj)
 Değişken değersiz tanımlanabilir, ama değer verilmeden kullanılamaz:
 
 ```kolay
-ata x: Tam
+değişken x: Tam
 yazdır(x)     // ✗ HATA: 'x' henüz belirsiz. Kullanmadan önce bir değer atayın.
 ```
 
@@ -558,7 +558,7 @@ Birçok dilde bu durumda program rastgele bir değerle ya da "undefined" ile ça
 2. `para = 100` ile başlayın. Önce 30 harcayın (`-=`), sonra paranızı ikiye katlayın (`*=`), sonucu yazdırın.
 3. Aşağıdaki program neden hata verir? Düzeltin.
    ```
-   ata sabit vergi = 18
+   sabit vergi = 18
    vergi = 20
    ```
 
@@ -567,18 +567,18 @@ Birçok dilde bu durumda program rastgele bir değerle ya da "undefined" ile ça
 
 ```kolay
 // 1
-ata genişlik = 8
-ata yükseklik = 5
+değişken genişlik = 8
+değişken yükseklik = 5
 yazdır(f"Alan: {genişlik * yükseklik}, Çevre: {2 * (genişlik + yükseklik)}")
 
 // 2
-ata para = 100
+değişken para = 100
 para -= 30
 para *= 2
 yazdır(para)   // 140
 ```
 
-3: `vergi` sabit tanımlandığı için değiştirilemez. Değişecekse `ata vergi = 18` yazılmalı.
+3: `vergi` sabit tanımlandığı için değiştirilemez. Değişecekse `değişken vergi = 18` yazılmalı.
 
 </details>
 
@@ -593,8 +593,8 @@ Tipi yazmazsanız tam sayılar `Tam(64)` olur: 64 bitlik, yaklaşık ±9 milyon 
 Dört işlem ve kalan:
 
 ```kolay
-ata a = 17
-ata b = 5
+değişken a = 17
+değişken b = 5
 yazdır(a + b)   // 22
 yazdır(a - b)   // 12
 yazdır(a * b)   // 85
@@ -619,8 +619,8 @@ yazdır(-7 / 2, -7 % 2, 7 / -2, 7 % -2)
 Uzun sayılar okunabilsin diye `_` ile ayrılabilir, onaltılık (hex) sayılar `0x` ile yazılır:
 
 ```kolay
-ata nüfus = 85_000_000
-ata renk = 0xFF8800
+değişken nüfus = 85_000_000
+değişken renk = 0xFF8800
 yazdır(nüfus, renk)
 ```
 
@@ -633,7 +633,7 @@ yazdır(nüfus, renk)
 Bir tam sayıyı sıfıra bölmek matematikte tanımsızdır. Kolay bu durumda programı Türkçe bir mesajla durdurur:
 
 ```kolay
-ata bölen = 0
+değişken bölen = 0
 yazdır(10 / bölen)    // ✗ ÇALIŞMA HATASI: Sıfıra bölme hatası.
 ```
 
@@ -652,13 +652,13 @@ Bilgisayarda her sayı belli bir yer kaplar. Parantez içindeki sayı, değerin 
 Sığmayan bir değer verirseniz program çalışmadan hata alırsınız:
 
 ```kolay
-ata x: Tam(8) = 300    // ✗ HATA: 300, Tam(8) sınırlarını aşıyor (-128 .. 127).
+değişken x: Tam(8) = 300    // ✗ HATA: 300, Tam(8) sınırlarını aşıyor (-128 .. 127).
 ```
 
 İşlem sırasında sınır aşılırsa (**taşma**) program durur. Birçok dil bu durumda sessizce yanlış bir sayıyla devam eder; Kolay etmez:
 
 ```kolay
-ata b: Tam(8) = 120
+değişken b: Tam(8) = 120
 b = b + 10    // ✗ ÇALIŞMA HATASI: Tam(8) taştı. 120 + 10 = 130, ama Tam(8) en fazla 127 tutabilir.
 ```
 
@@ -669,9 +669,9 @@ Neden küçük tip kullanılsın? Bellek ve hız: bir milyon elemanlı `Tam(8)` 
 Boyutun yanına `+` yazılırsa sayı sadece pozitif olabilir, aralık da iki katına çıkar:
 
 ```kolay
-ata yaş: Tam(8, +) = 200       // 0 .. 255
-ata sıcaklık: Tam(8) = -20     // -128 .. 127
-ata borç: Tam(8, -) = -200     // -255 .. 0
+değişken yaş: Tam(8, +) = 200       // 0 .. 255
+değişken sıcaklık: Tam(8) = -20     // -128 .. 127
+değişken borç: Tam(8, -) = -200     // -255 .. 0
 yazdır(yaş, sıcaklık, borç)
 ```
 
@@ -682,11 +682,11 @@ Yaş, adet, sıra numarası gibi negatif olamayacak değerlerde `+` kullanmak ha
 Parantezsiz `Tam` yazarsanız sayı **esnek** olur: gerektikçe büyür, hiç taşmaz:
 
 ```kolay
-ata büyük: Tam = 1
+değişken büyük: Tam = 1
 100 kere yap { büyük *= 2 }
 yazdır(f"2 üzeri 100 = {büyük}")
 
-ata faktöriyel: Tam = 1
+değişken faktöriyel: Tam = 1
 1..=30 içindeki her i için yap { faktöriyel *= i }
 yazdır(f"30! = {faktöriyel}")
 ```
@@ -698,16 +698,16 @@ yazdır(f"30! = {faktöriyel}")
 
 Esnek `Tam` biraz daha yavaştır; bu yüzden varsayılan `Tam(64)`'tür.
 
-> **Dikkat: `Tam` ile `Tam(64)` farklı tiplerdir.** Tip yazmazsanız sayı `Tam(64)` olur (`ata toplam = 0`). `Tam(64)` değer esnek `Tam` değişkene otomatik geçer, ama tersi geçmez, çünkü esnek sayı 64 bite sığmayabilir. Esnek `Tam` değerleri toplayacağınız bir değişkeni `ata toplam: Tam = 0` diye tanımlayın. Aralık sınırları (`0..n`) `Tam(64)` olmalıdır.
+> **Dikkat: `Tam` ile `Tam(64)` farklı tiplerdir.** Tip yazmazsanız sayı `Tam(64)` olur (`değişken toplam = 0`). `Tam(64)` değer esnek `Tam` değişkene otomatik geçer, ama tersi geçmez, çünkü esnek sayı 64 bite sığmayabilir. Esnek `Tam` değerleri toplayacağınız bir değişkeni `değişken toplam: Tam = 0` diye tanımlayın. Aralık sınırları (`0..n`) `Tam(64)` olmalıdır.
 
 ### Küçükten büyüğe, büyükten küçüğe
 
 Küçük tipten büyük tipe geçiş otomatiktir, çünkü veri kaybolmaz. Tersi açıkça yazılmalıdır:
 
 ```kolay
-ata küçük: Tam(8) = 5
-ata büyük: Tam(64) = küçük          // ✓ otomatik
-ata geri: Tam(8) = büyük olarak Tam(8)   // ✓ "bilerek çeviriyorum"
+değişken küçük: Tam(8) = 5
+değişken büyük: Tam(64) = küçük          // ✓ otomatik
+değişken geri: Tam(8) = büyük olarak Tam(8)   // ✓ "bilerek çeviriyorum"
 yazdır(geri)
 ```
 
@@ -718,8 +718,8 @@ yazdır(geri)
 Noktalı sayılar `Ondalık` tipindedir. Türkçede virgül kullansak da programlamada ondalık ayırıcı **noktadır**:
 
 ```kolay
-ata pi = 3.14159
-ata r = 2.5
+değişken pi = 3.14159
+değişken r = 2.5
 yazdır(pi * r * r)
 yazdır(7.0 / 2)     // 3.5
 yazdır(2 * 1.5)     // 3.0: Tam ile Ondalık birlikte kullanılınca sonuç Ondalık
@@ -743,7 +743,7 @@ Ondalık tipin de boyutları vardır: `Ondalık(16)`, `Ondalık(32)`, `Ondalık(
 
 ```kolay
 yazdır(1.5e-7, 2E3)               // 1.5e-07 2000.0   (1,5 × 10⁻⁷ ve 2 × 10³)
-ata ışık_hızı = 3e8
+değişken ışık_hızı = 3e8
 yazdır(f"{ışık_hızı:,.0} m/sn")   // 300.000.000 m/sn
 ```
 
@@ -758,7 +758,7 @@ yazdır(0.0001, 0.00001, 6.022e23, 123.5)    // 0.0001 1e-05 6.022e+23 123.5
 Ondalık bir sayıyı sıfıra bölmek programı durdurmaz, sonuç `TanımsızSayı` olur:
 
 ```kolay
-ata sonuç = 1.0 / 0.0
+değişken sonuç = 1.0 / 0.0
 yazdır(sonuç)
 ```
 
@@ -794,10 +794,10 @@ yazdır(-2 ** 2, (-2) ** 2, 2 ** 3 ** 2)
 - Tam sayılarda sonuç tam sayıdır ve taşma kontrol edilir: `2 ** 63`, `Tam(64)`'e sığmaz.
 - Tam sayının üssü negatif olamaz (`2 ** -1` hata verir, çünkü sonuç tam sayı değildir). Ondalık sonuç için `2.0 ** -1` yazın.
 - Matematikteki gibi `-2 ** 2`, `-(2 ** 2)` yani `-4`'tür; üs sağdan sola hesaplanır: `2 ** 3 ** 2` = `2 ** 9`.
-- Esnek `Tam` ile büyük kuvvetler de hesaplanabilir: `ata k: Tam = 3` için `k ** 100`.
+- Esnek `Tam` ile büyük kuvvetler de hesaplanabilir: `değişken k: Tam = 3` için `k ** 100`.
 
 ```kolay
-ata k: Tam = 3
+değişken k: Tam = 3
 yazdır(k ** 50)
 yazdır(2 ** 63)    // ✗ ÇALIŞMA HATASI
 ```
@@ -822,13 +822,13 @@ Bilgisayar sayıları ikilik (0 ve 1) olarak tutar. Bit işlemleri sayının bit
 | `a >> n` | sağa kaydır (2ⁿ'e bölmek gibi, aşağı yuvarlar) | `-5 >> 1` | `-3` |
 
 ```kolay
-ata renk = 0xFF8800
-ata kırmızı = (renk >> 16) & 0xFF
-ata yeşil = (renk >> 8) & 0xFF
-ata mavi = renk & 0xFF
+değişken renk = 0xFF8800
+değişken kırmızı = (renk >> 16) & 0xFF
+değişken yeşil = (renk >> 8) & 0xFF
+değişken mavi = renk & 0xFF
 yazdır(kırmızı, yeşil, mavi)
 
-ata bayraklar = 0
+değişken bayraklar = 0
 bayraklar |= 1 << 2      // 2. biti aç
 bayraklar |= 1 << 0      // 0. biti aç
 yazdır(bayraklar, bayraklar & (1 << 2) != 0, bayraklar & (1 << 1) != 0)
@@ -847,7 +847,7 @@ yazdır(bayraklar, bayraklar & (1 << 2) != 0, bayraklar & (1 << 1) != 0)
 > **Dikkat:** Birçok kişi üs için `^` yazar. Kolay'da (ve Python, C, Java'da) `^` üs değil, **xor**'dur. Kolay, `x ^ 2` gibi üs sanılabilecek bir yazımda uyarır:
 
 ```kolay
-ata x = 5
+değişken x = 5
 yazdır(x ^ 2)
 ```
 
@@ -871,26 +871,26 @@ Uyarı (deneme.kolay, satır 2): '^' özel veya (xor) işlemidir; üs için '**'
 
 ```kolay
 // 1
-ata toplam = 1234
+değişken toplam = 1234
 yazdır(f"{toplam / 60} dakika {toplam % 60} saniye")   // 20 dakika 34 saniye
 
 // 2
-ata sayı = 17
+değişken sayı = 17
 yazdır(sayı % 2 == 0)   // yanlış: tek sayı
 
 // 3
-ata k: Tam = 1
+değişken k: Tam = 1
 200 kere yap { k *= 2 }
 yazdır(k)
-ata iki: Tam = 2
+değişken iki: Tam = 2
 yazdır(iki ** 200)   // aynı sayı
 
 // 4
-ata c = 36.6
+değişken c = 36.6
 yazdır(c * 9 / 5 + 32)   // 97.88
 
 // 5
-ata n = 64
+değişken n = 64
 yazdır(n & (n - 1) == 0)   // doğru
 n = 96
 yazdır(n & (n - 1) == 0)   // yanlış
@@ -905,21 +905,21 @@ yazdır(n & (n - 1) == 0)   // yanlış
 `Yazı` tipi metin tutar. Yazılar `+` ile birleştirilir:
 
 ```kolay
-ata ad = "Ada"
-ata soyad = "Lovelace"
-ata tam_ad = ad + " " + soyad
+değişken ad = "Ada"
+değişken soyad = "Lovelace"
+değişken tam_ad = ad + " " + soyad
 yazdır(tam_ad)
 ```
 
 Yazıyla sayı `+` ile toplanamaz. Kolay bunun yerine f-yazı önerir:
 
 ```kolay
-ata yaş = 36
+değişken yaş = 36
 yazdır("Yaş: " + yaş)    // ✗ HATA: Yazı ile Tam(64) toplanamaz. f-yazı kullanın
 ```
 
 ```kolay
-ata yaş = 36
+değişken yaş = 36
 yazdır(f"Yaş: {yaş}")    // ✓
 ```
 
@@ -928,7 +928,7 @@ yazdır(f"Yaş: {yaş}")    // ✓
 Metot, bir değere ait fonksiyondur: değerin arkasına nokta konup yazılır.
 
 ```kolay
-ata s = "Merhaba Dünya"
+değişken s = "Merhaba Dünya"
 yazdır(s.uzunluk())          // 13: karakter sayısı
 yazdır(s.büyük_harf())       // MERHABA DÜNYA
 yazdır(s.küçük_harf())       // merhaba dünya
@@ -942,7 +942,7 @@ yazdır(s.tersi())            // aynüD abahreM: tersten
 Yazının içinde aramak ve değiştirmek için:
 
 ```kolay
-ata cümle = "Ali topu at, Ali koş"
+değişken cümle = "Ali topu at, Ali koş"
 yazdır(cümle.değiştir("Ali", "Ayşe"))        // Ayşe topu at, Ayşe koş
 yazdır(cümle.başlar("Ali"), cümle.biter("koş")) // doğru doğru
 yazdır(cümle.bul("topu"), cümle.bul("kedi")) // 4 Hiç: kaçıncı karakterde başlıyor, yoksa Hiç
@@ -979,7 +979,7 @@ Yazılar **değişmez**: bu metotların hiçbiri yazının kendisini değiştirm
 Köşeli parantez içine bir aralık yazılırsa yazının o parçası alınır. Sayılar **karakter** sırasıdır ve 0'dan başlar:
 
 ```kolay
-ata s = "merhaba"
+değişken s = "merhaba"
 yazdır(s[0..3])      // 0, 1, 2. karakterler
 yazdır(s[3..])       // 3. karakterden sona kadar
 yazdır(s[..-1])      // sonuncusu hariç hepsi
@@ -1000,7 +1000,7 @@ abahrem
 Dilimin kuralları listelerdekiyle aynıdır, ayrıntıları [Listeler](#12-listeler) bölümünde. Tek bir karakter için de köşeli parantez kullanılabilir; `s[i]` ile `s.karakter(i)` aynıdır:
 
 ```kolay
-ata s = "çiçek"
+değişken s = "çiçek"
 yazdır(s[0], s[-1], s.karakter(1))    // ç k i
 ```
 
@@ -1073,7 +1073,7 @@ Yazılar `==`, `!=`, `<`, `>` ile karşılaştırılır. Sıralama Türk alfabes
 
 ```kolay
 yazdır("çam" < "dam")     // doğru
-ata isimler = ["Zeynep", "Çağla", "Can", "İrem", "Ilgaz", "Ömer", "Oya"]
+değişken isimler = ["Zeynep", "Çağla", "Can", "İrem", "Ilgaz", "Ömer", "Oya"]
 isimler.sırala()
 yazdır(isimler)
 ```
@@ -1088,7 +1088,7 @@ doğru
 f-yazıda değerden sonra `:` koyup bir **biçim** yazarak değerin nasıl görüneceğini seçebilirsiniz:
 
 ```kolay
-ata pi = 3.14159
+değişken pi = 3.14159
 yazdır(f"{pi:.2}")                // 3.14: virgülden sonra 2 basamak
 yazdır(f"[{"Ali":<8}]")            // [Ali     ]: 8 karakterlik yere sola yasla
 yazdır(f"[{"Ali":>8}]")            // [     Ali]: sağa yasla
@@ -1111,8 +1111,8 @@ yazdır(f"{1234567.891:,.2}")      // 1.234.567,89: Türk usulü
 Biçimler birlikte yazılabilir: `{fiyat:>10.2}` hem 10 karaktere sağa yaslar hem 2 basamak gösterir. Bu, sütunları hizalı tablolar yazmayı kolaylaştırır:
 
 ```kolay
-ata ürünler = ["Ekmek", "Süt", "Peynir"]
-ata fiyatlar = [12.5, 32.0, 189.75]
+değişken ürünler = ["Ekmek", "Süt", "Peynir"]
+değişken fiyatlar = [12.5, 32.0, 189.75]
 yazdır(f"{"Ürün":<10}{"Fiyat":>10}")
 yazdır("-".tekrar(20))
 0..3 içindeki her i için yap {
@@ -1147,15 +1147,15 @@ Toplam        234.25
 
 ```kolay
 // 1
-ata ş = "ankara".büyük_harf()
+değişken ş = "ankara".büyük_harf()
 yazdır(ş, ş.uzunluk())
 
 // 2
-ata meyveler = "elma,armut,kiraz".böl(",")
+değişken meyveler = "elma,armut,kiraz".böl(",")
 yazdır(meyveler.uzunluk())
 
 // 3
-ata sayaç = 0
+değişken sayaç = 0
 "Ankara Karabük" içindeki her h için yap {
     eğer h == "a" { sayaç += 1 }
 }
@@ -1190,8 +1190,8 @@ Dikkat: `=` atamadır ("kutuya koy"), `==` karşılaştırmadır ("eşit mi?").
 | `değil a` | doğruyu yanlış, yanlışı doğru yapar |
 
 ```kolay
-ata yaş = 20
-ata ehliyet = doğru
+değişken yaş = 20
+değişken ehliyet = doğru
 yazdır(yaş >= 18 ve ehliyet)       // doğru: araba kullanabilir
 yazdır(yaş < 13 veya yaş > 65)     // yanlış: indirim yok
 yazdır(değil ehliyet)              // yanlış
@@ -1207,7 +1207,7 @@ Bir yılın artık yıl olup olmadığını hesaplayan ifadeyi yazın. Kural: 4'
 <summary>Çözüm</summary>
 
 ```kolay
-ata yıl = 1900
+değişken yıl = 1900
 yazdır(yıl % 4 == 0 ve (yıl % 100 != 0 veya yıl % 400 == 0))   // yanlış
 ```
 
@@ -1220,7 +1220,7 @@ yazdır(yıl % 4 == 0 ve (yıl % 100 != 0 veya yıl % 400 == 0))   // yanlış
 Program bazen bir şeyi ancak bir koşul sağlanırsa yapmalıdır:
 
 ```kolay
-ata sıcaklık = 32
+değişken sıcaklık = 32
 eğer sıcaklık > 30 {
     yazdır("Çok sıcak, su için!")
 }
@@ -1231,7 +1231,7 @@ Süslü parantez `{ }` içindeki satırlara **blok** denir. Blok yalnızca koşu
 ### değilse
 
 ```kolay
-ata not = 45
+değişken not = 45
 eğer not >= 50 {
     yazdır("Geçti")
 } değilse {
@@ -1242,7 +1242,7 @@ eğer not >= 50 {
 ### değilse eğer: birden fazla durum
 
 ```kolay
-ata puan = 78
+değişken puan = 78
 eğer puan >= 85 {
     yazdır("Pekiyi")
 } değilse eğer puan >= 70 {
@@ -1259,7 +1259,7 @@ Koşullar yukarıdan aşağıya denenir; **ilk doğru olanın** bloğu çalış�
 Koşulu paranteze almak serbesttir: `eğer (puan > 50) { }` de geçerlidir. Kısa bloklar tek satırda da yazılabilir:
 
 ```kolay
-ata x = -3
+değişken x = -3
 eğer x < 0 { x = -x }
 yazdır(x)
 ```
@@ -1267,8 +1267,8 @@ yazdır(x)
 ### İç içe koşullar
 
 ```kolay
-ata yaş = 16
-ata veli_izni = doğru
+değişken yaş = 16
+değişken veli_izni = doğru
 eğer yaş >= 18 {
     yazdır("Girebilirsiniz")
 } değilse {
@@ -1291,22 +1291,22 @@ eğer yaş >= 18 {
 
 ```kolay
 // 1
-ata s = -4
+değişken s = -4
 eğer s > 0 { yazdır("pozitif") } değilse eğer s < 0 { yazdır("negatif") } değilse { yazdır("sıfır") }
 
 // 2
-ata a = 7
-ata b = 12
-ata c = 9
-ata en_büyük = a
+değişken a = 7
+değişken b = 12
+değişken c = 9
+değişken en_büyük = a
 eğer b > en_büyük { en_büyük = b }
 eğer c > en_büyük { en_büyük = c }
 yazdır(en_büyük)
 
 // 3
-ata kilo = 70.0
-ata boy = 1.75
-ata vki = kilo / (boy * boy)
+değişken kilo = 70.0
+değişken boy = 1.75
+değişken vki = kilo / (boy * boy)
 eğer vki < 18.5 {
     yazdır("zayıf")
 } değilse eğer vki < 25.0 {
@@ -1327,7 +1327,7 @@ eğer vki < 18.5 {
 `oku` klavyeden bir satır okur. Parantez içine yazılan soru önce ekrana yazılır:
 
 ```kolay
-ata ad = oku("Adınız nedir? ")
+değişken ad = oku("Adınız nedir? ")
 yazdır(f"Merhaba {ad}!")
 ```
 
@@ -1340,7 +1340,7 @@ Merhaba Zeynep!
 
 ```kolay
 dene {
-    ata yaş = oku("Kaç yaşındasınız? ").tama()
+    değişken yaş = oku("Kaç yaşındasınız? ").tama()
     yazdır(f"10 yıl sonra {yaş + 10} yaşında olacaksınız.")
 } yakala h: Hata.Dönüşüm {
     yazdır("Yaşınızı rakamla yazmalısınız.")
@@ -1366,7 +1366,7 @@ Yaşınızı rakamla yazmalısınız.
 ```kolay
 doğru sürece yap {
     dene {
-        ata yaş = oku("Kaç yaşındasınız? ").tama()
+        değişken yaş = oku("Kaç yaşındasınız? ").tama()
         yazdır(f"Teşekkürler, {yaş} yaşındasınız.")
         dur
     } yakala h: Hata.Dönüşüm {
@@ -1393,8 +1393,8 @@ Kullanıcıdan iki sayı alıp toplamını, farkını, çarpımını ve bölüm�
 
 ```kolay
 dene {
-    ata a = oku("Birinci sayı: ").ondalığa()
-    ata b = oku("İkinci sayı: ").ondalığa()
+    değişken a = oku("Birinci sayı: ").ondalığa()
+    değişken b = oku("İkinci sayı: ").ondalığa()
     yazdır(f"{a} + {b} = {a + b}")
     yazdır(f"{a} - {b} = {a - b}")
     yazdır(f"{a} * {b} = {a * b}")
@@ -1458,7 +1458,7 @@ Merhaba
 Başlangıç bitişten büyükse aralık **geri sayar**. Bitiş yine `..` ile hariç, `..=` ile dahildir:
 
 ```kolay
-ata t = ""
+değişken t = ""
 5..0 içindeki her i için yap { t += f"{i} " }
 yazdır(t)
 t = ""
@@ -1490,7 +1490,7 @@ yazdır((0..10).adım(-3))
 `1..=5` aslında `[1, 2, 3, 4, 5]` listesidir. Bir değişkene konabilir, yazdırılabilir, listelerin bütün metotları kullanılabilir:
 
 ```kolay
-ata r = 1..=5
+değişken r = 1..=5
 yazdır(r, r.uzunluk(), r.içerir(3), r.toplam())
 r.ekle(6)
 yazdır(r)
@@ -1508,19 +1508,19 @@ yazdır((1..=10).filtre(her x için x % 3 == 0))
 Bir döngüde (`0..1000000 içindeki her i için yap`) liste aslında **oluşturulmaz**, sayılar teker teker sayılır; yani çok büyük aralıklarda bile döngü hızlıdır ve bellek harcamaz. Liste ancak aralık bir değer olarak kullanılınca (değişkene atanınca, yazdırılınca) oluşur. Bu yüzden çok büyük bir aralığı liste yapmak hata verir:
 
 ```kolay
-ata say = 0
+değişken say = 0
 0..9_000_000_000_000_000 içindeki her i için yap {
     say += 1
     eğer say == 3 { dur }
 }
 yazdır(say)
-ata çok = 0..9_000_000_000_000_000   // ✗ ÇALIŞMA HATASI
+değişken çok = 0..9_000_000_000_000_000   // ✗ ÇALIŞMA HATASI
 ```
 
 ```
 3
 ÇALIŞMA HATASI (deneme.kolay, satır 7): Aralık çok büyük (9.000.000.000.000.000 eleman), liste olarak oluşturulamaz. Döngüde doğrudan kullanın: a..b içindeki her i için yap { }
-  7 | ata çok = 0..9_000_000_000_000_000   // ✗ ÇALIŞMA HATASI
+  7 | değişken çok = 0..9_000_000_000_000_000   // ✗ ÇALIŞMA HATASI
 ```
 
 Aralığın iki ucu da yazılmalıdır: `5..` ya da `..5` gibi sonu açık yazım sadece listelerde ve yazılarda **dilim** için kullanılır (bkz. [Listeler](#12-listeler)). Sonsuz bir döngü için `doğru sürece yap` yazılır.
@@ -1528,7 +1528,7 @@ Aralığın iki ucu da yazılmalıdır: `5..` ya da `..5` gibi sonu açık yazı
 Aynı yazım listelerde ve yazılarda da çalışır:
 
 ```kolay
-ata meyveler = ["elma", "armut", "kiraz"]
+değişken meyveler = ["elma", "armut", "kiraz"]
 meyveler içindeki her meyve için yap {
     yazdır(f"{meyve} yemeyi severim")
 }
@@ -1539,8 +1539,8 @@ meyveler içindeki her meyve için yap {
 Koşul doğru olduğu sürece dönen döngü:
 
 ```kolay
-ata para = 100
-ata gün = 0
+değişken para = 100
+değişken gün = 0
 para > 0 sürece yap {
     para -= 15
     gün += 1
@@ -1579,12 +1579,12 @@ Koşul hiç yanlış olmazsa döngü sonsuza kadar döner. Bilerek sonsuz döng�
 C, Java ve JavaScript'ten tanıdık üç bölümlü döngü de var: başlangıç; koşul; her turdan sonra yapılacak iş.
 
 ```kolay
-(ata i = 10; i > 0; i -= 3) sürece yap {
+(değişken i = 10; i > 0; i -= 3) sürece yap {
     yazdır(i)      // 10, 7, 4, 1
 }
 ```
 
-- Parantez ve üç bölüm de zorunludur; başlangıç `ata` ile başlar.
+- Parantez ve üç bölüm de zorunludur; başlangıç `değişken` ile başlar (döngü değişkeni her turda değiştiği için `sabit` olamaz).
 - `i` yalnızca döngünün içinde geçerlidir, döngü bitince kaybolur.
 - `devam` yazılınca üçüncü bölüm (`i -= 3`) yine çalışır, sonra koşula bakılır.
 
@@ -1606,7 +1606,7 @@ HATA (deneme.kolay, satır 1): 'sürece' bir Mantık (doğru/yanlış) değeri b
 
 ```kolay
 1..=3 içindeki her satır için yap {
-    ata çizgi = ""
+    değişken çizgi = ""
     1..=satır içindeki her j için yap {
         çizgi = çizgi + "*"
     }
@@ -1646,7 +1646,7 @@ HATA (deneme.kolay, satır 1): 'sürece' bir Mantık (doğru/yanlış) değeri b
 
 ```kolay
 // 1
-ata toplam = 0
+değişken toplam = 0
 1..=100 içindeki her i için yap { toplam += i }
 yazdır(toplam)   // 5050
 
@@ -1664,8 +1664,8 @@ yazdır(toplam)   // 5050
 }
 
 // 3
-ata sayı = 48213
-ata basamak = 0
+değişken sayı = 48213
+değişken basamak = 0
 sayı > 0 sürece yap {
     sayı /= 10
     basamak += 1
@@ -1674,8 +1674,8 @@ yazdır(basamak)   // 5
 
 // 4
 2..=50 içindeki her n için yap {
-    ata asal = doğru
-    ata d = 2
+    değişken asal = doğru
+    değişken d = 2
     d * d <= n sürece yap {
         eğer n % d == 0 {
             asal = yanlış
@@ -1726,7 +1726,7 @@ fonksiyon ortalama(a: Ondalık, b: Ondalık) -> Ondalık {
 
 yazdır(kare(7))
 yazdır(ortalama(80.0, 95.0))
-ata alan = kare(4) + kare(3)
+değişken alan = kare(4) + kare(3)
 yazdır(alan)
 ```
 
@@ -1766,7 +1766,7 @@ fonksiyon işaret(x: Tam) -> Yazı {
 ```kolay
 fonksiyon asal_mı(n: Tam) -> Mantık {
     eğer n < 2 { döndür yanlış }
-    ata d = 2
+    değişken d = 2
     d * d <= n sürece yap {
         eğer n % d == 0 { döndür yanlış }
         d += 1
@@ -1775,7 +1775,7 @@ fonksiyon asal_mı(n: Tam) -> Mantık {
 }
 
 fonksiyon asalları_say(sınır: Tam(64)) -> Tam {
-    ata sayı = 0
+    değişken sayı = 0
     2..=sınır içindeki her n için yap {
         eğer asal_mı(n) { sayı += 1 }
     }
@@ -1839,7 +1839,7 @@ Merhaba dünya!
 Fonksiyonlar, dosyada kendilerinden **önce** tanımlanmış değişkenleri görebilir ve değiştirebilir:
 
 ```kolay
-ata sayaç = 0
+değişken sayaç = 0
 
 fonksiyon tıkla() {
     sayaç += 1
@@ -1863,7 +1863,7 @@ fonksiyon ekle_ve_göster(l: Liste<Tam>) {
     yazdır(l)
 }
 
-ata sayılar: Liste<Tam> = [1, 2, 3]
+değişken sayılar: Liste<Tam> = [1, 2, 3]
 ekle_ve_göster(sayılar)
 yazdır(sayılar)
 ```
@@ -1929,7 +1929,7 @@ yazdır(mutlak(-8))
 
 // 2
 fonksiyon ters_çevir(s: Yazı) -> Yazı {
-    ata sonuç = ""
+    değişken sonuç = ""
     s içindeki her h için yap { sonuç = h + sonuç }
     döndür sonuç
 }
@@ -1937,7 +1937,7 @@ yazdır(ters_çevir("Kolay"))   // yaloK
 
 // 3
 fonksiyon palindrom_mu(s: Yazı) -> Mantık {
-    ata k = s.küçük_harf()
+    değişken k = s.küçük_harf()
     döndür k == ters_çevir(k)
 }
 yazdır(palindrom_mu("Kayak"), palindrom_mu("elma"))
@@ -1959,8 +1959,8 @@ yazdır(ebob(48, 18))   // 6
 Liste, sıralı değerler topluluğudur:
 
 ```kolay
-ata notlar = [85, 92, 78, 64]
-ata şehirler = ["İzmir", "Van", "Bursa"]
+değişken notlar = [85, 92, 78, 64]
+değişken şehirler = ["İzmir", "Van", "Bursa"]
 yazdır(notlar)
 yazdır(şehirler)
 ```
@@ -1970,7 +1970,7 @@ yazdır(şehirler)
 Elemanların sıra numarası (**indeks**) **0'dan** başlar:
 
 ```kolay
-ata harfler = ["a", "b", "c", "d", "e"]
+değişken harfler = ["a", "b", "c", "d", "e"]
 yazdır(harfler[0])       // a: ilk eleman
 yazdır(harfler[2])       // c
 yazdır(harfler[-1])      // e: sondan birinci
@@ -1986,7 +1986,7 @@ yazdır(harfler)
 `liste[a..b]` listenin bir parçasından **yeni** bir liste verir; aralıklardaki kurallar burada da geçerlidir:
 
 ```kolay
-ata l = [10, 20, 30, 40, 50, 60]
+değişken l = [10, 20, 30, 40, 50, 60]
 yazdır(l[1..4])      // 1, 2, 3
 yazdır(l[1..=4])     // 1, 2, 3, 4
 yazdır(l[..2])       // baştan 2'ye kadar
@@ -2017,7 +2017,7 @@ yazdır(l[2..2], l[10..20])
 Her n. elemanı almak için `adım`, eksi adım sondan başlar:
 
 ```kolay
-ata l = [10, 20, 30, 40, 50, 60]
+değişken l = [10, 20, 30, 40, 50, 60]
 yazdır(l.adım(2), l.adım(-2), l[1..5].adım(2))
 ```
 
@@ -2028,18 +2028,18 @@ yazdır(l.adım(2), l.adım(-2), l[1..5].adım(2))
 Olmayan bir indekse erişmek programı durdurur:
 
 ```kolay
-ata l = [1, 2, 3]
+değişken l = [1, 2, 3]
 yazdır(l[5])   // ✗ ÇALIŞMA HATASI: Listenin 5. indeksine erişilmek istendi, ama liste 3 elemanlı (0 .. 2).
 ```
 
 ### Liste metotları
 
 ```kolay
-ata l = [30, 10, 20]
+değişken l = [30, 10, 20]
 l.ekle(40)              // sona ekle:             [30, 10, 20, 40]
 l.araya_ekle(0, 5)      // 0. sıraya ekle:        [5, 30, 10, 20, 40]
 l.sil(1)                // 1. sıradakini sil:     [5, 10, 20, 40]
-ata son = l.çıkar()     // son elemanı çıkar:     40
+değişken son = l.çıkar()     // son elemanı çıkar:     40
 yazdır(l, son)
 yazdır(l.uzunluk())     // 3
 yazdır(l.içerir(10))    // doğru
@@ -2061,9 +2061,9 @@ Liste metotlarının adlarında bir kural vardır, ezberlemek yerine bu kurala b
 - **İsim ya da sıfat** olan metotlar (`sıralı`, `tersi`, `adım`, `uzunluk`) listeye dokunmaz, **yeni bir değer** verir.
 
 ```kolay
-ata l = [3, 1, 2]
-ata s = l.sıralı()      // l değişmez, sıralanmış yeni liste
-ata t = l.tersi()       // l değişmez, ters yeni liste
+değişken l = [3, 1, 2]
+değişken s = l.sıralı()      // l değişmez, sıralanmış yeni liste
+değişken t = l.tersi()       // l değişmez, ters yeni liste
 yazdır(l, s, t)
 l.sırala()              // l'nin kendisi sıralanır
 yazdır(l)
@@ -2085,7 +2085,7 @@ yazdır(l)
 Eski `ters()` metodu bu kurala uymadığı için kaldırıldı; yazılırsa Kolay hangisini kastettiğinizi sorar:
 
 ```kolay
-ata l = [1, 2, 3]
+değişken l = [1, 2, 3]
 l.ters()    // ✗ HATA
 ```
 
@@ -2130,7 +2130,7 @@ doğru yanlış doğru
 Boş bir listenin tipi yazılmalıdır, çünkü Kolay içine ne konacağını bilemez:
 
 ```kolay
-ata kareler: Liste<Tam>
+değişken kareler: Liste<Tam>
 1..=5 içindeki her i için yap { kareler.ekle(i * i) }
 yazdır(kareler)
 ```
@@ -2142,18 +2142,18 @@ yazdır(kareler)
 Tipte `< >` içine elemanların tipi yazılır: `Liste<Yazı>`, `Liste<Ondalık>`. Bir listedeki bütün elemanlar aynı tipte olmalıdır:
 
 ```kolay
-ata karışık = [1, "Ali"]   // ✗ HATA: Bir listedeki tüm elemanlar aynı tipte olmalı.
+değişken karışık = [1, "Ali"]   // ✗ HATA: Bir listedeki tüm elemanlar aynı tipte olmalı.
 ```
 
 (Gerçekten karışık bir liste gerekiyorsa 19. bölümdeki `veya` tiplerine bakın.)
 
-> **Dikkat: `Tam` ile `Tam(64)` farklı tiplerdir.** `ata l = [1, 2]` listesinin tipi `Liste<Tam(64)>` olur. Parametresi `Liste<Tam>` olan bir fonksiyona bu değişkeni verirseniz Kolay "Tip uyuşmuyor" der. Çözüm: listeyi `ata l: Liste<Tam> = [1, 2]` diye tanımlamak ya da fonksiyonda `Liste<Tam(64)>` yazmak. Tek sayılarda bu sorun olmaz, çünkü `Tam(64)` kendiliğinden `Tam`'a çevrilir.
+> **Dikkat: `Tam` ile `Tam(64)` farklı tiplerdir.** `değişken l = [1, 2]` listesinin tipi `Liste<Tam(64)>` olur. Parametresi `Liste<Tam>` olan bir fonksiyona bu değişkeni verirseniz Kolay "Tip uyuşmuyor" der. Çözüm: listeyi `değişken l: Liste<Tam> = [1, 2]` diye tanımlamak ya da fonksiyonda `Liste<Tam(64)>` yazmak. Tek sayılarda bu sorun olmaz, çünkü `Tam(64)` kendiliğinden `Tam`'a çevrilir.
 
 ### Liste üzerinde dolaşmak
 
 ```kolay
-ata notlar = [85, 92, 78, 64]
-ata toplam = 0
+değişken notlar = [85, 92, 78, 64]
+değişken toplam = 0
 notlar içindeki her n için yap {
     toplam += n
 }
@@ -2163,7 +2163,7 @@ yazdır(f"Ortalama: {toplam / notlar.uzunluk()}")
 İndeks de lazımsa aralık üzerinden dönün:
 
 ```kolay
-ata isimler = ["Ali", "Ayşe", "Can"]
+değişken isimler = ["Ali", "Ayşe", "Can"]
 0..isimler.uzunluk() içindeki her i için yap {
     yazdır(f"{i + 1}. {isimler[i]}")
 }
@@ -2174,8 +2174,8 @@ ata isimler = ["Ali", "Ayşe", "Can"]
 Bir listeyi başka bir değişkene atamak **kopya** oluşturur:
 
 ```kolay
-ata a = [3, 1, 2]
-ata b = a
+değişken a = [3, 1, 2]
+değişken b = a
 b.sırala()
 yazdır(a)   // [3, 1, 2]: a değişmedi
 yazdır(b)   // [1, 2, 3]
@@ -2186,7 +2186,7 @@ yazdır(b)   // [1, 2, 3]
 Sabit bir listenin içeriği de değiştirilemez:
 
 ```kolay
-ata sabit günler = ["Pazartesi", "Salı"]
+sabit günler = ["Pazartesi", "Salı"]
 günler.ekle("Çarşamba")   // ✗ HATA: 'günler' sabit; 'ekle()' içeriği değiştirir.
 ```
 
@@ -2195,15 +2195,15 @@ günler.ekle("Çarşamba")   // ✗ HATA: 'günler' sabit; 'ekle()' içeriği de
 Tipin arkasına `[N]` yazılırsa liste tam N elemanlı olur ve varsayılan değerlerle (`0`, `""`, `yanlış`, `0.0`, boş liste, `Hiç`) dolu başlar. Bu listelere eleman eklenemez, ama elemanları değiştirilebilir. Daha hızlıdırlar.
 
 ```kolay
-ata sayaçlar: Liste<Tam>[5]
+değişken sayaçlar: Liste<Tam>[5]
 sayaçlar[2] = 7
 yazdır(sayaçlar)          // [0, 0, 7, 0, 0]
 
-ata tahta: Liste<Tam>[3][3]       // 3x3 tablo
+değişken tahta: Liste<Tam>[3][3]       // 3x3 tablo
 tahta[1][1] = 5
 yazdır(tahta)             // [[0, 0, 0], [0, 5, 0], [0, 0, 0]]
 
-ata satırlar: Liste<Yazı>[2][]    // 2 satır, her satır esnek
+değişken satırlar: Liste<Yazı>[2][]    // 2 satır, her satır esnek
 satırlar[0].ekle("merhaba")
 yazdır(satırlar)          // [["merhaba"], []]
 ```
@@ -2211,8 +2211,8 @@ yazdır(satırlar)          // [["merhaba"], []]
 Sabit boyutlu listeye esnek bir liste atanabilir; eleman sayısı tutmuyorsa program çalışırken hata verir. Tersi her zaman serbesttir: sabit boyutlu bir liste esnek bir değişkene kopyalanınca kopyaya eleman eklenebilir:
 
 ```kolay
-ata üçlü: Liste<Tam(64)>[3] = [1, 2, 3]
-ata esnek: Liste<Tam(64)> = üçlü
+değişken üçlü: Liste<Tam(64)>[3] = [1, 2, 3]
+değişken esnek: Liste<Tam(64)> = üçlü
 esnek.ekle(4)
 yazdır(üçlü, esnek)
 üçlü.ekle(4)    // ✗ HATA
@@ -2236,9 +2236,9 @@ HATA (deneme.kolay, satır 5): Sabit boyutlu listeye (Liste<Tam(64)>[3]) eleman 
 
 ```kolay
 // 1
-ata l = [42, 7, 93, 15, 61]
-ata en_büyük = l[0]
-ata en_küçük = l[0]
+değişken l = [42, 7, 93, 15, 61]
+değişken en_büyük = l[0]
+değişken en_küçük = l[0]
 l içindeki her x için yap {
     eğer x > en_büyük { en_büyük = x }
     eğer x < en_küçük { en_küçük = x }
@@ -2246,16 +2246,16 @@ l içindeki her x için yap {
 yazdır(en_büyük, en_küçük)
 
 // 2
-ata sayılar = [1, 2, 3, 4, 5, 6, 7, 8]
-ata çiftler: Liste<Tam(64)>
+değişken sayılar = [1, 2, 3, 4, 5, 6, 7, 8]
+değişken çiftler: Liste<Tam(64)>
 sayılar içindeki her s için yap {
     eğer s % 2 == 0 { çiftler.ekle(s) }
 }
 yazdır(çiftler)
 
 // 3
-ata d = [3, 8, 1, 9, 4]
-ata i = d.uzunluk() - 1
+değişken d = [3, 8, 1, 9, 4]
+değişken i = d.uzunluk() - 1
 i >= 0 sürece yap {
     yazdır(d[i])
     i -= 1
@@ -2263,8 +2263,8 @@ i >= 0 sürece yap {
 // ya da kısaca: d[-1..=0] içindeki her x için yap { yazdır(x) }
 
 // 4
-ata cümle = "Kolay ile programlama öğrenmek eğlenceli"
-ata en_uzun = ""
+değişken cümle = "Kolay ile programlama öğrenmek eğlenceli"
+değişken en_uzun = ""
 cümle.böl(" ") içindeki her k için yap {
     eğer k.uzunluk() > en_uzun.uzunluk() { en_uzun = k }
 }
@@ -2280,7 +2280,7 @@ yazdır(en_uzun)
 Sözlük, **anahtarları** **değerlere** bağlar. Gerçek bir sözlükte kelimeden anlamına gittiğimiz gibi, anahtardan değere gideriz:
 
 ```kolay
-ata başkentler: Sözlük<Yazı, Yazı> = {"Türkiye": "Ankara", "Japonya": "Tokyo"}
+değişken başkentler: Sözlük<Yazı, Yazı> = {"Türkiye": "Ankara", "Japonya": "Tokyo"}
 yazdır(başkentler["Japonya"])     // Tokyo
 başkentler["Mısır"] = "Kahire"    // yeni anahtar ekle
 başkentler["Türkiye"] = "ANKARA"  // var olanı değiştir
@@ -2292,7 +2292,7 @@ Tip `Sözlük<AnahtarTipi, DeğerTipi>` şeklinde yazılır.
 ### Sözlük metotları
 
 ```kolay
-ata stok: Sözlük<Yazı, Tam> = {"elma": 10, "armut": 4}
+değişken stok: Sözlük<Yazı, Tam> = {"elma": 10, "armut": 4}
 yazdır(stok.uzunluk())         // 2
 yazdır(stok.içerir("elma"))    // doğru
 yazdır(stok.anahtarlar())      // ["elma", "armut"]
@@ -2304,7 +2304,7 @@ yazdır(stok)                   // {"elma": 10}
 Olmayan bir anahtarı okumak programı durdurur, bu yüzden emin değilseniz önce `içerir` ile bakın:
 
 ```kolay
-ata stok: Sözlük<Yazı, Tam> = {"elma": 10}
+değişken stok: Sözlük<Yazı, Tam> = {"elma": 10}
 eğer stok.içerir("kiraz") {
     yazdır(stok["kiraz"])
 } değilse {
@@ -2315,7 +2315,7 @@ eğer stok.içerir("kiraz") {
 ### Sözlükte dolaşmak
 
 ```kolay
-ata nüfus: Sözlük<Yazı, Tam> = {"İstanbul": 15_600_000, "Ankara": 5_800_000, "İzmir": 4_500_000}
+değişken nüfus: Sözlük<Yazı, Tam> = {"İstanbul": 15_600_000, "Ankara": 5_800_000, "İzmir": 4_500_000}
 nüfus içindeki her (şehir, kişi) için yap {
     yazdır(f"{şehir}: {kişi}")
 }
@@ -2328,8 +2328,8 @@ Sözlük, elemanları eklendiği sırayla verir.
 Sözlüklerin en klasik kullanımı saymaktır:
 
 ```kolay
-ata metin = "bir iki bir üç iki bir"
-ata sayılar: Sözlük<Yazı, Tam>
+değişken metin = "bir iki bir üç iki bir"
+değişken sayılar: Sözlük<Yazı, Tam>
 metin.böl(" ") içindeki her kelime için yap {
     eğer sayılar.içerir(kelime) {
         sayılar[kelime] += 1
@@ -2347,7 +2347,7 @@ yazdır(sayılar)
 Değer olarak liste de konabilir:
 
 ```kolay
-ata dersler: Sözlük<Yazı, Liste<Tam>> = {"Ali": [90, 80]}
+değişken dersler: Sözlük<Yazı, Liste<Tam>> = {"Ali": [90, 80]}
 dersler["Ali"].ekle(70)
 dersler["Ayşe"] = [100]
 yazdır(dersler)
@@ -2364,21 +2364,21 @@ yazdır(dersler)
 
 ```kolay
 // 1
-ata notlar: Sözlük<Yazı, Tam> = {"Ali": 70, "Ayşe": 95, "Can": 82}
-ata toplam: Tam = 0
+değişken notlar: Sözlük<Yazı, Tam> = {"Ali": 70, "Ayşe": 95, "Can": 82}
+değişken toplam: Tam = 0
 notlar içindeki her (ad, n) için yap { toplam += n }
 yazdır(toplam / notlar.uzunluk())
 
 // 2
-ata harfler: Sözlük<Yazı, Tam>
+değişken harfler: Sözlük<Yazı, Tam>
 "merhaba" içindeki her h için yap {
     eğer harfler.içerir(h) { harfler[h] += 1 } değilse { harfler[h] = 1 }
 }
 yazdır(harfler)
 
 // 3
-ata rehber: Sözlük<Yazı, Yazı> = {"Ali": "0532 000 00 00", "Ayşe": "0544 111 11 11"}
-ata ad = oku("Kimi arıyorsunuz? ")
+değişken rehber: Sözlük<Yazı, Yazı> = {"Ali": "0532 000 00 00", "Ayşe": "0544 111 11 11"}
+değişken ad = oku("Kimi arıyorsunuz? ")
 eğer rehber.içerir(ad) { yazdır(rehber[ad]) } değilse { yazdır("kayıtlı değil") }
 ```
 
@@ -2397,7 +2397,7 @@ Bu fikir ilk başta soyut gelebilir, ama günlük kullanımı çok somuttur: "bu
 Döngülerde `liste içindeki her x için yap { }` yazıyorduk. `içindeki` olmadan yazılan `her x için ...` ise bir **isimsiz fonksiyondur** (lambda): "her x için şunu ver" der. Aşağıdaki `dönüşüm` metodu, listenin her elemanına bu fonksiyonu uygular ve sonuçlardan yeni bir liste yapar:
 
 ```kolay
-ata sayılar = [5, 12, 3, 20, 8]
+değişken sayılar = [5, 12, 3, 20, 8]
 yazdır(sayılar.dönüşüm(her x için x * 2))
 yazdır(sayılar)
 ```
@@ -2412,8 +2412,8 @@ Cümle gibi okunur: "sayıların dönüşümü: her x için x çarpı 2". `x`, s
 Aynı işi döngüyle yapmak için dört satır gerekirdi:
 
 ```kolay
-ata sayılar = [5, 12, 3, 20, 8]
-ata iki_katlar: Liste<Tam(64)>
+değişken sayılar = [5, 12, 3, 20, 8]
+değişken iki_katlar: Liste<Tam(64)>
 sayılar içindeki her x için yap {
     iki_katlar.ekle(x * 2)
 }
@@ -2427,7 +2427,7 @@ yazdır(iki_katlar)
 Lambdanın gövdesi bir ifadedir; içinde başka metotlar, f-yazılar, `eşleştir` kullanılabilir:
 
 ```kolay
-ata isimler = ["ali", "ayşe", "can"]
+değişken isimler = ["ali", "ayşe", "can"]
 yazdır(isimler.dönüşüm(her ad için ad.büyük_harf()))
 yazdır(isimler.dönüşüm(her ad için ad.uzunluk()))
 yazdır(isimler.dönüşüm(her ad için f"Sayın {ad}"))
@@ -2461,7 +2461,7 @@ Bunlara ek olarak sayı (ve yazı) listelerinde fonksiyon almayan üç metot dah
 | `en_küçük()` | En küçük eleman |
 
 ```kolay
-ata notlar = [72, 95, 48, 88, 61, 39]
+değişken notlar = [72, 95, 48, 88, 61, 39]
 yazdır(notlar.filtre(her n için n >= 50))
 yazdır(notlar.hepsi(her n için n > 30), notlar.herhangi(her n için n == 100))
 yazdır(notlar.toplam(), notlar.en_büyük(), notlar.en_küçük())
@@ -2482,7 +2482,7 @@ Son satırda `-n`'ye göre sıralayınca büyükten küçüğe sıralandı. Boş
 Her metot yeni bir liste verdiği için arka arkaya yazılabilir. Okurken soldan sağa izleyin:
 
 ```kolay
-ata notlar = [72, 95, 48, 88, 61, 39]
+değişken notlar = [72, 95, 48, 88, 61, 39]
 // geçen notların 10 puan eklenmiş halinin toplamı
 yazdır(notlar.filtre(her n için n >= 50).dönüşüm(her n için n + 10).toplam())
 ```
@@ -2498,7 +2498,7 @@ yazdır(notlar.filtre(her n için n >= 50).dönüşüm(her n için n + 10).topla
 ```kolay
 tür Öğrenci(ad: Yazı, yaş: Tam(64), not: Tam(64))
 
-ata sınıf = [Öğrenci("Can", 20, 70), Öğrenci("Ayşe", 18, 95), Öğrenci("Ömer", 19, 82), Öğrenci("Bora", 18, 60)]
+değişken sınıf = [Öğrenci("Can", 20, 70), Öğrenci("Ayşe", 18, 95), Öğrenci("Ömer", 19, 82), Öğrenci("Bora", 18, 60)]
 
 sınıf.sırala(göre: her ö için ö.yaş)
 yazdır(sınıf.dönüşüm(her ö için ö.ad))
@@ -2523,9 +2523,9 @@ yazdır(sınıf.sıralı(göre: her ö için -ö.not).dönüşüm(her ö için f
 Birden fazla parametre parantez içinde yazılır. Gövde tek bir ifadeye sığmıyorsa `yap { }` bloğu kullanılır; blokta değer `döndür` ile verilir:
 
 ```kolay
-ata sayılar = [3, 14, 8, 25]
+değişken sayılar = [3, 14, 8, 25]
 yazdır(sayılar.dönüşüm(her x için yap {
-    ata kare = x * x
+    değişken kare = x * x
     eğer kare > 100 { döndür "büyük" }
     döndür f"{kare}"
 }))
@@ -2540,8 +2540,8 @@ yazdır(sayılar.dönüşüm(her x için yap {
 Lambda bir değişkene konabilir ve sonra normal bir fonksiyon gibi çağrılabilir. Ama bu durumda Kolay'ın parametrenin tipini bilmesi gerekir, çünkü lambdanın nerede kullanılacağını göremez. Tip parantez içinde yazılır:
 
 ```kolay
-ata iki_kat = her (x: Tam(64)) için x * 2
-ata topla = her (a: Tam(64), b: Tam(64)) için a + b
+değişken iki_kat = her (x: Tam(64)) için x * 2
+değişken topla = her (a: Tam(64), b: Tam(64)) için a + b
 yazdır(iki_kat(21), topla(2, 3))
 yazdır(iki_kat)
 ```
@@ -2554,12 +2554,12 @@ Fonksiyon(Tam(64)) -> Tam(64)
 Tip yazılmazsa Kolay ne yapılması gerektiğini söyler:
 
 ```kolay
-ata iki_kat = her x için x * 2    // ✗ HATA
+değişken iki_kat = her x için x * 2    // ✗ HATA
 ```
 
 ```
 HATA (deneme.kolay, satır 1): 'x' parametresinin tipi belli değil. Tipini yazın: her (x: Tam(64)) için ...
-  1 | ata iki_kat = her x için x * 2    // ✗ HATA
+  1 | değişken iki_kat = her x için x * 2    // ✗ HATA
     |                   ^
 ```
 
@@ -2597,10 +2597,10 @@ Değer döndürmeyen fonksiyonların tipinde `->` kısmı yazılmaz: `Fonksiyon(
 fonksiyon kare(n: Tam(64)) -> Tam(64) { döndür n * n }
 fonksiyon çift_mi(n: Tam(64)) -> Mantık { döndür n % 2 == 0 }
 
-ata l = [1, 2, 3, 4, 5]
+değişken l = [1, 2, 3, 4, 5]
 yazdır(l.dönüşüm(kare), l.filtre(çift_mi))
 
-ata işlemler: Liste<Fonksiyon(Tam(64)) -> Tam(64)> = [kare, her x için x + 100, her x için -x]
+değişken işlemler: Liste<Fonksiyon(Tam(64)) -> Tam(64)> = [kare, her x için x + 100, her x için -x]
 yazdır(işlemler.dönüşüm(her f için f(7)))
 ```
 
@@ -2620,8 +2620,8 @@ fonksiyon toplayıcı(n: Tam(64)) -> Fonksiyon(Tam(64)) -> Tam(64) {
     döndür her x için x + n
 }
 
-ata beş_ekle = toplayıcı(5)
-ata yüz_ekle = toplayıcı(100)
+değişken beş_ekle = toplayıcı(5)
+değişken yüz_ekle = toplayıcı(100)
 yazdır(beş_ekle(1), yüz_ekle(1), toplayıcı(1000)(1))
 ```
 
@@ -2636,8 +2636,8 @@ yazdır(beş_ekle(1), yüz_ekle(1), toplayıcı(1000)(1))
 Lambda, dışarıdaki bir değişkeni kullanırsa o değişkenin **oluşturulduğu andaki değerinin kopyasını** saklar. Sonradan değişkeni değiştirmek lambdayı etkilemez:
 
 ```kolay
-ata zam = 10
-ata zamlı = her (fiyat: Tam(64)) için fiyat + zam
+değişken zam = 10
+değişken zamlı = her (fiyat: Tam(64)) için fiyat + zam
 zam = 99
 yazdır(zamlı(100))
 ```
@@ -2651,8 +2651,8 @@ Lambda 110 verdi, 199 değil: `zam`'ın lambda oluşturulduğundaki değeri (10)
 Aynı nedenle lambda dışarıdaki bir değişkeni **değiştiremez**:
 
 ```kolay
-ata sayaç = 0
-ata say = her (x: Tam(64)) için yap {
+değişken sayaç = 0
+değişken say = her (x: Tam(64)) için yap {
     sayaç = sayaç + x    // ✗ HATA
     döndür sayaç
 }
@@ -2711,7 +2711,7 @@ Python'da aynı işler `map`, `filter`, `lambda`, `sum`, `max`, `sorted(key=...)
 
 ```kolay
 // 1
-ata meyveler = ["elma", "kiraz", "üzüm", "armut"]
+değişken meyveler = ["elma", "kiraz", "üzüm", "armut"]
 yazdır(meyveler.filtre(her m için m.uzunluk() == 5).dönüşüm(her m için m.büyük_harf()))
 
 // 2
@@ -2719,13 +2719,13 @@ yazdır([3, -1, 4, -1, 5, -9].filtre(her x için x < 0).dönüşüm(her x için 
 
 // 3
 tür Ürün(ad: Yazı, fiyat: Ondalık)
-ata ürünler = [Ürün("Defter", 40.0), Ürün("Kalem", 12.5), Ürün("Çanta", 450.0)]
+değişken ürünler = [Ürün("Defter", 40.0), Ürün("Kalem", 12.5), Ürün("Çanta", 450.0)]
 yazdır(ürünler.sıralı(göre: her ü için ü.fiyat).dönüşüm(her ü için ü.ad))
 yazdır(ürünler.dönüşüm(her ü için ü.fiyat).en_büyük())
 
 // 4
 fonksiyon n_kez(f: Fonksiyon(Tam(64)) -> Tam(64), n: Tam(64), x: Tam(64)) -> Tam(64) {
-    ata sonuç = x
+    değişken sonuç = x
     n kere yap { sonuç = f(sonuç) }
     döndür sonuç
 }
@@ -2744,8 +2744,8 @@ yazdır(n_kez(her x için x * 2, 10, 1))
 tür Öğrenci(ad: Yazı, numara: Tam, not: Tam) {
 }
 
-ata ali = Öğrenci(ad: "Ali", numara: 101, not: 85)
-ata ayşe = Öğrenci("Ayşe", 102, 92)    // isimsiz de yazılabilir, sıra önemli
+değişken ali = Öğrenci(ad: "Ali", numara: 101, not: 85)
+değişken ayşe = Öğrenci("Ayşe", 102, 92)    // isimsiz de yazılabilir, sıra önemli
 yazdır(ali)
 yazdır(ayşe.ad, ayşe.not)
 ali.not = 90
@@ -2789,7 +2789,7 @@ tür Hesap(sahip: Yazı, bakiye: Tam) {
     }
 }
 
-ata h = Hesap(sahip: "Zeynep", bakiye: 100)
+değişken h = Hesap(sahip: "Zeynep", bakiye: 100)
 h.yatır(50)
 h.çek(500)
 h.çek(30)
@@ -2814,7 +2814,7 @@ tür Kişi(ad: Yazı) {
     }
 }
 
-ata k = Kişi("Ali")
+değişken k = Kişi("Ali")
 k.ad_değiştir("Veli")
 yazdır(k.ad)
 ```
@@ -2829,7 +2829,7 @@ yazdır(k.ad)
 tür Vatandaş(sabit tc: Yazı, adres: Yazı) {
 }
 
-ata v = Vatandaş(tc: "12345678901", adres: "Ankara")
+değişken v = Vatandaş(tc: "12345678901", adres: "Ankara")
 v.adres = "İzmir"        // ✓
 yazdır(v)
 ```
@@ -2845,13 +2845,13 @@ tür Ürün(ad: Yazı, fiyat: Ondalık, adet: Tam) {
     }
 }
 
-ata sepet: Liste<Ürün> = [
+değişken sepet: Liste<Ürün> = [
     Ürün("Kalem", 12.5, 4),
     Ürün("Defter", 40.0, 2),
     Ürün("Silgi", 7.5, 1),
 ]
 
-ata toplam = 0.0
+değişken toplam = 0.0
 sepet içindeki her ü için yap {
     yazdır(f"{ü.ad}: {ü.tutar()} TL")
     toplam += ü.tutar()
@@ -2865,8 +2865,8 @@ Başlıktaki alanların hepsi nesne oluşturulurken verilir. İki yolla bazı al
 
 ```kolay
 tür Kişi(ad: Yazı, şehir: Yazı = "Ankara") {
-    ata puan = 0
-    ata notlar: Liste<Tam(64)> = []
+    değişken puan = 0
+    değişken notlar: Liste<Tam(64)> = []
 
     fonksiyon not_ekle(n: Tam(64)) {
         notlar.ekle(n)
@@ -2874,8 +2874,8 @@ tür Kişi(ad: Yazı, şehir: Yazı = "Ankara") {
     }
 }
 
-ata ali = Kişi("Ali")
-ata ayşe = Kişi("Ayşe", şehir: "İzmir")
+değişken ali = Kişi("Ali")
+değişken ayşe = Kişi("Ayşe", şehir: "İzmir")
 ali.not_ekle(90)
 ali.not_ekle(70)
 yazdır(ali)
@@ -2888,10 +2888,10 @@ Kişi(ad: "Ayşe", şehir: "İzmir", puan: 0, notlar: [])
 ```
 
 - **Başlıkta varsayılan değer** (`şehir: Yazı = "Ankara"`): istenirse oluştururken verilir, verilmezse varsayılan kullanılır. Fonksiyon parametrelerindeki gibi sona yazılır.
-- **Gövdede `ata`** (`ata puan = 0`): her nesnenin kendi alanıdır, ama oluştururken verilmez; her nesne bu değerle başlar. Sonra değiştirilebilir: `ali.puan = 5`. Başlangıç değeri zorunludur; tipi değerden belli değilse yazılır: `ata notlar: Liste<Tam(64)> = []`. `ata sabit` yazılırsa değiştirilemez.
+- **Gövdede `değişken`** (`değişken puan = 0`): her nesnenin kendi alanıdır, ama oluştururken verilmez; her nesne bu değerle başlar. Sonra değiştirilebilir: `ali.puan = 5`. Başlangıç değeri zorunludur; tipi değerden belli değilse yazılır: `değişken notlar: Liste<Tam(64)> = []`. `sabit` yazılırsa değiştirilemez.
 - Oluştururken gövdedeki bir alanı vermeye çalışırsanız: `'puan' türün içinde başlangıç değeriyle tanımlı bir alan; oluştururken verilemez.`
 
-Gövdedeki `ata` ile aşağıdaki `ortak ata` arasındaki fark: `ata puan = 0` her nesne için ayrı bir puandır; `ortak ata sayı = 0` bütün nesnelerin paylaştığı tek bir sayıdır.
+Gövdedeki `değişken` ile aşağıdaki `ortak değişken` arasındaki fark: `değişken puan = 0` her nesne için ayrı bir puandır; `ortak değişken sayı = 0` bütün nesnelerin paylaştığı tek bir sayıdır.
 
 ### Ortak değerler: türe ait bilgiler
 
@@ -2899,8 +2899,8 @@ Her nesnenin alanları kendisine aittir: Ali'nin adı ile Ayşe'nin adı ayrıd�
 
 ```kolay
 tür Öğrenci(ad: Yazı, numara: Tam(64)) {
-    ortak ata sayı = 0
-    ortak ata sabit OKUL = "Atatürk Lisesi"
+    ortak değişken sayı = 0
+    ortak sabit OKUL = "Atatürk Lisesi"
 
     fonksiyon tanıt() {
         yazdır(f"{numara}. {ad} ({OKUL})")
@@ -2912,8 +2912,8 @@ tür Öğrenci(ad: Yazı, numara: Tam(64)) {
     }
 }
 
-ata ali = Öğrenci.yeni("Ali")
-ata ayşe = Öğrenci.yeni("Ayşe")
+değişken ali = Öğrenci.yeni("Ali")
+değişken ayşe = Öğrenci.yeni("Ayşe")
 ali.tanıt()
 ayşe.tanıt()
 yazdır(f"{Öğrenci.OKUL}: {Öğrenci.sayı} öğrenci")
@@ -2925,8 +2925,8 @@ yazdır(f"{Öğrenci.OKUL}: {Öğrenci.sayı} öğrenci")
 Atatürk Lisesi: 2 öğrenci
 ```
 
-- `ortak ata` bütün nesnelerin paylaştığı **tek bir** değerdir. Türün içinde adıyla (`sayı`), dışarıda tür adıyla (`Öğrenci.sayı`) kullanılır ve değiştirilebilir: `Öğrenci.sayı = 0`.
-- `ortak ata sabit` değiştirilemeyen ortak değerdir.
+- `ortak değişken` bütün nesnelerin paylaştığı **tek bir** değerdir. Türün içinde adıyla (`sayı`), dışarıda tür adıyla (`Öğrenci.sayı`) kullanılır ve değiştirilebilir: `Öğrenci.sayı = 0`.
+- `ortak sabit` değiştirilemeyen ortak değerdir.
 - `ortak fonksiyon` türe aittir, bir nesneye değil: `Öğrenci.yeni("Ali")` diye çağrılır. İçinde `bu` ve alanlar yoktur, çünkü hangi nesne olduğu belli değildir.
 - Ortak değere nesne üzerinden erişilmez: `ali.sayı` yazılırsa `'sayı' Öğrenci türünün ortak değeri, tek bir nesnenin değil. Şöyle yazın: Öğrenci.sayı`
 - Ortak değer, tür tanımının olduğu yerde oluşur; tanımdan önce kullanılamaz.
@@ -2935,11 +2935,11 @@ Bir ortak değeri değiştirmek bütün nesneleri etkiler:
 
 ```kolay
 tür Hesap(sahip: Yazı, bakiye: Ondalık) {
-    ortak ata faiz = 0.05
+    ortak değişken faiz = 0.05
     fonksiyon yıl_sonu() { bakiye += bakiye * faiz }
 }
-ata h1 = Hesap("Ali", 1000.0)
-ata h2 = Hesap("Ayşe", 2000.0)
+değişken h1 = Hesap("Ali", 1000.0)
+değişken h2 = Hesap("Ayşe", 2000.0)
 Hesap.faiz = 0.10              // iki hesabın faizi de değişti
 h1.yıl_sonu()
 h2.yıl_sonu()
@@ -2965,7 +2965,7 @@ tür Dikdörtgen(en: Ondalık, boy: Ondalık) {
     fonksiyon alan() -> Ondalık { döndür en * boy }
     fonksiyon çevre() -> Ondalık { döndür 2 * (en + boy) }
 }
-ata d = Dikdörtgen(3.0, 4.5)
+değişken d = Dikdörtgen(3.0, 4.5)
 yazdır(d.alan(), d.çevre())
 
 // 2
@@ -2974,7 +2974,7 @@ tür Sayaç(değer: Tam) {
     fonksiyon azalt() { eğer değer > 0 { değer -= 1 } }
     fonksiyon sıfırla() { değer = 0 }
 }
-ata s = Sayaç(0)
+değişken s = Sayaç(0)
 s.artır()
 s.artır()
 s.azalt()
@@ -2989,7 +2989,7 @@ tür Kitaplık(kitaplar: Liste<Yazı>) {
         kitaplar içindeki her k için yap { yazdır(f"- {k}") }
     }
 }
-ata kt = Kitaplık([])
+değişken kt = Kitaplık([])
 kt.ekle("Çalıkuşu")
 kt.ekle("İnce Memed")
 kt.listele()
@@ -3019,7 +3019,7 @@ tür Öğrenci[Kişi](okul: Yazı) {
     }
 }
 
-ata ö = Öğrenci(ad: "Elif", yaş: 15, okul: "Fen Lisesi")
+değişken ö = Öğrenci(ad: "Elif", yaş: 15, okul: "Fen Lisesi")
 ö.doğum_günü()             // Kişi'den gelen metot
 yazdır(ö.tanıt())          // Kişi'den gelen metot
 yazdır(ö.okulum())         // Öğrenci'nin kendi metodu
@@ -3069,7 +3069,7 @@ tür Öğretmen[Kişi](branş: Yazı) {
     yeniden tanıt() -> Yazı { döndür f"{branş} öğretmeni {ad}" }
 }
 
-ata okul: Liste<Kişi> = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Matematik"), Kişi("Hasan")]
+değişken okul: Liste<Kişi> = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Matematik"), Kişi("Hasan")]
 okul içindeki her k için yap {
     yazdır(k.tanıt())
 }
@@ -3094,7 +3094,7 @@ tür Öğrenci[Kişi](numara: Tam(64)) {
 }
 tür Öğretmen[Kişi](branş: Yazı) { }
 
-ata okul = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Fizik")]   // Liste<Kişi>
+değişken okul = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Fizik")]   // Liste<Kişi>
 okul.ekle(Kişi("Hasan"))
 okul içindeki her k için yap { yazdır(k.tanıt()) }
 ```
@@ -3121,11 +3121,11 @@ fonksiyon açıkla(k: Kişi) -> Yazı {
         değilse -> k.ad
     }
 }
-ata okul: Liste<Kişi> = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Fizik"), Kişi("Hasan")]
+değişken okul: Liste<Kişi> = [Öğrenci("Ali", 7), Öğretmen("Ayşe", "Fizik"), Kişi("Hasan")]
 okul içindeki her k için yap { yazdır(açıkla(k)) }
-ata ali = okul[0] olarak Öğrenci
+değişken ali = okul[0] olarak Öğrenci
 yazdır(ali.numara)
-ata ayşe = okul[1] olarak Öğrenci    // ✗ ÇALIŞMA HATASI
+değişken ayşe = okul[1] olarak Öğrenci    // ✗ ÇALIŞMA HATASI
 ```
 
 ```
@@ -3134,7 +3134,7 @@ Ayşe, Fizik öğretmeni
 Hasan
 7
 ÇALIŞMA HATASI (deneme.kolay, satır 16): Bu değer Öğrenci değil, Öğretmen.
-  16 | ata ayşe = okul[1] olarak Öğrenci    // ✗ ÇALIŞMA HATASI
+  16 | değişken ayşe = okul[1] olarak Öğrenci    // ✗ ÇALIŞMA HATASI
 ```
 
 ### Birden fazla ebeveyn
@@ -3171,9 +3171,9 @@ tür SporcuÖğrenci[Kişi, Sporcu](numara: Tam) {
     yeniden Sporcu.tanıt() { yazdır(f"Okul takımında {branş} yapıyorum") }
 }
 
-ata d = SporcuÖğrenci(ad: "Deniz", branş: "Yüzme", numara: 12)
-ata kişiler: Liste<Kişi> = [d]
-ata sporcular: Liste<Sporcu> = [d]
+değişken d = SporcuÖğrenci(ad: "Deniz", branş: "Yüzme", numara: 12)
+değişken kişiler: Liste<Kişi> = [d]
+değişken sporcular: Liste<Sporcu> = [d]
 kişiler[0].tanıt()
 sporcular[0].tanıt()
 ```
@@ -3203,7 +3203,7 @@ tür Köpek[Hayvan]() {
     yeniden ses() -> Yazı { döndür "Hav hav" }
 }
 
-ata hayvanlar: Liste<Hayvan> = [Kedi("Tekir"), Köpek("Karabaş"), Hayvan("Balık")]
+değişken hayvanlar: Liste<Hayvan> = [Kedi("Tekir"), Köpek("Karabaş"), Hayvan("Balık")]
 hayvanlar içindeki her h için yap {
     yazdır(f"{h.ad}: {h.ses()}")
 }
@@ -3278,8 +3278,8 @@ tür Kare[Şekil](kenar: Ondalık) {
     fonksiyon ad() -> Yazı { döndür "kare" }
 }
 
-ata şekiller: Liste<Şekil> = [Daire(1.0), Kare(2.0), Daire(0.5)]
-ata toplam = 0.0
+değişken şekiller: Liste<Şekil> = [Daire(1.0), Kare(2.0), Daire(0.5)]
+değişken toplam = 0.0
 şekiller içindeki her ş için yap {
     yazdır(ş.ad(), ş.alan())
     toplam += ş.alan()
@@ -3304,7 +3304,7 @@ seçenek Işık {
     Yeşil
 }
 
-ata ışık = Işık.Kırmızı
+değişken ışık = Işık.Kırmızı
 yazdır(ışık)
 eğer ışık == Işık.Kırmızı {
     yazdır("Dur!")
@@ -3339,7 +3339,7 @@ Değişkenin tipi bilindiği için dallarda `Işık.` yazmaya gerek yoktur.
 
 ```kolay
 seçenek Işık { Kırmızı, Sarı, Yeşil }
-ata ı = Işık.Kırmızı
+değişken ı = Işık.Kırmızı
 eşleştir ı {
     Kırmızı -> {
         yazdır("Dur")
@@ -3397,7 +3397,7 @@ Değer döndürmeyen bir `eşleştir` bütün seçenekleri kapsamak zorunda değ
 
 ```kolay
 seçenek Işık { Kırmızı, Sarı, Yeşil }
-ata ı = Işık.Sarı
+değişken ı = Işık.Sarı
 eşleştir ı {
     Kırmızı -> yazdır("Dur")
 }
@@ -3419,9 +3419,9 @@ Bir dalda tek bir atama da yazılabilir; bu durumda `{ }` gerekmez:
 
 ```kolay
 seçenek Işık { Kırmızı, Sarı, Yeşil }
-ata ışıklar = [Işık.Kırmızı, Işık.Yeşil, Işık.Kırmızı, Işık.Sarı]
-ata dur_sayısı = 0
-ata geç_sayısı = 0
+değişken ışıklar = [Işık.Kırmızı, Işık.Yeşil, Işık.Kırmızı, Işık.Sarı]
+değişken dur_sayısı = 0
+değişken geç_sayısı = 0
 ışıklar içindeki her ı için yap {
     eşleştir ı {
         Kırmızı -> dur_sayısı += 1
@@ -3457,7 +3457,7 @@ seçenek Şekil {
     }
 }
 
-ata şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(2.0, 3.0), Şekil.Kare(4.0)]
+değişken şekiller = [Şekil.Daire(yarıçap: 1.0), Şekil.Dikdörtgen(2.0, 3.0), Şekil.Kare(4.0)]
 şekiller içindeki her ş için yap {
     yazdır(ş, "alan:", ş.alan())
 }
@@ -3573,7 +3573,7 @@ yazdır(harf_notu(95), harf_notu(72), harf_notu(30))
 Bazen bir değer birkaç tipten biri olabilir. Tip yazılırken `veya` kullanılır:
 
 ```kolay
-ata tablo: Liste<Tam veya Yazı> = [5, "Ali", 12, "Ayşe"]
+değişken tablo: Liste<Tam veya Yazı> = [5, "Ali", 12, "Ayşe"]
 tablo içindeki her e için yap {
     eşleştir e {
         Tam(n)  -> yazdır(f"sayı: {n * 2}")
@@ -3594,7 +3594,7 @@ yazı: AYŞE
 Tip desenleri iki şekilde yazılır, ikisi de aynıdır: `Tam(n) ->` ve `n: Tam ->`. İkincisi, tipin kendisi parantez aldığında (`Tam(64)`, `Ondalık(32)`) daha okunaklıdır:
 
 ```kolay
-ata değerler: Liste<Tam(64) veya Ondalık veya Yazı> = [3, 2.5, "üç"]
+değişken değerler: Liste<Tam(64) veya Ondalık veya Yazı> = [3, 2.5, "üç"]
 değerler içindeki her d için yap {
     eşleştir d {
         n: Tam(64) -> yazdır("tam:", n + 1)
@@ -3615,9 +3615,9 @@ Değeri kullanmayacaksanız ad yerine `_` yazılır: `_: Yazı -> yazdır("bir y
 Bir `veya` değişkenine üye tiplerinden herhangi biri atanabilir, `veya` tipi daha geniş bir `veya` tipine de atanabilir:
 
 ```kolay
-ata x: Tam(64) veya Yazı = 5
+değişken x: Tam(64) veya Yazı = 5
 x = "beş"
-ata y: Tam(64) veya Yazı veya Mantık = x
+değişken y: Tam(64) veya Yazı veya Mantık = x
 yazdır(x, y)
 ```
 
@@ -3632,8 +3632,8 @@ Tam sayılar için önemli bir kural: bir `veya` tipinde iki farklı tam sayı t
 `Hiç`, "burada bir değer yok" demektir. Listelerin `bul` metodu, aranan eleman yoksa `Hiç` döndürür; sonucun tipi `Tam veya Hiç`'tir:
 
 ```kolay
-ata isimler = ["Ali", "Ayşe", "Can"]
-ata sonuç = isimler.bul("Ayşe")
+değişken isimler = ["Ali", "Ayşe", "Can"]
+değişken sonuç = isimler.bul("Ayşe")
 eşleştir sonuç {
     Tam(i) -> yazdır(f"{i}. sırada bulundu")
     Hiç    -> yazdır("bulunamadı")
@@ -3663,7 +3663,7 @@ eşleştir ilk_negatif([4, 7, -2, 9]) {
 Birçok dilde "değer yok" durumu `null` ile gösterilir ve kontrol edilmeyi unutulan bir `null` programı çökertir. Bu hataya, onu icat eden kişi "milyar dolarlık hata" der. Kolay'da `Hiç` olabilecek bir değer kontrol edilmeden kullanılamaz; derleyici izin vermez:
 
 ```kolay
-ata ad: Yazı veya Hiç = Hiç
+değişken ad: Yazı veya Hiç = Hiç
 yazdır(ad.uzunluk())    // ✗ HATA
 ```
 
@@ -3702,7 +3702,7 @@ Bir listenin en büyük elemanını bulan bir fonksiyon yazalım:
 
 ```kolay
 fonksiyon en_büyüğü(l: Liste<Tam(64)>) -> Tam(64) {
-    ata büyük = l[0]
+    değişken büyük = l[0]
     l içindeki her x için yap {
         eğer x > büyük { büyük = x }
     }
@@ -3718,7 +3718,7 @@ Fonksiyonun adından sonra `< >` içine bir **tip parametresi** yazarız. Bu, "h
 
 ```kolay
 fonksiyon en_büyüğü<T>(l: Liste<T>) -> T {
-    ata büyük = l[0]
+    değişken büyük = l[0]
     l içindeki her x için yap {
         eğer x > büyük { büyük = x }
     }
@@ -3774,7 +3774,7 @@ yazdır(ilk([]))
 ```
 
 ```
-HATA (kod.kolay, satır 2): Boş listenin tipi belli değil. Tipini yazın: ata liste: Liste<Tam> = []
+HATA (kod.kolay, satır 2): Boş listenin tipi belli değil. Tipini yazın: değişken liste: Liste<Tam> = []
 ```
 
 Çözüm, değere tip vermektir: `ilk([] olarak Liste<Tam>)`. `T` hiçbir parametrede geçmiyorsa da hata alırsınız, çünkü Kolay onu hiçbir yerden çıkaramaz: `'f' için 'T' tipi verilen değerlerden çıkarılamıyor.`
@@ -3804,7 +3804,7 @@ Aynı `T`'ye iki değer verilirse ikisi de aynı tipte olmalıdır. Sayılarda K
 fonksiyon topla<T>(a: T, b: T) -> T {
     döndür a + b
 }
-ata küçük: Tam(8) = 100
+değişken küçük: Tam(8) = 100
 yazdır(topla(küçük, 5))       // T = Tam(8): 5 sığıyor
 yazdır(topla(küçük, 1000))    // 1000 Tam(8)'e sığmıyor: T = Tam(64)
 yazdır(topla(2, 2.5))         // T = Ondalık
@@ -3826,7 +3826,7 @@ Generic bir fonksiyon, fonksiyon da alabilir. Aşağıdaki `dönüştür`, liste
 
 ```kolay
 fonksiyon dönüştür<T, R>(l: Liste<T>, f: Fonksiyon(T) -> R) -> Liste<R> {
-    ata sonuç: Liste<R>
+    değişken sonuç: Liste<R>
     l içindeki her x için yap {
         sonuç.ekle(f(x))
     }
@@ -3848,9 +3848,9 @@ Lambdanın parametre tipini yazmadık: `T` listeden belli olduğu için Kolay `x
 İsimsiz fonksiyonlar (lambdalar) da her tiple çalışabilir. Tip parametresi `her`'den sonra yazılır:
 
 ```kolay
-ata iki_kat = her<T> x: T için x * 2
+sabit iki_kat = her<T> x: T için x * 2
 yazdır(iki_kat(5), iki_kat(2.5))
-ata topla = her<T> (a: T, b: T) için a + b
+sabit topla = her<T> (a: T, b: T) için a + b
 yazdır(topla(1, 2), topla("a", "b"))
 ```
 
@@ -3860,7 +3860,7 @@ yazdır(topla(1, 2), topla("a", "b"))
 ```
 
 - Parametrelerin tipi yazılır (`x: T`), `T` çağrıda verilen değerden bulunur.
-- Generic lambda dışarıdaki değişkenleri kullanamaz: `ata n = 3; ata f = her<T> x: T için x * n` hata verir. Gereken değeri parametre olarak verin. (Generic lambdanın kopyaları başka yerlerde oluşturulabildiği için neyin kopyalanacağı belli olmazdı.)
+- Generic lambda dışarıdaki değişkenleri kullanamaz: `değişken n = 3; sabit f = her<T> x: T için x * n` hata verir. Gereken değeri parametre olarak verin. (Generic lambdanın kopyaları başka yerlerde oluşturulabildiği için neyin kopyalanacağı belli olmazdı.)
 
 ### Generic fonksiyonları değer olarak vermek
 
@@ -3881,7 +3881,7 @@ yazdır([1, 2, 3].dönüşüm(kare), [1.5, 2.5].dönüşüm(iki_kat))  // T list
 [1, 4, 9] [3.0, 5.0]
 ```
 
-Tipin belli olmadığı yerde (`ata f = kare`, `yazdır(kare)`) Kolay ne yapılacağını söyler: ya çağırın ya da tipi belli bir yere verin.
+Tipin belli olmadığı yerde (`değişken f = kare`, `yazdır(kare)`) Kolay ne yapılacağını söyler: ya çağırın ya da tipi belli bir yere verin.
 
 ### Her tiple çalışan fonksiyon parametresi
 
@@ -3937,12 +3937,12 @@ tür Kutu<T>(değer: T) {
     fonksiyon koy(yeni: T) { değer = yeni }
 }
 
-ata k = Kutu(değer: 5)
+değişken k = Kutu(değer: 5)
 yazdır(k)
 k.koy(7)
 yazdır(k.al())
 
-ata y = Kutu("merhaba")
+değişken y = Kutu("merhaba")
 yazdır(y)
 ```
 
@@ -3957,8 +3957,8 @@ Kutu<Yazı>(değer: "merhaba")
 Tipi açıkça yazmak gerektiğinde (değişken, parametre, liste elemanı) içindeki tip `< >` ile yazılır:
 
 ```kolay
-ata s: Kutu<Tam(8)> = Kutu(değer: 3)       // T = Tam(8): yazılan tip kullanılır
-ata kutular: Liste<Kutu<Yazı>> = [Kutu("a"), Kutu("b")]
+değişken s: Kutu<Tam(8)> = Kutu(değer: 3)       // T = Tam(8): yazılan tip kullanılır
+değişken kutular: Liste<Kutu<Yazı>> = [Kutu("a"), Kutu("b")]
 fonksiyon aç<T>(k: Kutu<T>) -> T { döndür k.değer }
 ```
 
@@ -3975,7 +3975,7 @@ tür Yığın<T>(elemanlar: Liste<T>) {
     fonksiyon boş_mu() -> Mantık { döndür elemanlar.uzunluk() == 0 }
 }
 
-ata tabaklar = Yığın([] olarak Liste<Yazı>)
+değişken tabaklar = Yığın([] olarak Liste<Yazı>)
 tabaklar.koy("mavi")
 tabaklar.koy("kırmızı")
 tabaklar.koy("yeşil")
@@ -3997,7 +3997,7 @@ Bir tür, alanında kendi tipini de taşıyabilir. Her düğümün bir değeri v
 ```kolay
 tür Düğüm<T>(değer: T, sonraki: Düğüm<T> veya Hiç)
 
-ata liste = Düğüm(1, Düğüm(2, Düğüm(3, Hiç)))
+değişken liste = Düğüm(1, Düğüm(2, Düğüm(3, Hiç)))
 yazdır(liste)
 ```
 
@@ -4013,7 +4013,7 @@ Generic bir türün ortak değeri **bütün kopyalar için tektir**: `Kutu<Tam(6
 
 ```kolay
 tür Kutu<T>(değer: T) {
-    ortak ata sayı = 0
+    ortak değişken sayı = 0
     fonksiyon say() { sayı += 1 }
 }
 Kutu(5).say()
@@ -4071,7 +4071,7 @@ yazdır(son([] olarak Liste<Ondalık>))      // Hiç
 
 // 2
 fonksiyon kaç_tane<T>(l: Liste<T>, aranan: T) -> Tam(64) {
-    ata sayı = 0
+    değişken sayı = 0
     l içindeki her x için yap {
         eğer x == aranan { sayı += 1 }
     }
@@ -4086,7 +4086,7 @@ tür Çift<A, B>(ilk: A, ikinci: B) {
         döndür Çift(ilk: ikinci, ikinci: ilk)
     }
 }
-ata ç = Çift("Ali", 90)
+değişken ç = Çift("Ali", 90)
 yazdır(ç)            // Çift<Yazı, Tam(64)>(ilk: "Ali", ikinci: 90)
 yazdır(ç.ters())     // Çift<Tam(64), Yazı>(ilk: 90, ikinci: "Ali")
 
@@ -4098,7 +4098,7 @@ tür Yığın<T>(elemanlar: Liste<T>) {
         döndür elemanlar[-1]
     }
 }
-ata y = Yığın([1, 2])
+değişken y = Yığın([1, 2])
 y.koy(3)
 yazdır(y.tepe())                           // 3
 yazdır(Yığın([] olarak Liste<Yazı>).tepe())  // Hiç
@@ -4117,9 +4117,9 @@ Ama bazı hatalar **beklenen** hatalardır. Kullanıcıdan yaşını istediniz, 
 ### İlk örnek: dene ve yakala
 
 ```kolay
-ata girdi = "yirmi"
+değişken girdi = "yirmi"
 dene {
-    ata yaş = girdi.tama()
+    değişken yaş = girdi.tama()
     yazdır(f"10 yıl sonra {yaş + 10} yaşında olacaksınız.")
 } yakala h: Hata.Dönüşüm {
     yazdır("Yaşınızı sayıyla yazmalısınız.")
@@ -4144,9 +4144,9 @@ Nasıl okunur:
 `girdi = "42"` olsaydı hata olmazdı: dene bloğu sonuna kadar çalışır, yakala bloğu hiç çalışmazdı:
 
 ```kolay
-ata girdi = "42"
+değişken girdi = "42"
 dene {
-    ata yaş = girdi.tama()
+    değişken yaş = girdi.tama()
     yazdır(f"10 yıl sonra {yaş + 10} yaşında olacaksınız.")
 } yakala h: Hata.Dönüşüm {
     yazdır("Yaşınızı sayıyla yazmalısınız.")
@@ -4162,7 +4162,7 @@ dene {
 Yakalanan hata bir **nesnedir** (bkz. [Türler](#15-türler-kendi-veri-tipinizi-yazmak)). Her hatanın bir `mesaj` alanı vardır; bu, hata yakalanmasaydı ekrana yazılacak olan Türkçe mesajdır. Hatanın kendisini de yazdırabilirsiniz:
 
 ```kolay
-ata l = [10, 20, 30]
+değişken l = [10, 20, 30]
 dene {
     yazdır(l[7])
 } yakala h: Hata.İndeks {
@@ -4192,7 +4192,7 @@ Kolay'ın kendi çalışma hataları şu türlerdendir. Hepsi `Hata` türünün 
 `yakala h: Hata` yazılırsa `Hata`'nın **bütün** alt türleri yakalanır:
 
 ```kolay
-ata sayılar = [8, 0, 4]
+değişken sayılar = [8, 0, 4]
 sayılar içindeki her s için yap {
     dene {
         yazdır(100 / s)
@@ -4226,7 +4226,7 @@ fonksiyon işle(l: Liste<Tam(64)>, i: Tam(64)) {
         yazdır("başka bir hata:", h.mesaj)
     }
 }
-ata l = [5, 0]
+değişken l = [5, 0]
 işle(l, 0)
 işle(l, 1)
 işle(l, 9)
@@ -4268,7 +4268,7 @@ fonksiyon kare_kök_tam(n: Tam(64)) -> Tam(64) {
     eğer n < 0 {
         fırlat Hata(mesaj: "Negatif sayının karekökü alınamaz.")
     }
-    ata k = 0
+    değişken k = 0
     (k + 1) * (k + 1) <= n sürece yap { k += 1 }
     döndür k
 }
@@ -4476,12 +4476,12 @@ fonksiyon böl(a: Tam(64), b: Tam(64)) -> Tam(64) veya Hata {
     eğer b == 0 { döndür Hata.SıfıraBölme(mesaj: "Bölen sıfır olamaz.") }
     döndür a / b
 }
-ata x = böl(10, 2) + 1    // ✗ HATA
+değişken x = böl(10, 2) + 1    // ✗ HATA
 ```
 
 ```
 HATA (deneme.kolay, satır 5): 'böl()' hata verebilir (Tam(64) veya Hata). Bir 'dene { } yakala' bloğu içinde kullanın ya da eşleştir ile kontrol edin.
-  5 | ata x = böl(10, 2) + 1    // ✗ HATA
+  5 | değişken x = böl(10, 2) + 1    // ✗ HATA
     |         ^^^^^^^^^^
 ```
 
@@ -4515,7 +4515,7 @@ fonksiyon böl(a: Tam(64), b: Tam(64)) -> Tam(64) veya Hata {
     döndür a / b
 }
 dene {
-    ata sonuç: Tam(64) veya Hata = böl(1, 0)
+    değişken sonuç: Tam(64) veya Hata = böl(1, 0)
     yazdır("hata değer olarak saklandı:", sonuç)
 } yakala h {
     yazdır("buraya gelinmez")
@@ -4591,8 +4591,8 @@ yazdır(ilk_sayı(["a", "b", "17", "20"]), ilk_sayı(["x"]))
 Hata olduğunda, `dene` bloğunda **o ana kadar** yapılan değişiklikler kalır, geri alınmaz:
 
 ```kolay
-ata toplam = 0
-ata l: Liste<Tam(64)>
+değişken toplam = 0
+değişken l: Liste<Tam(64)>
 dene {
     1..=10 içindeki her i için yap {
         eğer i == 5 { fırlat i }
@@ -4660,7 +4660,7 @@ dene {
 Hatanın kendisiyle işiniz yoksa değişken adı yerine `_` yazabilirsiniz:
 
 ```kolay
-ata sözlük: Sözlük<Yazı, Tam(64)> = {"a": 1}
+değişken sözlük: Sözlük<Yazı, Tam(64)> = {"a": 1}
 dene { yazdır(sözlük["b"]) } yakala _: Hata.Anahtar { yazdır("anahtar yok") }
 ```
 
@@ -4741,9 +4741,9 @@ Farkları:
 
 ```kolay
 // 1
-ata yazılar = ["3", "8", "x", "-2", "10"]
-ata toplam = 0
-ata atlanan = 0
+değişken yazılar = ["3", "8", "x", "-2", "10"]
+değişken toplam = 0
+değişken atlanan = 0
 yazılar içindeki her y için yap {
     dene {
         toplam += y.tama()
@@ -4757,7 +4757,7 @@ yazdır(f"Toplam: {toplam}, atlanan: {atlanan}")   // Toplam: 19, atlanan: 1
 fonksiyon karekök(x: Ondalık) -> Ondalık veya Hata {
     eğer x < 0.0 { döndür Hata(mesaj: f"{x} negatif, karekökü yok.") }
     eğer x == 0.0 { döndür 0.0 }
-    ata t = x
+    değişken t = x
     20 kere yap { t = (t + x / t) / 2 }
     döndür t
 }
@@ -4776,7 +4776,7 @@ tür Hesap(bakiye: Ondalık) {
         bakiye -= m
     }
 }
-ata h = Hesap(100.0)
+değişken h = Hesap(100.0)
 dene {
     h.çek(30.0)
     h.çek(200.0)
@@ -4786,7 +4786,7 @@ dene {
 yazdır(h.bakiye)   // 70.0: ilk çekim yapıldı
 
 // 4
-ata telefon: Sözlük<Yazı, Yazı> = {"Ali": "0532"}
+değişken telefon: Sözlük<Yazı, Yazı> = {"Ali": "0532"}
 ["Ali", "Veli"] içindeki her ad için yap {
     dene { yazdır(ad, telefon[ad]) } yakala _: Hata.Anahtar { yazdır(ad, "yok") }
 }
@@ -4822,7 +4822,7 @@ tür Nokta(x: Tam, y: Tam) {
 dahil et("./geometri.kolay")
 
 yazdır(daire_alanı(2.0))
-ata n = Nokta(3, 4)
+değişken n = Nokta(3, 4)
 yazdır(n.yazıya_dök())
 ```
 
@@ -4832,7 +4832,7 @@ yazdır(n.yazıya_dök())
 g adıyla dahil et("./geometri.kolay")
 
 yazdır(g.daire_alanı(2.0))
-ata n = g.Nokta(3, 4)
+değişken n = g.Nokta(3, 4)
 ```
 
 Kurallar:
@@ -4986,7 +4986,7 @@ tur Kisi(ad: Yazi, yas: Tam) {
     }
 }
 
-ata k = Kisi("Ali", 20)
+degisken k = Kisi("Ali", 20)
 eger k.yas >= 18 {
     yazdir(k.tanit())
 } degilse {
@@ -4994,7 +4994,7 @@ eger k.yas >= 18 {
 }
 ```
 
-- Bu modda yalnızca dilin kendi kelimeleri değişir: `eğer` → `eger`, `yazdır` → `yazdir`, `Yazı` → `Yazi`.
+- Bu modda yalnızca dilin kendi kelimeleri değişir: `değişken` → `degisken`, `eğer` → `eger`, `yazdır` → `yazdir`, `Yazı` → `Yazi`.
 - Kendi isimleriniz için Türkçe harf kullanmak yine serbesttir.
 - Bir dosyada iki yazım karıştırılamaz.
 - Her dosya kendi modunu seçer; `us` modunda yazılmış bir dosya `tr` modundaki bir dosyayı dahil edebilir.
@@ -5146,18 +5146,18 @@ Bilgisayar 1–100 arasında bir sayı tutar; kullanıcı tahmin eder, program "
 ```kolay
 r adıyla dahil et("rastgele")
 
-ata tutulan = r.tam_sayı(1, 100)
-ata deneme = 0
+değişken tutulan = r.tam_sayı(1, 100)
+değişken deneme = 0
 
 yazdır("1 ile 100 arasında bir sayı tuttum.")
 doğru sürece yap {
-    ata girdi = oku("Tahmininiz: ").kırp()
+    değişken girdi = oku("Tahmininiz: ").kırp()
     eğer girdi == "" {
         yazdır("Oyun bitti.")
         dur
     }
     dene {
-        ata tahmin = girdi.tama()
+        değişken tahmin = girdi.tama()
         deneme += 1
         eğer tahmin < tutulan {
             yazdır("Daha büyük")
@@ -5190,13 +5190,13 @@ tür Öğrenci(ad: Yazı, notlar: Liste<Tam>) {
 
     fonksiyon ortalama() -> Ondalık {
         eğer notlar.uzunluk() == 0 { döndür 0.0 }
-        ata toplam: Tam = 0
+        değişken toplam: Tam = 0
         notlar içindeki her n için yap { toplam += n }
         döndür toplam olarak Ondalık / notlar.uzunluk()
     }
 
     fonksiyon harf() -> Yazı {
-        ata o = ortalama()
+        değişken o = ortalama()
         eğer o >= 85.0 { döndür "AA" }
         eğer o >= 70.0 { döndür "BA" }
         eğer o >= 50.0 { döndür "CC" }
@@ -5225,7 +5225,7 @@ tür Sınıf(ad: Yazı, öğrenciler: Sözlük<Yazı, Öğrenci>) {
     }
 }
 
-ata sınıf = Sınıf("9-A", {})
+değişken sınıf = Sınıf("9-A", {})
 sınıf.kaydet("Ali")
 sınıf.kaydet("Ayşe")
 sınıf.not_ver("Ali", 70)
@@ -5246,10 +5246,10 @@ Bir metindeki toplam kelime sayısını, farklı kelime sayısını ve en sık g
 <summary>Çözüm</summary>
 
 ```kolay
-ata metin = "bir varmış bir yokmuş evvel zaman içinde kalbur saman içinde bir padişah varmış"
+değişken metin = "bir varmış bir yokmuş evvel zaman içinde kalbur saman içinde bir padişah varmış"
 
-ata sayılar: Sözlük<Yazı, Tam>
-ata toplam = 0
+değişken sayılar: Sözlük<Yazı, Tam>
+değişken toplam = 0
 metin.küçük_harf().böl(" ") içindeki her k için yap {
     eğer k == "" { devam }
     toplam += 1
@@ -5262,8 +5262,8 @@ yazdır(f"Farklı kelime: {sayılar.uzunluk()}")
 // en sık 3 kelime: her seferinde en büyüğü bulup çıkar
 yazdır("En sık geçenler:")
 3 kere yap {
-    ata en_kelime = ""
-    ata en_sayı: Tam = 0
+    değişken en_kelime = ""
+    değişken en_sayı: Tam = 0
     sayılar içindeki her (k, s) için yap {
         eğer s > en_sayı {
             en_kelime = k
@@ -5320,7 +5320,7 @@ tür BirikimHesabı[Hesap](faiz: Ondalık) {
     }
 }
 
-ata hesaplar: Liste<Hesap> = [
+değişken hesaplar: Liste<Hesap> = [
     VadesizHesap(sahip: "Ali", bakiye: 100.0, ek_hesap: 500.0),
     BirikimHesabı(sahip: "Ayşe", bakiye: 1000.0, faiz: 4.0),
     Hesap(sahip: "Can", bakiye: 50.0),
@@ -5334,7 +5334,7 @@ hesaplar içindeki her h için yap { h.ay_sonu() }
 hesaplar içindeki her h için yap { yazdır(h.özet()) }
 ```
 
-Not: `hesaplar[0].çek(...)` listedeki nesneyi yerinde değiştirir; ama `ata h = hesaplar[0]` diye bir kopya alıp onu değiştirseydik listedeki hesap değişmezdi (değer semantiği).
+Not: `hesaplar[0].çek(...)` listedeki nesneyi yerinde değiştirir; ama `değişken h = hesaplar[0]` diye bir kopya alıp onu değiştirseydik listedeki hesap değişmezdi (değer semantiği).
 
 </details>
 
@@ -5346,7 +5346,7 @@ Not: `hesaplar[0].çek(...)` listedeki nesneyi yerinde değiştirir; ama `ata h 
 <summary>Çözüm</summary>
 
 ```kolay
-ata tahta: Liste<Yazı>[3][3]
+değişken tahta: Liste<Yazı>[3][3]
 0..3 içindeki her i için yap {
     0..3 içindeki her j için yap { tahta[i][j] = "." }
 }
@@ -5367,19 +5367,19 @@ fonksiyon kazandı_mı(t: Liste<Yazı>[3][3], o: Yazı) -> Mantık {
     döndür yanlış
 }
 
-ata oyuncu = "X"
-ata hamle = 0
+değişken oyuncu = "X"
+değişken hamle = 0
 hamle < 9 sürece yap {
     göster(tahta)
-    ata girdi = oku(f"{oyuncu} oynuyor (satır sütun, örn: 1 2): ").kırp()
+    değişken girdi = oku(f"{oyuncu} oynuyor (satır sütun, örn: 1 2): ").kırp()
     eğer girdi == "" { dur }
-    ata parçalar = girdi.böl(" ")
+    değişken parçalar = girdi.böl(" ")
     eğer parçalar.uzunluk() != 2 {
         yazdır("İki sayı girin")
         devam
     }
-    ata s = 0
-    ata k = 0
+    değişken s = 0
+    değişken k = 0
     dene {
         s = parçalar[0].tama() - 1
         k = parçalar[1].tama() - 1
@@ -5424,13 +5424,13 @@ tür Sonuç(ad: Yazı, not: Tam(64))
 tür BozukSatır[Hata](satır: Yazı)
 
 fonksiyon çöz(satır: Yazı) -> Sonuç {
-    ata parçalar = satır.böl(",")
+    değişken parçalar = satır.böl(",")
     eğer parçalar.uzunluk() != 2 {
         fırlat BozukSatır(mesaj: "virgülle ayrılmış iki parça olmalı", satır: satır)
     }
-    ata ad = parçalar[0].kırp()
+    değişken ad = parçalar[0].kırp()
     dene {
-        ata n = parçalar[1].tama()
+        değişken n = parçalar[1].tama()
         eğer n < 0 veya n > 100 {
             fırlat BozukSatır(mesaj: f"not 0 ile 100 arasında olmalı ({n})", satır: satır)
         }
@@ -5440,8 +5440,8 @@ fonksiyon çöz(satır: Yazı) -> Sonuç {
     }
 }
 
-ata satırlar = ["Ali,85", "Ayşe,92", "Can,yetmiş", "Deniz,47", "Ece", "Fatih,61", "Gül,140"]
-ata sonuçlar: Liste<Sonuç>
+değişken satırlar = ["Ali,85", "Ayşe,92", "Can,yetmiş", "Deniz,47", "Ece", "Fatih,61", "Gül,140"]
+değişken sonuçlar: Liste<Sonuç>
 satırlar içindeki her s için yap {
     dene {
         sonuçlar.ekle(çöz(s))
@@ -5450,9 +5450,9 @@ satırlar içindeki her s için yap {
     }
 }
 
-ata geçenler = sonuçlar.filtre(her s için s.not >= 50).sıralı(göre: her s için -s.not)
+değişken geçenler = sonuçlar.filtre(her s için s.not >= 50).sıralı(göre: her s için -s.not)
 yazdır("Geçenler:", geçenler.dönüşüm(her s için f"{s.ad} ({s.not})"))
-ata notlar = sonuçlar.dönüşüm(her s için s.not)
+değişken notlar = sonuçlar.dönüşüm(her s için s.not)
 yazdır(f"Ortalama: {notlar.toplam() olarak Ondalık / notlar.uzunluk()}, en yüksek: {notlar.en_büyük()}")
 ```
 
@@ -5476,9 +5476,9 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 |---|---|
 | `yazdır("merhaba")` | `print("merhaba")` |
 | `yazdır(a, b, ayraç: ", ", son: "")` | `print(a, b, sep=", ", end="")` |
-| `ata x = 5` | `x = 5` |
-| `ata x: Tam = 5` | `x: int = 5` |
-| `ata sabit PI = 3.14` | `PI = 3.14` (Python'da gerçek sabit yok, büyük harf gelenektir) |
+| `değişken x = 5` | `x = 5` |
+| `değişken x: Tam = 5` | `x: int = 5` |
+| `sabit PI = 3.14` | `PI = 3.14` (Python'da gerçek sabit yok, büyük harf gelenektir) |
 | `f"Toplam: {t}"` | `f"Toplam: {t}"` (aynısı) |
 | `f"{x:.2}"`, `f"{ad:<10}"`, `f"{n:06}"` | `f"{x:.2f}"`, `f"{ad:<10}"`, `f"{n:06}"` (Python'da basamak için `f` gerekir) |
 | `f"{n:,}"` → `1.234.567` | `f"{n:,}"` → `1,234,567` (İngiliz usulü) |
@@ -5498,7 +5498,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `1..=10 içindeki her i için yap { }` | `for i in range(1, 11):` |
 | `(0..100).adım(5)` | `range(0, 100, 5)` |
 | `10..0` (geri sayar) | `range(10, 0, -1)` |
-| `ata r = 1..=5` (bir liste) | `r = list(range(1, 6))` |
+| `değişken r = 1..=5` (bir liste) | `r = list(range(1, 6))` |
 | `liste içindeki her x için yap { }` | `for x in liste:` |
 | `sözlük içindeki her (k, d) için yap { }` | `for k, d in sözlük.items():` |
 | `koşul sürece yap { }` | `while koşul:` |
@@ -5519,7 +5519,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `l.bul(x)` (yoksa `Hiç`) | `l.index(x)` (yoksa `ValueError`) |
 | `l.toplam()`, `l.en_büyük()`, `l.en_küçük()` | `sum(l)`, `max(l)`, `min(l)` |
 | `her x için x * 2` | `lambda x: x * 2` |
-| `ata f = her<T> x: T için x * 2` | `f = lambda x: x * 2` (Python'da her lambda zaten her tiple çağrılabilir) |
+| `sabit f = her<T> x: T için x * 2` | `f = lambda x: x * 2` (Python'da her lambda zaten her tiple çağrılabilir) |
 | `l.dönüşüm(her x için x * 2)` | `[x * 2 for x in l]` ya da `list(map(lambda x: x * 2, l))` |
 | `l.filtre(her x için x > 0)` | `[x for x in l if x > 0]` |
 | `l.hepsi(her x için x > 0)`, `l.herhangi(...)` | `all(x > 0 for x in l)`, `any(...)` |
@@ -5540,8 +5540,8 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `doğrula(x > 0, "mesaj")` | `assert x > 0, "mesaj"` |
 | `tür Kişi(ad: Yazı) { }` | `class Kişi:` + `def __init__(self, ad): self.ad = ad` |
 | `bu.ad` | `self.ad` |
-| `tür Kişi(ad: Yazı) { ata puan = 0 }` | `__init__` içinde `self.puan = 0` |
-| `ortak ata sayı = 0`, `Öğrenci.sayı` | sınıf değişkeni: `sayi = 0` (sınıf içinde), `Ogrenci.sayi` |
+| `tür Kişi(ad: Yazı) { değişken puan = 0 }` | `__init__` içinde `self.puan = 0` |
+| `ortak değişken sayı = 0`, `Öğrenci.sayı` | sınıf değişkeni: `sayi = 0` (sınıf içinde), `Ogrenci.sayi` |
 | `ortak fonksiyon yeni()` | `@staticmethod def yeni():` |
 | `tür Öğrenci[Kişi]` | `class Öğrenci(Kişi):` |
 | `Kişi.tanıt()` (ebeveyn metodu) | `super().tanıt()` |
@@ -5573,7 +5573,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
    ```
    Kolay'da `a` değişmezdi. Python'da kopya için `b = a.copy()` yazılır.
 4. **Sayılar:** Python'da `int` her zaman esnektir (Kolay'daki `Tam` gibi), taşmaz. `7 / 2` Python'da `3.5` verir; tam bölme için `7 // 2` yazılır.
-5. **Değişken tanımı:** Python'da `ata` yoktur. İlk atama değişkeni oluşturur, bu yüzden yazım hatalı bir isim sessizce yeni bir değişken olur.
+5. **Değişken tanımı:** Python'da `değişken` ya da `sabit` yazılmaz. İlk atama değişkeni oluşturur, bu yüzden yazım hatalı bir isim sessizce yeni bir değişken olur.
 6. **Sabitler:** Python'da gerçek sabit yoktur.
 7. **Hatalar:** Python'da herhangi bir satır hata fırlatabilir ve bu, fonksiyonun imzasında görünmez. Kolay'da `T veya Hata` döndüren bir fonksiyonu kontrol etmeden kullanmak derleme hatasıdır; Python'da `int("abc")` ancak çalışırken patlar. Python'a geçince `try`/`except` yazmayı kendiniz hatırlamalısınız.
 8. **Lambda:** Python'daki `lambda` tek bir ifade olabilir; birden fazla satır gerekiyorsa `def` ile isimli bir fonksiyon yazılır. Kolay'daki `her x için yap { ... }` gibi bloklu lambda Python'da yoktur.
@@ -5587,8 +5587,8 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 
 | Kolay | `us` yazımı | Anlamı |
 |---|---|---|
-| `ata` | `ata` | değişken tanımla; tür içinde başlangıç değerli alan |
-| `ata sabit` | `ata sabit` | sabit tanımla |
+| `değişken` | `degisken` | değişken tanımla; tür içinde başlangıç değerli alan |
+| `sabit` | `sabit` | değiştirilemeyen değer (sabit) tanımla |
 | `fonksiyon` | `fonksiyon` | fonksiyon tanımla |
 | `döndür` | `dondur` | fonksiyondan değer döndür |
 | `eğer` / `değilse` | `eger` / `degilse` | koşul |
@@ -5614,7 +5614,7 @@ Kolay'da öğrendiğiniz kavramlar Python'da birebir vardır, yalnızca kelimele
 | `her x için ...` | `her x icin ...` | isimsiz fonksiyon (lambda) |
 | `dene` / `yakala` | `dene` / `yakala` | hata yakalama |
 | `fırlat` | `firlat` | hata (ya da herhangi bir değer) fırlat |
-| `ortak` | `ortak` | türe ait değer ya da fonksiyon (`ortak ata`, `ortak fonksiyon`) |
+| `ortak` | `ortak` | türe ait değer ya da fonksiyon (`ortak değişken`, `ortak fonksiyon`) |
 
 ### Tipler
 

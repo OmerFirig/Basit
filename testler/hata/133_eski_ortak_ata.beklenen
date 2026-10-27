@@ -1,0 +1,3 @@
+HATA (133_eski_ortak_ata.kolay, satır 2): 'ata' yerine artık 'değişken' yazılır: değişken x = ... (değeri hiç değişmeyecekse: sabit x = ...)
+  2 |     ortak ata x = 0
+    |           ^^^^^

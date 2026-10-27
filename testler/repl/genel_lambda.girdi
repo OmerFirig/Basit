@@ -1,4 +1,4 @@
-ata iki_kat = her<T> x: T için x * 2
+değişken iki_kat = her<T> x: T için x * 2
 iki_kat(4)
 iki_kat(1.5)
 fonksiyon uygula(f: Fonksiyon(Tam(64)) -> Tam(64), x: Tam(64)) -> Tam(64) { döndür f(x) }

@@ -23,6 +23,6 @@ mat adıyla dış kütüphane("m") {
 yazdır(cos(0.0), karekök(2.0), mat.üs(2.0, 10.0), mat.tavan(2.25 olarak Ondalık(32)))
 yazdır(uzunluk("merhaba"), uzunluk("ağaç"), mutlak(-42), büyüt(97))
 yazdır(getenv("KOLAY_YOK_DEGISKEN"))
-ata t = 0.0
-(ata i = 0; i < 1000; i += 1) sürece yap { t += karekök(i olarak Ondalık) }
+değişken t = 0.0
+(değişken i = 0; i < 1000; i += 1) sürece yap { t += karekök(i olarak Ondalık) }
 yazdır(t)

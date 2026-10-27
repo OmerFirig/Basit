@@ -6,7 +6,7 @@ fonksiyon say(n: Tam(64)) -> Tam(64) {
     eğer n <= 0 { döndür 0 }
     döndür n + say(n - 1)
 }
-ata g = "dünya"
+değişken g = "dünya"
 yazdır(selam(g), g, say(1000))
 fonksiyon ekle() { g += "?" }
 ekle()

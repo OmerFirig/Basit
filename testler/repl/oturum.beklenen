@@ -14,7 +14,7 @@ Hata [17]: Sıfıra bölme hatası.
 Çıktı [20]: 8                         Tam(64)
 Çıktı [21]: N(a: 5)                   N
 Çıktı [23]: 9                         Tam(64)
-[1] ata x = 5
+[1] değişken x = 5
 [2] x * 2
 [3] fonksiyon kare(n: Tam(64)) -> Tam(64) {
         döndür n * n
@@ -25,7 +25,7 @@ Hata [17]: Sıfıra bölme hatası.
 [9] kare(x)
 [10] "abc"[1..]
 [11] [1, 2].bul(5)
-[14] ata l = [1]
+[14] değişken l = [1]
 [15] l.ekle(2)
 [16] l
 [18] l
@@ -33,7 +33,7 @@ Hata [17]: Sıfıra bölme hatası.
 [20] N(4).iki()
 [21] N(5)
 [22] /< çok satırlı
-       yorum >/ ata k = 3
+       yorum >/ değişken k = 3
 [23] k ** 2
 Hata: ':bilinmeyen' diye bir komut yok. Komutlar için :yardım
 Uyarı [24]: '^' özel veya (xor) işlemidir; üs için '**' yazın.

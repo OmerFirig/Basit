@@ -1,5 +1,5 @@
 // Generic fonksiyon değerleri:
-//   ata iki_kat = her<T> x: T için x * 2              generic lambda: her çağrıda kendi tipiyle çalışır
+//   değişken iki_kat = her<T> x: T için x * 2              generic lambda: her çağrıda kendi tipiyle çalışır
 //   uygula(iki_kat, 5)                                 somut tip beklenen yere verilince orada somutlaşır
 //   fonksiyon ikisine(f: Fonksiyon<T>(T) -> T) { }     parametre her tiple çalışan bir fonksiyon olabilir
 //
@@ -53,7 +53,7 @@ impl Checker {
             || self.funcs[fid].decl.as_ref().is_some_and(|d| d.params.iter().any(|p| genel_fonk_tipi(&p.ty).is_some()))
     }
 
-    /// `ata f = her<T> ...`: değeri olmayan (derleme anındaki) bir generic fonksiyon tanımlar
+    /// `değişken f = her<T> ...`: değeri olmayan (derleme anındaki) bir generic fonksiyon tanımlar
     pub(crate) fn genel_lambda_ata(&mut self, ad: &str, generics: &[(String, Span)], params: &[LParam], body: &LambdaBody, span: Span) -> CResult<()> {
         let idx = self.genel_lambda_kaydet(ad, generics, params, body, span)?;
         self.declare_var(ad, Type::Func(vec![], Box::new(Type::Hic)), true, true);
@@ -312,7 +312,7 @@ impl Checker {
     }
 }
 
-/// İfadede geçen adlar (değişken olabilecekler). `yerel`: gövdede tanımlananlar (ata, döngü değişkeni).
+/// İfadede geçen adlar (değişken olabilecekler). `yerel`: gövdede tanımlananlar (değişken/sabit, döngü değişkeni).
 fn adlari_topla(e: &Expr, out: &mut Vec<(String, Span)>, yerel: &mut Vec<String>) {
     let mut t = |x: &Expr| adlari_topla(x, out, yerel);
     match &e.kind {

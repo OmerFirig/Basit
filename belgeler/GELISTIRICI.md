@@ -26,7 +26,7 @@ fonksiyon ortalama(l: Liste<Ondalık>) -> Ondalık {
 fonksiyon en_sık<T>(l: Liste<T>) -> T { ... }        // generic: her tiple çalışır
 
 tür Rapor(başlık: Yazı, basamak: Tam(64) = 2) {      // varsayılan değerli alan
-    ortak ata yazılan = 0                            // bütün raporların ortak sayacı
+    ortak değişken yazılan = 0                            // bütün raporların ortak sayacı
     fonksiyon yaz(ad: Yazı, değer: Ondalık) { ... }
 }
 
@@ -38,7 +38,7 @@ doğrula(ortalama([1.0, 2.0, 3.0]) == 2.0)
 // ana.kolay
 ist adıyla dahil et("./istatistik.kolay")
 yazdır(ist.ortalama([70.0, 85.5]))
-ata r = ist.Rapor("Sınıf notları")
+değişken r = ist.Rapor("Sınıf notları")
 yazdır(ist.Rapor.yazılan)
 ```
 
@@ -87,7 +87,7 @@ c adıyla dış kütüphane("m") {                         // libm
     fonksiyon üs(a: Ondalık, b: Ondalık) -> Ondalık = "pow"
 }
 
-ata sabit PI = 3.141592653589793
+sabit PI = 3.141592653589793
 
 fonksiyon hipotenüs(a: Ondalık, b: Ondalık) -> Ondalık {
     döndür c.karekök(a * a + b * b)
@@ -223,7 +223,7 @@ BM::Say => {
 ## 6. Yeni sözdizimi eklemek
 
 1. Yeni anahtar kelime: `src/lexer.rs`, `enum Kw` ve `KEYWORDS` (tr ve us yazımı).
-2. Ağaç: `src/ast.rs`'ye yeni düğüm, `src/parser.rs`'de okuma. Hatalı yazımlar için yol gösterici mesaj yazın (örnek: `'ortak' sonrasında 'ata' ya da 'fonksiyon' yazılır`).
+2. Ağaç: `src/ast.rs`'ye yeni düğüm, `src/parser.rs`'de okuma. Hatalı yazımlar için yol gösterici mesaj yazın (örnek: `'ortak' sonrasında 'değişken', 'sabit' ya da 'fonksiyon' yazılır`).
 3. Tip denetimi: `check.rs` / `cexpr.rs` / `cstmt.rs`. Mümkünse var olan TIR'a çevirin (bkz. 3. bölümdeki ilke).
 4. Testler, editör (`kolay.tmLanguage.json` anahtar kelime listesi, `extension.js` `KEYWORDS`), kurs.
 

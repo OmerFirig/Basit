@@ -1,6 +1,6 @@
 fonksiyon yeni() -> Liste<Tam(64)> { döndür [3, 1, 2] }
 yeni().ekle(5)
-ata l = yeni()
+değişken l = yeni()
 l.sırala()
 yazdır(l, yeni().uzunluk(), yeni()[0])
 seçenek Renk { Kırmızı, Yeşil
@@ -8,5 +8,5 @@ seçenek Renk { Kırmızı, Yeşil
 yazdır(Renk.Yeşil.ad(), Renk.Kırmızı)
 tür T(v: Tam(64)) { fonksiyon iki() -> Tam(64) { döndür v * 2 } }
 yazdır(T(21).iki())
-ata metinler = ["b", "a"]
+değişken metinler = ["b", "a"]
 yazdır(metinler.yazıya().uzunluk())

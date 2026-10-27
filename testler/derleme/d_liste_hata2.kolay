@@ -1,2 +1,2 @@
-ata l: Liste<Tam(64)>
+değişken l: Liste<Tam(64)>
 l.çıkar()

@@ -1,2 +1,2 @@
 fonksiyon selamla(ad: Yazı) { yazdır(ad) }
-ata x = selamla("Ali")
+değişken x = selamla("Ali")

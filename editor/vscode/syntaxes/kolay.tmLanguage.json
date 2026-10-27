@@ -21,7 +21,7 @@
         },
         {
           "name": "storage.type.kolay",
-          "match": "(?<![\\p{L}\\p{N}_])(?:ata|sabit|fonksiyon|tür|tur|arayüz|arayuz|seçenek|secenek|yeniden|ortak)(?![\\p{L}\\p{N}_])"
+          "match": "(?<![\\p{L}\\p{N}_])(?:değişken|degisken|sabit|fonksiyon|tür|tur|arayüz|arayuz|seçenek|secenek|yeniden|ortak)(?![\\p{L}\\p{N}_])"
         },
         {
           "name": "keyword.other.import.kolay",
